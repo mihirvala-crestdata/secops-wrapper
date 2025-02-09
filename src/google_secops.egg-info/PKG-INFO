@@ -1,0 +1,20 @@
+Metadata-Version: 2.2
+Name: google-secops
+Version: 0.1.0
+Summary: Python SDK for Google SecOps
+Author-email: Your Name <your.email@example.com>
+License: Apache-2.0
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+Requires-Dist: google-auth>=2.0.0
+Requires-Dist: google-auth-httplib2>=0.1.0
+Requires-Dist: google-api-python-client>=2.0.0
+Provides-Extra: test
+Requires-Dist: pytest>=7.0.0; extra == "test"
+Requires-Dist: pytest-cov>=3.0.0; extra == "test"
+Requires-Dist: tox>=3.24.0; extra == "test"
+Provides-Extra: docs
+Requires-Dist: sphinx>=4.0.0; extra == "docs"
+Requires-Dist: sphinx-rtd-theme>=1.0.0; extra == "docs"
+
+# Google SecOps SDK
