@@ -3,20 +3,38 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "google-secops"
-version = "0.1.0"
+name = "secops"
+version = "0.1.1"
 description = "Python SDK for Google SecOps"
 readme = "README.md"
 requires-python = ">=3.7"
 license = "Apache-2.0"
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "Google SecOps Team", email = "raybe@google.com" }
+]
+keywords = ["google", "security", "chronicle", "secops"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Security",
 ]
 dependencies = [
     "google-auth>=2.0.0",
     "google-auth-httplib2>=0.1.0",
     "google-api-python-client>=2.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/google/secops-sdk"
+Documentation = "https://github.com/google/secops-sdk#readme"
+Repository = "https://github.com/google/secops-sdk.git"
+Issues = "https://github.com/google/secops-sdk/issues"
 
 [project.optional-dependencies]
 test = [
@@ -32,7 +50,7 @@ docs = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v --cov=google_secops"
+addopts = "-v --cov=secops"
 markers = [
     "integration: marks tests as integration tests that interact with real APIs",
 ] 

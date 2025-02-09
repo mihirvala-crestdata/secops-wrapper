@@ -4,9 +4,9 @@ from datetime import datetime
 import json
 import time
 from google.auth.transport import requests as google_auth_requests
-from google_secops.auth import SecOpsAuth
-from google_secops.exceptions import APIError
-from google_secops.chronicle.models import Entity, EntityMetadata, EntityMetrics, TimeInterval, TimelineBucket, Timeline, WidgetMetadata, EntitySummary, AlertCount
+from secops.auth import SecOpsAuth
+from secops.exceptions import APIError
+from secops.chronicle.models import Entity, EntityMetadata, EntityMetrics, TimeInterval, TimelineBucket, Timeline, WidgetMetadata, EntitySummary, AlertCount
 import re
 from enum import Enum
 

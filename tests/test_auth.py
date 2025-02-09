@@ -1,7 +1,7 @@
 """Tests for authentication functionality."""
 import pytest
-from google_secops.auth import SecOpsAuth, CHRONICLE_SCOPES
-from google_secops.exceptions import AuthenticationError
+from secops.auth import SecOpsAuth, CHRONICLE_SCOPES
+from secops.exceptions import AuthenticationError
 from config import SERVICE_ACCOUNT_JSON
 
 def test_default_auth():

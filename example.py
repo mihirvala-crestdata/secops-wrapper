@@ -2,9 +2,9 @@
 """Example usage of the Google SecOps SDK for Chronicle."""
 
 from datetime import datetime, timedelta, timezone
-from google_secops import SecOpsClient
+from secops import SecOpsClient
 from pprint import pprint
-from google_secops.exceptions import APIError
+from secops.exceptions import APIError
 
 def main():
     # Initialize the client
@@ -103,14 +103,14 @@ order:
         ip_summary = chronicle.summarize_entity(
             start_time=start_time,
             end_time=end_time,
-            value="153.200.135.92"  # Automatically detects IP
+            value="8.8.8.8"  # Automatically detects IP
         )
         
         # Domain (automatically uses value_type)
         domain_summary = chronicle.summarize_entity(
             start_time=start_time,
             end_time=end_time,
-            value="prerukily-underifenaty.biz"  # Automatically detects domain
+            value="google.com"  # Automatically detects domain
         )
         
         # File hash (automatically uses field_path)

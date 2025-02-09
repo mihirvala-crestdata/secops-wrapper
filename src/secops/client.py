@@ -1,8 +1,8 @@
 """Main client for Google SecOps SDK."""
 from typing import Optional, Dict, Any
 from google.auth.credentials import Credentials
-from google_secops.auth import SecOpsAuth
-from google_secops.chronicle import ChronicleClient
+from secops.auth import SecOpsAuth
+from secops.chronicle import ChronicleClient
 
 class SecOpsClient:
     """Main client class for interacting with Google SecOps."""

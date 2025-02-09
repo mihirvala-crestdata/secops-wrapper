@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any, List
 from google.auth.credentials import Credentials
 from google.oauth2 import service_account
 import google.auth
-from google_secops.exceptions import AuthenticationError
+from secops.exceptions import AuthenticationError
 
 # Define default scopes needed for Chronicle API
 CHRONICLE_SCOPES = [

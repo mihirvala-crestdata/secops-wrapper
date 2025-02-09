@@ -2,7 +2,7 @@
 import os
 import sys
 import pytest
-from google_secops import SecOpsClient
+from secops import SecOpsClient
 
 # Add tests directory to Python path
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))

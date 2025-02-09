@@ -4,9 +4,9 @@ These tests require valid credentials and API access.
 """
 import pytest
 from datetime import datetime, timedelta, timezone
-from google_secops import SecOpsClient
+from secops import SecOpsClient
 from ..config import CHRONICLE_CONFIG, SERVICE_ACCOUNT_JSON
-from google_secops.exceptions import APIError
+from secops.exceptions import APIError
 
 @pytest.mark.integration
 def test_chronicle_search():

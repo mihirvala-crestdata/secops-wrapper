@@ -2,8 +2,8 @@
 from datetime import datetime, timezone
 import pytest
 from unittest.mock import Mock, patch
-from google_secops.chronicle.client import ChronicleClient, _detect_value_type, ValueType
-from google_secops.chronicle.models import (
+from secops.chronicle.client import ChronicleClient, _detect_value_type, ValueType
+from secops.chronicle.models import (
     Entity, 
     EntityMetadata, 
     EntityMetrics, 
@@ -14,7 +14,7 @@ from google_secops.chronicle.models import (
     EntitySummary,
     AlertCount
 )
-from google_secops.exceptions import APIError
+from secops.exceptions import APIError
 
 @pytest.fixture
 def chronicle_client():
