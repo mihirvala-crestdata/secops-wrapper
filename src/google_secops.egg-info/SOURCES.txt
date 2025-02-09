@@ -1,9 +1,0 @@
-README.md
-pyproject.toml
-src/secops.egg-info/PKG-INFO
-src/secops.egg-info/SOURCES.txt
-src/secops.egg-info/dependency_links.txt
-src/secops.egg-info/requires.txt
-src/secops.egg-info/top_level.txt
-src/secops/chronicle/client.py
-tests/test_auth.py

@@ -8,3 +8,6 @@ __pycache__/
 how-to-upload.txt
 example.py
 .coverage
+dist/
+build/
+*.egg-info/

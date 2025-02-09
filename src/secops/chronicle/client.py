@@ -20,7 +20,7 @@ import time
 from google.auth.transport import requests as google_auth_requests
 from secops.auth import SecOpsAuth
 from secops.exceptions import APIError
-from secops.chronicle.models import Entity, EntityMetadata, EntityMetrics, TimeInterval, TimelineBucket, Timeline, WidgetMetadata, EntitySummary, AlertCount
+from secops.chronicle.models import Entity, EntityMetadata, EntityMetrics, TimeInterval, TimelineBucket, Timeline, WidgetMetadata, EntitySummary, AlertCount, CaseList
 import re
 from enum import Enum
 
@@ -644,3 +644,187 @@ class ChronicleClient:
             
         except Exception as e:
             raise APIError(f"Error parsing entity summaries response: {str(e)}") 
+
+    def list_iocs(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        max_matches: int = 1000,
+        add_mandiant_attributes: bool = True,
+        prioritized_only: bool = False,
+    ) -> dict:
+        """List IoC matches against ingested events.
+        
+        Args:
+            start_time (datetime): Start time for IoC matches
+            end_time (datetime): End time for IoC matches
+            max_matches (int, optional): Maximum number of matches to return. Defaults to 1000.
+            add_mandiant_attributes (bool, optional): Include Mandiant attributes. Defaults to True.
+            prioritized_only (bool, optional): Only return prioritized IoCs. Defaults to False.
+
+        Returns:
+            dict: Response containing matched IoCs with the following structure:
+                {
+                    "matches": [
+                        {
+                            "artifactIndicator": {...},
+                            "sources": [...],
+                            "categories": [...],
+                            "assetIndicators": [...],
+                            ...
+                        }
+                    ],
+                    "more_data_available": bool
+                }
+
+        Raises:
+            APIError: If the API request fails
+        """
+        url = f"{self.base_url}/{self.instance_id}/legacy:legacySearchEnterpriseWideIoCs"
+
+        params = {
+            "timestampRange.startTime": start_time.isoformat(),
+            "timestampRange.endTime": end_time.isoformat(),
+            "maxMatchesToReturn": max_matches,
+            "addMandiantAttributes": add_mandiant_attributes,
+            "fetchPrioritizedIocsOnly": prioritized_only,
+        }
+
+        response = self.session.get(url, params=params)
+        
+        if response.status_code != 200:
+            raise APIError(f"Failed to list IoCs: {response.text}")
+        
+        return response.json() 
+
+    def get_cases(self, case_ids: list[str]) -> CaseList:
+        """Get details for specified cases.
+
+        Args:
+            case_ids (list[str]): List of case IDs to retrieve
+
+        Returns:
+            CaseList: Collection of cases with helper methods for filtering and lookup
+
+        Raises:
+            APIError: If the API request fails
+            ValueError: If more than 1000 case IDs are requested
+        """
+        if len(case_ids) > 1000:
+            raise ValueError("Maximum of 1000 cases can be retrieved in a batch")
+
+        url = f"{self.base_url}/{self.instance_id}/legacy:legacyBatchGetCases"
+        
+        params = {
+            "names": case_ids
+        }
+
+        response = self.session.get(url, params=params)
+        
+        if response.status_code != 200:
+            raise APIError(f"Failed to get cases: {response.text}")
+            
+        return CaseList.from_dict(response.json()) 
+
+    def get_alerts(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        snapshot_query: str = "feedback_summary.status != \"CLOSED\"",
+        baseline_query: str = None,
+        max_alerts: int = 1000,
+        enable_cache: bool = True,
+        max_attempts: int = 30,
+        poll_interval: float = 1.0
+    ) -> dict:
+        """Get alerts within a time range."""
+        url = f"{self.base_url}/{self.instance_id}/legacy:legacyFetchAlertsView"
+        
+        params = {
+            "timeRange.startTime": start_time.isoformat(),
+            "timeRange.endTime": end_time.isoformat(),
+            "snapshotQuery": snapshot_query,
+            "alertListOptions.maxReturnedAlerts": max_alerts,
+            "enableCache": "ALERTS_FEATURE_PREFERENCE_ENABLED" if enable_cache else "ALERTS_FEATURE_PREFERENCE_DISABLED",
+            "fieldAggregationOptions.maxValuesPerField": 60
+        }
+
+        headers = {
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
+        }
+
+        print("\nDebug - Initial Request:")
+        print(f"URL: {url}")
+        print("Parameters:", json.dumps(params, indent=2))
+        
+        response = self.session.get(url, params=params, headers=headers, stream=True)
+        
+        if response.status_code != 200:
+            print("Error Response:", response.text)
+            raise APIError(f"Failed to get alerts: {response.text}")
+
+        # Collect all response lines and fix the JSON format
+        print("\nCollecting response data...")
+        response_lines = []
+        for line in response.iter_lines():
+            if line:
+                line_str = line.decode('utf-8').strip()
+                response_lines.append(line_str)
+        
+        # Join and fix the JSON array format
+        full_response = ''.join(response_lines)
+        
+        # Remove any trailing commas and ensure proper array closure
+        full_response = full_response.rstrip(',')
+        if not full_response.endswith(']'):
+            full_response += ']'
+        
+        print("\nFull response collected. Attempting to parse...")
+        print("Response length:", len(full_response))
+        
+        try:
+            # Parse the array of updates
+            updates = json.loads(full_response)
+            
+            # Combine updates into a single response
+            final_response = {
+                'progress': 0,
+                'alerts': {'alerts': []},
+                'complete': False
+            }
+            
+            for update in updates:
+                # Update progress
+                if update.get('progress', 0) > final_response['progress']:
+                    final_response['progress'] = update['progress']
+                
+                # Collect alerts
+                if update.get('alerts', {}).get('alerts'):
+                    final_response['alerts']['alerts'].extend(
+                        update['alerts']['alerts']
+                    )
+                
+                # Update other fields
+                for field in ['baseline_alerts_count', 'filtered_alerts_count', 'complete']:
+                    if field in update:
+                        final_response[field] = update[field]
+            
+            print("\nProcessed response summary:")
+            print(f"Progress: {final_response.get('progress', 0) * 100:.1f}%")
+            print(f"Complete: {final_response.get('complete')}")
+            print(f"Baseline Count: {final_response.get('baseline_alerts_count')}")
+            print(f"Filtered Count: {final_response.get('filtered_alerts_count')}")
+            print(f"Alert Count: {len(final_response.get('alerts', {}).get('alerts', []))}")
+            
+            return final_response
+            
+        except json.JSONDecodeError as e:
+            print(f"\nError parsing JSON: {str(e)}")
+            print("Error location:", e.pos)
+            print("Line:", e.lineno, "Column:", e.colno)
+            print("Context:", full_response[max(0, e.pos-50):min(len(full_response), e.pos+50)])
+            raise APIError(f"Failed to parse alerts response: {str(e)}") 

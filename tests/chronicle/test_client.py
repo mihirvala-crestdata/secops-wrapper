@@ -26,7 +26,8 @@ from secops.chronicle.models import (
     Timeline, 
     WidgetMetadata, 
     EntitySummary,
-    AlertCount
+    AlertCount,
+    CaseList
 )
 from secops.exceptions import APIError
 
@@ -529,4 +530,120 @@ def test_summarize_entity_all_types(chronicle_client):
                 end_time=datetime(2024, 1, 2, tzinfo=timezone.utc),
                 value=value
             )
-            assert isinstance(result, EntitySummary), f"Failed for type: {type_name}" 
+            assert isinstance(result, EntitySummary), f"Failed for type: {type_name}"
+
+def test_list_iocs(chronicle_client):
+    """Test listing IoCs."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "matches": [
+            {
+                "artifactIndicator": {"domain": "malicious.com"},
+                "sources": ["Mandiant"],
+                "categories": ["malware"],
+                "assetIndicators": [
+                    {"namespace": "test", "hostname": "infected-host"}
+                ],
+            }
+        ],
+        "more_data_available": False
+    }
+
+    with patch.object(chronicle_client.session, 'get', return_value=mock_response):
+        result = chronicle_client.list_iocs(
+            start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            end_time=datetime(2024, 1, 2, tzinfo=timezone.utc)
+        )
+        
+        assert result["matches"][0]["artifactIndicator"]["domain"] == "malicious.com"
+        assert not result["more_data_available"]
+
+def test_list_iocs_error(chronicle_client):
+    """Test error handling when listing IoCs."""
+    mock_response = Mock()
+    mock_response.status_code = 400
+    mock_response.text = "Invalid request"
+
+    with patch.object(chronicle_client.session, 'get', return_value=mock_response):
+        with pytest.raises(APIError, match="Failed to list IoCs"):
+            chronicle_client.list_iocs(
+                start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                end_time=datetime(2024, 1, 2, tzinfo=timezone.utc)
+            ) 
+
+def test_get_cases(chronicle_client):
+    """Test getting case details."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "cases": [
+            {
+                "id": "case-123",
+                "displayName": "Test Case",
+                "stage": "Investigation",
+                "priority": "PRIORITY_HIGH",
+                "status": "OPEN",
+                "soarPlatformInfo": {
+                    "caseId": "soar-123",
+                    "responsePlatformType": "RESPONSE_PLATFORM_TYPE_SIEMPLIFY"
+                }
+            }
+        ]
+    }
+
+    with patch.object(chronicle_client.session, 'get', return_value=mock_response):
+        result = chronicle_client.get_cases(["case-123"])
+        
+        assert isinstance(result, CaseList)
+        case = result.get_case("case-123")
+        assert case.display_name == "Test Case"
+        assert case.priority == "PRIORITY_HIGH"
+        assert case.soar_platform_info.case_id == "soar-123"
+
+def test_get_cases_filtering(chronicle_client):
+    """Test CaseList filtering methods."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "cases": [
+            {
+                "id": "case-1",
+                "priority": "PRIORITY_HIGH",
+                "status": "OPEN",
+                "stage": "Investigation"
+            },
+            {
+                "id": "case-2", 
+                "priority": "PRIORITY_MEDIUM",
+                "status": "CLOSED",
+                "stage": "Triage"
+            }
+        ]
+    }
+
+    with patch.object(chronicle_client.session, 'get', return_value=mock_response):
+        result = chronicle_client.get_cases(["case-1", "case-2"])
+        
+        high_priority = result.filter_by_priority("PRIORITY_HIGH")
+        assert len(high_priority) == 1
+        assert high_priority[0].id == "case-1"
+
+        open_cases = result.filter_by_status("OPEN")
+        assert len(open_cases) == 1
+        assert open_cases[0].id == "case-1"
+
+def test_get_cases_error(chronicle_client):
+    """Test error handling when getting cases."""
+    mock_response = Mock()
+    mock_response.status_code = 400
+    mock_response.text = "Invalid request"
+
+    with patch.object(chronicle_client.session, 'get', return_value=mock_response):
+        with pytest.raises(APIError, match="Failed to get cases"):
+            chronicle_client.get_cases(["invalid-id"])
+
+def test_get_cases_limit(chronicle_client):
+    """Test case ID limit validation."""
+    with pytest.raises(ValueError, match="Maximum of 1000 cases"):
+        chronicle_client.get_cases(["id"] * 1001) 

@@ -351,6 +351,48 @@ results = chronicle.summarize_entities_from_query(
 ]
 ```
 
+### List IoCs (Indicators of Compromise)
+
+You can retrieve IoC matches against ingested events:
+
+```python
+from datetime import datetime, timedelta, timezone
+from secops import SecOpsClient
+
+client = SecOpsClient()
+chronicle = client.chronicle(
+    customer_id="your-customer-id",
+    project_id="your-project-id"
+)
+
+# Get IoCs from the last 24 hours
+end_time = datetime.now(timezone.utc)
+start_time = end_time - timedelta(hours=24)
+
+iocs = chronicle.list_iocs(
+    start_time=start_time,
+    end_time=end_time,
+    max_matches=1000,  # Maximum number of results to return
+    add_mandiant_attributes=True,  # Include Mandiant attributes
+    prioritized_only=False  # Include all IoCs, not just prioritized ones
+)
+
+# Process the results
+for ioc in iocs['matches']:
+    print(f"IoC Type: {next(iter(ioc['artifactIndicator'].keys()))}")
+    print(f"IoC Value: {next(iter(ioc['artifactIndicator'].values()))}")
+    print(f"Sources: {', '.join(ioc['sources'])}")
+    print(f"Categories: {', '.join(ioc['categories'])}")
+```
+
+The response includes detailed information about each IoC match, including:
+- The indicator itself (domain, IP, hash, etc.)
+- Sources and categories
+- Affected assets in your environment
+- First and last seen timestamps
+- Confidence scores and severity ratings
+- Associated threat actors and malware families
+
 ## Error Handling
 
 The SDK defines several custom exceptions:
@@ -399,6 +441,132 @@ summary = chronicle.summarize_entity(
     value_type="DOMAIN_NAME"         # Explicitly set value type
 )
 ```
+
+## Case Management
+
+You can retrieve and manage Chronicle cases:
+
+```python
+from secops import SecOpsClient
+
+client = SecOpsClient()
+chronicle = client.chronicle(
+    customer_id="your-customer-id",
+    project_id="your-project-id"
+)
+
+# Get details for specific cases
+cases = chronicle.get_cases(["case-id-1", "case-id-2"])
+
+# Filter cases by priority
+high_priority = cases.filter_by_priority("PRIORITY_HIGH")
+for case in high_priority:
+    print(f"High Priority Case: {case.display_name}")
+    print(f"Stage: {case.stage}")
+    print(f"Status: {case.status}")
+
+# Look up a specific case
+case = cases.get_case("case-id-1")
+if case:
+    print(f"Case Details:")
+    print(f"Display Name: {case.display_name}")
+    print(f"Priority: {case.priority}")
+    print(f"SOAR Case ID: {case.soar_platform_info.case_id}")
+```
+
+The `CaseList` class provides helper methods for working with cases:
+- `get_case(case_id)`: Look up a specific case by ID
+- `filter_by_priority(priority)`: Get cases with specified priority
+- `filter_by_status(status)`: Get cases with specified status
+- `filter_by_stage(stage)`: Get cases with specified stage
+
+## Alerts and Case Management
+
+You can retrieve alerts and their associated cases:
+
+```python
+from datetime import datetime, timedelta, timezone
+from secops import SecOpsClient
+
+client = SecOpsClient()
+chronicle = client.chronicle(
+    customer_id="your-customer-id",
+    project_id="your-project-id"
+)
+
+# Get alerts from the last 24 hours
+end_time = datetime.now(timezone.utc)
+start_time = end_time - timedelta(hours=24)
+
+# Get non-closed alerts
+alerts = chronicle.get_alerts(
+    start_time=start_time,
+    end_time=end_time,
+    snapshot_query='feedback_summary.status != "CLOSED"',
+    max_alerts=1000
+)
+
+# Get alerts from the response
+alert_list = alerts.get('alerts', {}).get('alerts', [])
+
+# Extract case IDs from alerts
+case_ids = {alert.get('caseName') for alert in alert_list if alert.get('caseName')}
+
+# Get details for cases if any found
+if case_ids:
+    cases = chronicle.get_cases(list(case_ids))
+    
+    # Process cases and their related alerts
+    for case in cases.cases:
+        print(f"Case: {case.display_name}")
+        print(f"Priority: {case.priority}")
+        print(f"Stage: {case.stage}")
+        print(f"Status: {case.status}")
+        
+        # Find alerts for this case
+        case_alerts = [
+            alert for alert in alert_list
+            if alert.get('caseName') == case.id
+        ]
+        print(f"Related Alerts: {len(case_alerts)}")
+        
+        # Find high severity alerts
+        high_sev_alerts = [
+            alert for alert in case_alerts
+            if alert.get('feedbackSummary', {}).get('severityDisplay') == 'HIGH'
+        ]
+        if high_sev_alerts:
+            print(f"High Severity Alerts: {len(high_sev_alerts)}")
+```
+
+#### Alert Response Details
+The alerts response includes:
+- Progress status (0-100%)
+- Completion status
+- Alert counts (baseline and filtered)
+- Alert details including:
+  - Rule information
+  - Detection details
+  - Creation time
+  - Case association
+  - Feedback summary (status, priority, severity)
+
+#### Case Details
+Cases include:
+- Display name
+- Priority level
+- Current stage
+- Status
+- Associated alerts
+
+You can filter alerts using the snapshot query parameter, which supports fields like:
+- detection.rule_set
+- detection.rule_name
+- detection.alert_state
+- feedback_summary.verdict
+- feedback_summary.priority
+- feedback_summary.severity_display
+- feedback_summary.status
 
 ## License
 
