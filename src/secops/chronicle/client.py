@@ -653,38 +653,12 @@ class ChronicleClient:
         add_mandiant_attributes: bool = True,
         prioritized_only: bool = False,
     ) -> dict:
-        """List IoC matches against ingested events.
-        
-        Args:
-            start_time (datetime): Start time for IoC matches
-            end_time (datetime): End time for IoC matches
-            max_matches (int, optional): Maximum number of matches to return. Defaults to 1000.
-            add_mandiant_attributes (bool, optional): Include Mandiant attributes. Defaults to True.
-            prioritized_only (bool, optional): Only return prioritized IoCs. Defaults to False.
-
-        Returns:
-            dict: Response containing matched IoCs with the following structure:
-                {
-                    "matches": [
-                        {
-                            "artifactIndicator": {...},
-                            "sources": [...],
-                            "categories": [...],
-                            "assetIndicators": [...],
-                            ...
-                        }
-                    ],
-                    "more_data_available": bool
-                }
-
-        Raises:
-            APIError: If the API request fails
-        """
+        """List IoC matches against ingested events."""
         url = f"{self.base_url}/{self.instance_id}/legacy:legacySearchEnterpriseWideIoCs"
 
         params = {
-            "timestampRange.startTime": start_time.isoformat(),
-            "timestampRange.endTime": end_time.isoformat(),
+            "timestampRange.startTime": start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "timestampRange.endTime": end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
             "maxMatchesToReturn": max_matches,
             "addMandiantAttributes": add_mandiant_attributes,
             "fetchPrioritizedIocsOnly": prioritized_only,
@@ -694,8 +668,42 @@ class ChronicleClient:
         
         if response.status_code != 200:
             raise APIError(f"Failed to list IoCs: {response.text}")
-        
-        return response.json() 
+
+        try:
+            data = response.json()
+            
+            # Process each IoC match to ensure consistent field names
+            if "matches" in data:
+                for match in data["matches"]:
+                    # Convert timestamps if present
+                    for ts_field in ["iocIngestTimestamp", "firstSeenTimestamp", "lastSeenTimestamp"]:
+                        if ts_field in match:
+                            match[ts_field] = match[ts_field].rstrip("Z")
+                    
+                    # Ensure consistent field names
+                    if "filterProperties" in match and "stringProperties" in match["filterProperties"]:
+                        props = match["filterProperties"]["stringProperties"]
+                        match["properties"] = {
+                            k: [v["rawValue"] for v in values["values"]]
+                            for k, values in props.items()
+                        }
+                    
+                    # Process associations
+                    if "associationIdentifier" in match:
+                        # Remove duplicate associations (some have same name but different regionCode)
+                        seen = set()
+                        unique_associations = []
+                        for assoc in match["associationIdentifier"]:
+                            key = (assoc["name"], assoc["associationType"])
+                            if key not in seen:
+                                seen.add(key)
+                                unique_associations.append(assoc)
+                        match["associationIdentifier"] = unique_associations
+
+            return data
+            
+        except Exception as e:
+            raise APIError(f"Failed to process IoCs response: {str(e)}")
 
     def get_cases(self, case_ids: list[str]) -> CaseList:
         """Get details for specified cases.
@@ -757,18 +765,13 @@ class ChronicleClient:
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
         }
 
-        print("\nDebug - Initial Request:")
-        print(f"URL: {url}")
-        print("Parameters:", json.dumps(params, indent=2))
-        
+               
         response = self.session.get(url, params=params, headers=headers, stream=True)
         
         if response.status_code != 200:
-            print("Error Response:", response.text)
             raise APIError(f"Failed to get alerts: {response.text}")
 
         # Collect all response lines and fix the JSON format
-        print("\nCollecting response data...")
         response_lines = []
         for line in response.iter_lines():
             if line:
@@ -783,8 +786,7 @@ class ChronicleClient:
         if not full_response.endswith(']'):
             full_response += ']'
         
-        print("\nFull response collected. Attempting to parse...")
-        print("Response length:", len(full_response))
+
         
         try:
             # Parse the array of updates
@@ -812,19 +814,8 @@ class ChronicleClient:
                 for field in ['baseline_alerts_count', 'filtered_alerts_count', 'complete']:
                     if field in update:
                         final_response[field] = update[field]
-            
-            print("\nProcessed response summary:")
-            print(f"Progress: {final_response.get('progress', 0) * 100:.1f}%")
-            print(f"Complete: {final_response.get('complete')}")
-            print(f"Baseline Count: {final_response.get('baseline_alerts_count')}")
-            print(f"Filtered Count: {final_response.get('filtered_alerts_count')}")
-            print(f"Alert Count: {len(final_response.get('alerts', {}).get('alerts', []))}")
-            
+                                 
             return final_response
             
         except json.JSONDecodeError as e:
-            print(f"\nError parsing JSON: {str(e)}")
-            print("Error location:", e.pos)
-            print("Line:", e.lineno, "Column:", e.colno)
-            print("Context:", full_response[max(0, e.pos-50):min(len(full_response), e.pos+50)])
             raise APIError(f"Failed to parse alerts response: {str(e)}") 
