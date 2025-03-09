@@ -1,11 +1,12 @@
 # Google SecOps SDK for Python
 
-A Python SDK for interacting with Google Security Operations products, currently supporting Chronicle.
+A Python SDK for interacting with Google Security Operations products, currently supporting Chronicle/SecOps SIEM.
+This wraps the API for common use cases.
 
 ## Installation
 
 ```bash
-pip install -i https://test.pypi.org/simple/ secops
+pip install secops
 ```
 
 ## Authentication

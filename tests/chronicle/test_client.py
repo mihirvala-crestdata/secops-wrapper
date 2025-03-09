@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ from secops.chronicle.models import (
     CaseList
 )
 from secops.exceptions import APIError
+import time
 
 @pytest.fixture
 def chronicle_client():
@@ -644,6 +645,209 @@ def test_get_cases_error(chronicle_client):
             chronicle_client.get_cases(["invalid-id"])
 
 def test_get_cases_limit(chronicle_client):
-    """Test case ID limit validation."""
-    with pytest.raises(ValueError, match="Maximum of 1000 cases"):
-        chronicle_client.get_cases(["id"] * 1001) 
+    """Test limiting the number of cases returned."""
+    with pytest.raises(ValueError, match="Maximum of 1000 cases can be retrieved in a batch"):
+        chronicle_client.get_cases(["case-id"] * 1001)
+
+def test_get_alerts(chronicle_client):
+    """Test getting alerts."""
+    # First response with in-progress status
+    initial_response = Mock()
+    initial_response.status_code = 200
+    initial_response.iter_lines.return_value = [
+        b'{"progress": 0.057142861187458038, "validBaselineQuery": true, "validSnapshotQuery": true}'
+    ]
+    
+    # Second response with completed results
+    complete_response = Mock()
+    complete_response.status_code = 200
+    complete_response.iter_lines.return_value = [
+        b'{"progress": 1, "complete": true, "validBaselineQuery": true, "baselineAlertsCount": 1, "validSnapshotQuery": true, "filteredAlertsCount": 1,',
+        b'"alerts": {"alerts": [{"type": "RULE_DETECTION", "detection": [{"ruleName": "TEST_RULE", "description": "Test Rule", "ruleId": "rule-123"}],',
+        b'"createdTime": "2025-03-09T15:26:10.248291Z", "id": "alert-123", "caseName": "case-123",',
+        b'"feedbackSummary": {"status": "OPEN", "priority": "PRIORITY_MEDIUM", "severityDisplay": "Medium"}}]},',
+        b'"fieldAggregations": {"fields": [{"fieldName": "detection.rule_name", "baselineAlertCount": 1, "alertCount": 1, "valueCount": 1,',
+        b'"allValues": [{"value": {"stringValue": "TEST_RULE"}, "baselineAlertCount": 1, "alertCount": 1}]}]}}'
+    ]
+
+    # Mock the sleep function to prevent actual waiting
+    with patch('time.sleep'), patch.object(chronicle_client.session, 'get', side_effect=[initial_response, complete_response]):
+        result = chronicle_client.get_alerts(
+            start_time=datetime(2025, 3, 8, tzinfo=timezone.utc),
+            end_time=datetime(2025, 3, 9, tzinfo=timezone.utc),
+            snapshot_query='feedback_summary.status != "CLOSED"',
+            max_alerts=10,
+            poll_interval=0.001  # Use a very small interval for testing
+        )
+        
+        # Check the key parts of the response
+        assert result.get('complete') is True
+        assert result.get('validBaselineQuery') is True
+        assert result.get('filteredAlertsCount') == 1
+        
+        # Check alert details
+        alerts = result.get('alerts', {}).get('alerts', [])
+        assert len(alerts) == 1
+        alert = alerts[0]
+        assert alert.get('id') == 'alert-123'
+        assert alert.get('caseName') == 'case-123'
+        assert alert.get('feedbackSummary', {}).get('status') == 'OPEN'
+        assert alert.get('detection')[0].get('ruleName') == 'TEST_RULE'
+        
+        # Check field aggregations
+        field_aggregations = result.get('fieldAggregations', {}).get('fields', [])
+        assert len(field_aggregations) > 0
+        rule_name_field = next((f for f in field_aggregations if f.get('fieldName') == 'detection.rule_name'), None)
+        assert rule_name_field is not None
+        assert rule_name_field.get('alertCount') == 1
+
+def test_get_alerts_error(chronicle_client):
+    """Test error handling for get_alerts."""
+    error_response = Mock()
+    error_response.status_code = 400
+    error_response.text = "Invalid query syntax"
+    
+    with patch.object(chronicle_client.session, 'get', return_value=error_response):
+        with pytest.raises(APIError, match="Failed to get alerts: Invalid query syntax"):
+            chronicle_client.get_alerts(
+                start_time=datetime(2025, 3, 8, tzinfo=timezone.utc),
+                end_time=datetime(2025, 3, 9, tzinfo=timezone.utc)
+            )
+
+def test_get_alerts_json_parsing(chronicle_client):
+    """Test handling of streaming response and JSON parsing."""
+    response = Mock()
+    response.status_code = 200
+    # Simulate response line with a trailing comma
+    response.iter_lines.return_value = [
+        b'{"progress": 1, "complete": true,"alerts": {"alerts": [{"id": "alert-1"},{"id": "alert-2"},]},"fieldAggregations": {"fields": []}}'
+    ]
+    
+    # Mock the sleep function to prevent actual waiting
+    with patch('time.sleep'), patch.object(chronicle_client.session, 'get', return_value=response):
+        result = chronicle_client.get_alerts(
+            start_time=datetime(2025, 3, 8, tzinfo=timezone.utc),
+            end_time=datetime(2025, 3, 9, tzinfo=timezone.utc),
+            max_attempts=1  # Only make one request
+        )
+        
+        # Verify the response was properly parsed despite formatting issues
+        assert result.get('complete') is True
+        alerts = result.get('alerts', {}).get('alerts', [])
+        assert len(alerts) == 2
+        assert alerts[0].get('id') == 'alert-1'
+        assert alerts[1].get('id') == 'alert-2'
+
+def test_get_alerts_parameters(chronicle_client):
+    """Test that parameters are correctly set in the request."""
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.iter_lines.return_value = [b'{"progress": 1, "complete": true}']
+    
+    with patch('time.sleep'), patch.object(chronicle_client.session, 'get', return_value=mock_response) as mock_get:
+        start_time = datetime(2025, 3, 8, tzinfo=timezone.utc)
+        end_time = datetime(2025, 3, 9, tzinfo=timezone.utc)
+        snapshot_query = 'feedback_summary.status = "OPEN"'
+        baseline_query = 'detection.rule_id = "rule-123"'
+        max_alerts = 50
+        enable_cache = False
+        
+        chronicle_client.get_alerts(
+            start_time=start_time,
+            end_time=end_time,
+            snapshot_query=snapshot_query,
+            baseline_query=baseline_query,
+            max_alerts=max_alerts,
+            enable_cache=enable_cache,
+            max_attempts=1  # Only make one request
+        )
+        
+        # Verify that the correct parameters were sent
+        mock_get.assert_called_once()
+        args, kwargs = mock_get.call_args
+        
+        # Check URL and parameters
+        params = kwargs.get('params', {})
+        assert params.get('timeRange.startTime') == start_time.isoformat()
+        assert params.get('timeRange.endTime') == end_time.isoformat()
+        assert params.get('snapshotQuery') == snapshot_query
+        assert params.get('baselineQuery') == baseline_query
+        assert params.get('alertListOptions.maxReturnedAlerts') == max_alerts
+        assert params.get('enableCache') == "ALERTS_FEATURE_PREFERENCE_DISABLED"
+
+def test_get_alerts_json_processing(chronicle_client):
+    """Test processing of streaming JSON response with complex structure."""
+    response = Mock()
+    response.status_code = 200
+    # Simulate a complex JSON response with nested structures matching the real API
+    response.iter_lines.return_value = [
+        b'{"progress": 1, "complete": true, "validBaselineQuery": true, "baselineAlertsCount": 2, "validSnapshotQuery": true, "filteredAlertsCount": 2, '
+        b'"alerts": {"alerts": ['
+        b'{"type": "RULE_DETECTION", "detection": [{"ruleName": "RULE1", "ruleId": "rule-1", "alertState": "ALERTING", "detectionFields": [{"key": "hostname", "value": "host1"}]}], "id": "alert-1", "createdTime": "2025-03-01T00:00:00Z"},'
+        b'{"type": "RULE_DETECTION", "detection": [{"ruleName": "RULE2", "ruleId": "rule-2", "alertState": "ALERTING", "detectionFields": [{"key": "hostname", "value": "host2"}]}], "id": "alert-2", "createdTime": "2025-03-02T00:00:00Z"}'
+        b']},'
+        b'"fieldAggregations": {"fields": [{"fieldName": "detection.rule_name", "baselineAlertCount": 2, "alertCount": 2, "valueCount": 2, '
+        b'"allValues": ['
+        b'{"value": {"stringValue": "RULE1"}, "baselineAlertCount": 1, "alertCount": 1},'
+        b'{"value": {"stringValue": "RULE2"}, "baselineAlertCount": 1, "alertCount": 1}'
+        b']}]}}'
+    ]
+    
+    with patch('time.sleep'), patch.object(chronicle_client.session, 'get', return_value=response):
+        result = chronicle_client.get_alerts(
+            start_time=datetime(2025, 3, 1, tzinfo=timezone.utc),
+            end_time=datetime(2025, 3, 3, tzinfo=timezone.utc),
+            max_attempts=1  # Only make one request
+        )
+        
+        # Verify that complex nested structures are correctly processed
+        assert result.get('complete') is True
+        assert result.get('baselineAlertsCount') == 2
+        assert result.get('filteredAlertsCount') == 2
+        
+        # Check alerts list
+        alerts = result.get('alerts', {}).get('alerts', [])
+        assert len(alerts) == 2
+        
+        # First alert
+        assert alerts[0].get('id') == 'alert-1'
+        assert alerts[0].get('detection')[0].get('ruleName') == 'RULE1'
+        assert alerts[0].get('detection')[0].get('detectionFields')[0].get('value') == 'host1'
+        
+        # Second alert
+        assert alerts[1].get('id') == 'alert-2'
+        assert alerts[1].get('detection')[0].get('ruleName') == 'RULE2'
+        assert alerts[1].get('detection')[0].get('detectionFields')[0].get('value') == 'host2'
+        
+        # Field aggregations
+        field_aggs = result.get('fieldAggregations', {}).get('fields', [])
+        assert len(field_aggs) == 1
+        rule_name_field = field_aggs[0]
+        assert rule_name_field.get('fieldName') == 'detection.rule_name'
+        assert rule_name_field.get('valueCount') == 2
+        assert len(rule_name_field.get('allValues', [])) == 2
+        rule_values = [v.get('value', {}).get('stringValue') for v in rule_name_field.get('allValues', [])]
+        assert 'RULE1' in rule_values
+        assert 'RULE2' in rule_values
+
+def test_fix_json_formatting(chronicle_client):
+    """Test JSON formatting fix helper method."""
+    # Test trailing commas in arrays
+    json_with_array_trailing_comma = '{"items": [1, 2, 3,]}'
+    fixed = chronicle_client._fix_json_formatting(json_with_array_trailing_comma)
+    assert fixed == '{"items": [1, 2, 3]}'
+    
+    # Test trailing commas in objects
+    json_with_object_trailing_comma = '{"a": 1, "b": 2,}'
+    fixed = chronicle_client._fix_json_formatting(json_with_object_trailing_comma)
+    assert fixed == '{"a": 1, "b": 2}'
+    
+    # Test multiple trailing commas
+    json_with_multiple_trailing_commas = '{"a": [1, 2,], "b": {"c": 3, "d": 4,},}'
+    fixed = chronicle_client._fix_json_formatting(json_with_multiple_trailing_commas)
+    assert fixed == '{"a": [1, 2], "b": {"c": 3, "d": 4}}'
+    
+    # Test no trailing commas
+    json_without_trailing_commas = '{"a": [1, 2], "b": {"c": 3, "d": 4}}'
+    fixed = chronicle_client._fix_json_formatting(json_without_trailing_commas)
+    assert fixed == json_without_trailing_commas 

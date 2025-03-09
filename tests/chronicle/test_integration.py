@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -190,3 +190,62 @@ def test_chronicle_summarize_entities_from_query():
     except APIError as e:
         print(f"\nAPI Error details: {str(e)}")  # Debug print
         raise 
+
+@pytest.mark.integration
+def test_chronicle_alerts():
+    """Test Chronicle alerts functionality with real API."""
+    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+    
+    # Get alerts from the last 1 day
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - timedelta(days=1)
+    
+    try:
+        # Use a query to get non-closed alerts
+        result = chronicle.get_alerts(
+            start_time=start_time,
+            end_time=end_time,
+            snapshot_query='feedback_summary.status != "CLOSED"',
+            max_alerts=10,  # Limit to 10 alerts for testing
+            max_attempts=5   # Limit polling attempts for faster test
+        )
+        
+        # Basic validation of the response
+        assert 'complete' in result
+        assert result.get('complete') is True or result.get('progress') == 1
+        
+        # Check if we got any alerts
+        alerts = result.get('alerts', {}).get('alerts', [])
+        print(f"\nFound {len(alerts)} alerts")
+        
+        # If we have alerts, validate their structure
+        if alerts:
+            alert = alerts[0]
+            assert 'id' in alert
+            assert 'type' in alert
+            assert 'createdTime' in alert
+            
+            # Check detection info if this is a rule detection
+            if alert.get('type') == 'RULE_DETECTION' and 'detection' in alert:
+                detection = alert.get('detection', [])[0]
+                assert 'ruleName' in detection
+                print(f"\nRule name: {detection.get('ruleName')}")
+            
+            # Check if alert is linked to a case
+            if 'caseName' in alert:
+                print(f"\nAlert is linked to case: {alert.get('caseName')}")
+        
+        # Validate field aggregations if present
+        field_aggregations = result.get('fieldAggregations', {}).get('fields', [])
+        if field_aggregations:
+            assert isinstance(field_aggregations, list)
+            
+            # Check specific field aggregations if available
+            status_field = next((f for f in field_aggregations if f.get('fieldName') == 'feedback_summary.status'), None)
+            if status_field:
+                print(f"\nStatus field values: {[v.get('value', {}).get('enumValue') for v in status_field.get('allValues', [])]}")
+        
+    except APIError as e:
+        print(f"\nAPI Error details: {str(e)}")  # Debug print
+        raise

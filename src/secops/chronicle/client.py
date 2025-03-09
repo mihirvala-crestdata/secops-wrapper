@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import json
+import re
 import time
 from google.auth.transport import requests as google_auth_requests
 from secops.auth import SecOpsAuth
 from secops.exceptions import APIError
 from secops.chronicle.models import Entity, EntityMetadata, EntityMetrics, TimeInterval, TimelineBucket, Timeline, WidgetMetadata, EntitySummary, AlertCount, CaseList
-import re
 from enum import Enum
 
 class ValueType(Enum):
@@ -745,7 +745,24 @@ class ChronicleClient:
         max_attempts: int = 30,
         poll_interval: float = 1.0
     ) -> dict:
-        """Get alerts within a time range."""
+        """Get alerts within a time range.
+        
+        Args:
+            start_time: Start time for alerts search
+            end_time: End time for alerts search
+            snapshot_query: Query to filter alerts (default: non-closed alerts)
+            baseline_query: Optional baseline query
+            max_alerts: Maximum number of alerts to return
+            enable_cache: Whether to use caching for the request
+            max_attempts: Maximum number of polling attempts
+            poll_interval: Polling interval in seconds
+            
+        Returns:
+            Dict containing the alerts response
+            
+        Raises:
+            APIError: If the API request fails or response parsing fails
+        """
         url = f"{self.base_url}/{self.instance_id}/legacy:legacyFetchAlertsView"
         
         params = {
@@ -756,66 +773,169 @@ class ChronicleClient:
             "enableCache": "ALERTS_FEATURE_PREFERENCE_ENABLED" if enable_cache else "ALERTS_FEATURE_PREFERENCE_DISABLED",
             "fieldAggregationOptions.maxValuesPerField": 60
         }
+        
+        if baseline_query:
+            params["baselineQuery"] = baseline_query
 
         headers = {
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
             'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
+            'Pragma': 'no-cache'
         }
-
-               
-        response = self.session.get(url, params=params, headers=headers, stream=True)
         
-        if response.status_code != 200:
-            raise APIError(f"Failed to get alerts: {response.text}")
-
-        # Collect all response lines and fix the JSON format
-        response_lines = []
+        # Create an accumulator for all updates
+        final_response = {
+            'progress': 0,
+            'alerts': {'alerts': []},
+            'complete': False
+        }
+        
+        # Poll until complete or max attempts
+        attempt = 0
+        while attempt < max_attempts:
+            attempt += 1
+            
+            # Make the request
+            response = self.session.get(url, params=params, headers=headers, stream=True)
+            
+            if response.status_code != 200:
+                raise APIError(f"Failed to get alerts: {response.text}")
+                
+            # Process this response
+            updates = self._process_alerts_response(response)
+            
+            # Merge the updates into our accumulator
+            self._merge_alert_updates(final_response, updates)
+            
+            # Check if we're done
+            if final_response.get('complete'):
+                break
+                
+            # If not complete and we have more attempts, wait and try again
+            if attempt < max_attempts:
+                time.sleep(poll_interval)
+        
+        return final_response
+        
+    def _process_alerts_response(self, response) -> list:
+        """Process streaming response from alerts API.
+        
+        Args:
+            response: HTTP response with streaming data
+            
+        Returns:
+            List of parsed JSON updates
+            
+        Raises:
+            APIError: If parsing fails and no valid updates were found
+        """
+        # The API can return either individual JSON objects per line
+        # or an array of objects, or a mix of both
+        line_buffer = []
+        updates = []
+        
         for line in response.iter_lines():
-            if line:
-                line_str = line.decode('utf-8').strip()
-                response_lines.append(line_str)
-        
-        # Join and fix the JSON array format
-        full_response = ''.join(response_lines)
-        
-        # Remove any trailing commas and ensure proper array closure
-        full_response = full_response.rstrip(',')
-        if not full_response.endswith(']'):
-            full_response += ']'
-        
-
-        
-        try:
-            # Parse the array of updates
-            updates = json.loads(full_response)
-            
-            # Combine updates into a single response
-            final_response = {
-                'progress': 0,
-                'alerts': {'alerts': []},
-                'complete': False
-            }
-            
-            for update in updates:
-                # Update progress
-                if update.get('progress', 0) > final_response['progress']:
-                    final_response['progress'] = update['progress']
+            if not line:
+                continue
                 
-                # Collect alerts
-                if update.get('alerts', {}).get('alerts'):
-                    final_response['alerts']['alerts'].extend(
-                        update['alerts']['alerts']
-                    )
+            line_str = line.decode('utf-8').strip()
+            if not line_str:
+                continue
                 
-                # Update other fields
-                for field in ['baseline_alerts_count', 'filtered_alerts_count', 'complete']:
-                    if field in update:
-                        final_response[field] = update[field]
-                                 
-            return final_response
+            line_buffer.append(line_str)
             
-        except json.JSONDecodeError as e:
-            raise APIError(f"Failed to parse alerts response: {str(e)}") 
+            # Try to parse what we have so far
+            current_buffer = ''.join(line_buffer)
+            
+            # Handle case where response starts with an array bracket
+            if current_buffer.startswith('[') and not current_buffer.endswith(']'):
+                # Not a complete array yet, continue collecting
+                continue
+                
+            # Fix any JSON formatting issues
+            current_buffer = self._fix_json_formatting(current_buffer)
+            
+            try:
+                # Try parsing it as a complete object or array
+                parsed_data = json.loads(current_buffer)
+                
+                # Handle the case where parsed_data is an array of updates
+                if isinstance(parsed_data, list):
+                    updates.extend(parsed_data)
+                else:
+                    updates.append(parsed_data)
+                    
+                # Clear the buffer after successful parsing
+                line_buffer = []
+            except json.JSONDecodeError:
+                # If it fails, it might be incomplete. Continue to the next line
+                pass
+        
+        # If we have leftover data, try once more with aggressive fix-ups
+        if line_buffer:
+            try:
+                current_buffer = ''.join(line_buffer)
+                # Make sure array has closing bracket if it started with one
+                if current_buffer.startswith('[') and not current_buffer.endswith(']'):
+                    current_buffer += ']'
+                # Fix potential trailing commas
+                current_buffer = self._fix_json_formatting(current_buffer)
+                
+                parsed_data = json.loads(current_buffer)
+                if isinstance(parsed_data, list):
+                    updates.extend(parsed_data)
+                else:
+                    updates.append(parsed_data)
+            except json.JSONDecodeError as e:
+                # If we can't parse the remaining data, log but don't fail if we have some updates
+                if not updates:
+                    raise APIError(f"Failed to parse alerts response: {str(e)} - Data: {current_buffer}")
+        
+        if not updates:
+            raise APIError("No valid data received from alerts API")
+            
+        return updates
+        
+    def _merge_alert_updates(self, target: dict, updates: list) -> None:
+        """Merge alerts updates into the target dictionary.
+        
+        Args:
+            target: Target dictionary to update
+            updates: List of updates to merge in
+            
+        This method modifies the target dictionary in place.
+        """
+        for update in updates:
+            # Merge all fields from this update
+            for key, value in update.items():
+                # Special handling for alerts to accumulate them
+                if key == 'alerts' and isinstance(value, dict) and 'alerts' in value:
+                    if 'alerts' not in target:
+                        target['alerts'] = {'alerts': []}
+                    if not isinstance(target['alerts'], dict):
+                        target['alerts'] = {'alerts': []}
+                    if 'alerts' not in target['alerts']:
+                        target['alerts']['alerts'] = []
+                    target['alerts']['alerts'].extend(value['alerts'])
+                # Take the latest value for progress or overwrite other fields
+                elif key == 'progress':
+                    if value > target.get('progress', 0):
+                        target['progress'] = value
+                # For all other fields, take the latest value
+                else:
+                    target[key] = value
+        
+    def _fix_json_formatting(self, json_str: str) -> str:
+        """Fix common JSON formatting issues.
+        
+        Args:
+            json_str: JSON string to fix
+            
+        Returns:
+            Fixed JSON string
+        """
+        # Replace trailing commas in arrays and objects which cause JSON parsing to fail
+        # This regex finds commas followed by a closing bracket
+        json_str = re.sub(r',\s*([\]}])', r'\1', json_str)
+        return json_str 
