@@ -18,7 +18,7 @@ import json
 import ipaddress
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, Union, Literal
 
 from google.auth.transport import requests as google_auth_requests
 from secops.auth import SecOpsAuth
@@ -34,8 +34,35 @@ from secops.chronicle.entity import (
     summarize_entities_from_query as _summarize_entities_from_query
 )
 from secops.chronicle.ioc import list_iocs as _list_iocs
-from secops.chronicle.case import get_cases as _get_cases
+from secops.chronicle.case import get_cases_from_list
 from secops.chronicle.alert import get_alerts as _get_alerts
+
+# Import rule functions
+from secops.chronicle.rule import (
+    create_rule as _create_rule,
+    get_rule as _get_rule,
+    list_rules as _list_rules,
+    update_rule as _update_rule,
+    delete_rule as _delete_rule,
+    enable_rule as _enable_rule
+)
+from secops.chronicle.rule_alert import (
+    get_alert as _get_alert,
+    update_alert as _update_alert,
+    bulk_update_alerts as _bulk_update_alerts,
+    search_rule_alerts as _search_rule_alerts
+)
+from secops.chronicle.rule_detection import (
+    list_detections as _list_detections,
+    list_errors as _list_errors
+)
+from secops.chronicle.rule_retrohunt import (
+    create_retrohunt as _create_retrohunt,
+    get_retrohunt as _get_retrohunt
+)
+from secops.chronicle.rule_set import (
+    batch_update_curated_rule_set_deployments as _batch_update_curated_rule_set_deployments
+)
 
 from secops.chronicle.models import (
     Entity, 
@@ -464,19 +491,17 @@ class ChronicleClient:
         )
 
     def get_cases(self, case_ids: list[str]) -> CaseList:
-        """Get cases from Chronicle.
+        """Get case information for the specified case IDs.
         
         Args:
             case_ids: List of case IDs to retrieve
             
         Returns:
-            CaseList object with case details
+            A CaseList object containing the requested cases
             
         Raises:
             APIError: If the API request fails
-            ValueError: If too many case IDs are provided
         """
-        from secops.chronicle.case import get_cases_from_list
         return get_cases_from_list(self, case_ids)
 
     def get_alerts(
@@ -603,4 +628,384 @@ class ChronicleClient:
             Tuple of (field_path, value_type)
         """
         from secops.chronicle.entity import _detect_value_type
-        return _detect_value_type(value, value_type) 
+        return _detect_value_type(value, value_type)
+
+    # Rule Management methods
+    
+    def create_rule(self, rule_text: str) -> Dict[str, Any]:
+        """Creates a new detection rule to find matches in logs.
+        
+        Args:
+            rule_text: Content of the new detection rule, used to evaluate logs.
+            
+        Returns:
+            Dictionary containing the created rule information
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _create_rule(self, rule_text)
+    
+    def get_rule(self, rule_id: str) -> Dict[str, Any]:
+        """Get a rule by ID.
+        
+        Args:
+            rule_id: Unique ID of the detection rule to retrieve ("ru_<UUID>" or
+              "ru_<UUID>@v_<seconds>_<nanoseconds>"). If a version suffix isn't
+              specified we use the rule's latest version.
+              
+        Returns:
+            Dictionary containing rule information
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _get_rule(self, rule_id)
+    
+    def list_rules(self) -> Dict[str, Any]:
+        """Gets a list of rules.
+        
+        Returns:
+            Dictionary containing information about rules
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _list_rules(self)
+    
+    def update_rule(self, rule_id: str, rule_text: str) -> Dict[str, Any]:
+        """Updates a rule.
+        
+        Args:
+            rule_id: Unique ID of the detection rule to update ("ru_<UUID>")
+            rule_text: Updated content of the detection rule
+            
+        Returns:
+            Dictionary containing the updated rule information
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _update_rule(self, rule_id, rule_text)
+    
+    def delete_rule(self, rule_id: str, force: bool = False) -> Dict[str, Any]:
+        """Deletes a rule.
+        
+        Args:
+            rule_id: Unique ID of the detection rule to delete ("ru_<UUID>")
+            force: If True, deletes the rule even if it has associated retrohunts
+            
+        Returns:
+            Empty dictionary or deletion confirmation
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _delete_rule(self, rule_id, force)
+    
+    def enable_rule(self, rule_id: str, enabled: bool = True) -> Dict[str, Any]:
+        """Enables or disables a rule.
+        
+        Args:
+            rule_id: Unique ID of the detection rule to enable/disable ("ru_<UUID>")
+            enabled: Whether to enable (True) or disable (False) the rule
+            
+        Returns:
+            Dictionary containing rule deployment information
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _enable_rule(self, rule_id, enabled)
+    
+    # Rule Alert methods
+    
+    def get_alert(self, alert_id: str, include_detections: bool = False) -> Dict[str, Any]:
+        """Gets an alert by ID.
+        
+        Args:
+            alert_id: ID of the alert to retrieve
+            include_detections: Whether to include detection details in the response
+            
+        Returns:
+            Dictionary containing alert information
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _get_alert(self, alert_id, include_detections)
+    
+    def update_alert(
+        self,
+        alert_id: str,
+        confidence_score: Optional[int] = None,
+        reason: Optional[str] = None,
+        reputation: Optional[str] = None,
+        priority: Optional[str] = None,
+        status: Optional[str] = None,
+        verdict: Optional[str] = None,
+        risk_score: Optional[int] = None,
+        disregarded: Optional[bool] = None,
+        severity: Optional[int] = None,
+        comment: Optional[Union[str, Literal[""]]] = None,
+        root_cause: Optional[Union[str, Literal[""]]] = None
+    ) -> Dict[str, Any]:
+        """Updates an alert's properties.
+        
+        Args:
+            alert_id: ID of the alert to update
+            confidence_score: Confidence score [0-100] of the alert
+            reason: Reason for closing an alert. Valid values:
+                - "REASON_UNSPECIFIED"
+                - "REASON_NOT_MALICIOUS"
+                - "REASON_MALICIOUS"
+                - "REASON_MAINTENANCE"
+            reputation: Categorization of usefulness. Valid values:
+                - "REPUTATION_UNSPECIFIED"
+                - "USEFUL"
+                - "NOT_USEFUL"
+            priority: Alert priority. Valid values:
+                - "PRIORITY_UNSPECIFIED"
+                - "PRIORITY_INFO"
+                - "PRIORITY_LOW"
+                - "PRIORITY_MEDIUM"
+                - "PRIORITY_HIGH"
+                - "PRIORITY_CRITICAL"
+            status: Alert status. Valid values:
+                - "STATUS_UNSPECIFIED"
+                - "NEW"
+                - "REVIEWED"
+                - "CLOSED"
+                - "OPEN"
+            verdict: Verdict on the alert. Valid values:
+                - "VERDICT_UNSPECIFIED"
+                - "TRUE_POSITIVE"
+                - "FALSE_POSITIVE"
+            risk_score: Risk score [0-100] of the alert
+            disregarded: Whether the alert should be disregarded
+            severity: Severity score [0-100] of the alert
+            comment: Analyst comment (empty string is valid to clear)
+            root_cause: Alert root cause (empty string is valid to clear)
+            
+        Returns:
+            Dictionary containing updated alert information
+            
+        Raises:
+            APIError: If the API request fails
+            ValueError: If invalid values are provided
+        """
+        return _update_alert(
+            self,
+            alert_id,
+            confidence_score,
+            reason,
+            reputation,
+            priority,
+            status,
+            verdict,
+            risk_score,
+            disregarded,
+            severity,
+            comment,
+            root_cause
+        )
+    
+    def bulk_update_alerts(
+        self,
+        alert_ids: List[str],
+        confidence_score: Optional[int] = None,
+        reason: Optional[str] = None,
+        reputation: Optional[str] = None,
+        priority: Optional[str] = None,
+        status: Optional[str] = None,
+        verdict: Optional[str] = None,
+        risk_score: Optional[int] = None,
+        disregarded: Optional[bool] = None,
+        severity: Optional[int] = None,
+        comment: Optional[Union[str, Literal[""]]] = None,
+        root_cause: Optional[Union[str, Literal[""]]] = None
+    ) -> List[Dict[str, Any]]:
+        """Updates multiple alerts with the same properties.
+        
+        This is a helper function that iterates through the list of alert IDs
+        and applies the same updates to each alert.
+        
+        Args:
+            alert_ids: List of alert IDs to update
+            confidence_score: Confidence score [0-100] of the alert
+            reason: Reason for closing an alert
+            reputation: Categorization of usefulness
+            priority: Alert priority
+            status: Alert status
+            verdict: Verdict on the alert
+            risk_score: Risk score [0-100] of the alert
+            disregarded: Whether the alert should be disregarded
+            severity: Severity score [0-100] of the alert
+            comment: Analyst comment (empty string is valid to clear)
+            root_cause: Alert root cause (empty string is valid to clear)
+            
+        Returns:
+            List of dictionaries containing updated alert information
+            
+        Raises:
+            APIError: If any API request fails
+            ValueError: If invalid values are provided
+        """
+        return _bulk_update_alerts(
+            self,
+            alert_ids,
+            confidence_score,
+            reason,
+            reputation,
+            priority,
+            status,
+            verdict,
+            risk_score,
+            disregarded,
+            severity,
+            comment,
+            root_cause
+        )
+    
+    def search_rule_alerts(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        rule_status: Optional[str] = None,
+        page_size: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Search for alerts generated by rules.
+        
+        Args:
+            start_time: Start time for the search (inclusive)
+            end_time: End time for the search (exclusive)
+            rule_status: Filter by rule status (deprecated - not currently supported by the API)
+            page_size: Maximum number of alerts to return
+            
+        Returns:
+            Dictionary containing alert search results
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        from secops.chronicle.rule_alert import search_rule_alerts as _search_rule_alerts
+        return _search_rule_alerts(self, start_time, end_time, rule_status, page_size)
+    
+    # Rule Detection methods
+    
+    def list_detections(
+        self,
+        rule_id: str,
+        alert_state: Optional[str] = None,
+        page_size: Optional[int] = None,
+        page_token: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """List detections for a rule.
+        
+        Args:
+            rule_id: Unique ID of the rule to list detections for. Options are:
+                - {rule_id} (latest version)
+                - {rule_id}@v_<seconds>_<nanoseconds> (specific version)
+                - {rule_id}@- (all versions)
+            alert_state: If provided, filter by alert state. Valid values are:
+                - "UNSPECIFIED"
+                - "NOT_ALERTING"
+                - "ALERTING"
+            page_size: If provided, maximum number of detections to return
+            page_token: If provided, continuation token for pagination
+            
+        Returns:
+            Dictionary containing detection information
+            
+        Raises:
+            APIError: If the API request fails
+            ValueError: If an invalid alert_state is provided
+        """
+        return _list_detections(self, rule_id, alert_state, page_size, page_token)
+    
+    def list_errors(self, rule_id: str) -> Dict[str, Any]:
+        """List execution errors for a rule.
+        
+        Args:
+            rule_id: Unique ID of the rule to list errors for. Options are:
+                - {rule_id} (latest version)
+                - {rule_id}@v_<seconds>_<nanoseconds> (specific version)
+                - {rule_id}@- (all versions)
+                
+        Returns:
+            Dictionary containing rule execution errors
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _list_errors(self, rule_id)
+    
+    # Rule Retrohunt methods
+    
+    def create_retrohunt(
+        self,
+        rule_id: str,
+        start_time: datetime,
+        end_time: datetime
+    ) -> Dict[str, Any]:
+        """Creates a retrohunt for a rule.
+        
+        A retrohunt applies a rule to historical data within the specified time range.
+        
+        Args:
+            rule_id: Unique ID of the rule to run retrohunt for ("ru_<UUID>")
+            start_time: Start time for retrohunt analysis
+            end_time: End time for retrohunt analysis
+            
+        Returns:
+            Dictionary containing operation information for the retrohunt
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _create_retrohunt(self, rule_id, start_time, end_time)
+    
+    def get_retrohunt(
+        self,
+        rule_id: str,
+        operation_id: str
+    ) -> Dict[str, Any]:
+        """Get retrohunt status and results.
+        
+        Args:
+            rule_id: Unique ID of the rule the retrohunt is for ("ru_<UUID>" or
+              "ru_<UUID>@v_<seconds>_<nanoseconds>")
+            operation_id: Operation ID of the retrohunt
+            
+        Returns:
+            Dictionary containing retrohunt information
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _get_retrohunt(self, rule_id, operation_id)
+    
+    # Rule Set methods
+    
+    def batch_update_curated_rule_set_deployments(
+        self,
+        deployments: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Batch update curated rule set deployments.
+        
+        Args:
+            deployments: List of deployment configurations where each item contains:
+                - category_id: UUID of the category
+                - rule_set_id: UUID of the rule set
+                - precision: Precision level (e.g., "broad", "precise")
+                - enabled: Whether the rule set should be enabled
+                - alerting: Whether alerting should be enabled for the rule set
+                
+        Returns:
+            Dictionary containing information about the modified deployments
+            
+        Raises:
+            APIError: If the API request fails
+            ValueError: If required fields are missing from the deployments
+        """
+        return _batch_update_curated_rule_set_deployments(self, deployments) 

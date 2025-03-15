@@ -23,6 +23,34 @@ from secops.chronicle.entity import summarize_entity, summarize_entities_from_qu
 from secops.chronicle.ioc import list_iocs
 from secops.chronicle.case import get_cases
 from secops.chronicle.alert import get_alerts
+
+# Rule functionality
+from secops.chronicle.rule import (
+    create_rule,
+    get_rule,
+    list_rules,
+    update_rule,
+    delete_rule,
+    enable_rule
+)
+from secops.chronicle.rule_alert import (
+    get_alert,
+    update_alert,
+    bulk_update_alerts,
+    search_rule_alerts
+)
+from secops.chronicle.rule_detection import (
+    list_detections,
+    list_errors
+)
+from secops.chronicle.rule_retrohunt import (
+    create_retrohunt,
+    get_retrohunt
+)
+from secops.chronicle.rule_set import (
+    batch_update_curated_rule_set_deployments
+)
+
 from secops.chronicle.models import (
     Entity, 
     EntityMetadata, 
@@ -39,17 +67,55 @@ from secops.chronicle.models import (
 )
 
 __all__ = [
+    # Client
     "ChronicleClient",
     "ValueType",
+    
+    # UDM and Search
     "fetch_udm_search_csv",
     "validate_query",
     "get_stats",
     "search_udm",
+    
+    # Entity
     "summarize_entity",
     "summarize_entities_from_query",
+    
+    # IoC
     "list_iocs",
+    
+    # Case
     "get_cases",
+    
+    # Alert
     "get_alerts",
+    
+    # Rule management
+    "create_rule",
+    "get_rule",
+    "list_rules",
+    "update_rule",
+    "delete_rule",
+    "enable_rule",
+    
+    # Rule alert operations
+    "get_alert",
+    "update_alert",
+    "bulk_update_alerts",
+    "search_rule_alerts",
+    
+    # Rule detection operations
+    "list_detections",
+    "list_errors",
+    
+    # Rule retrohunt operations
+    "create_retrohunt",
+    "get_retrohunt",
+    
+    # Rule set operations
+    "batch_update_curated_rule_set_deployments",
+    
+    # Models
     "Entity",
     "EntityMetadata",
     "EntityMetrics",

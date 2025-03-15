@@ -356,3 +356,145 @@ def test_chronicle_list_iocs():
         if "No IoCs found" in str(e):
             pytest.skip("No IoCs available in this environment")
         raise
+
+@pytest.mark.integration
+def test_chronicle_rule_management():
+    """Test Chronicle rule management functionality with real API."""
+    client = SecOpsClient()
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+    
+    # Create a simple test rule
+    test_rule_text = """
+rule test_rule {
+    meta:
+        description = "Test rule for SDK testing"
+        author = "Test Author"
+        severity = "Low"
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
+}
+"""
+    
+    # Create the rule
+    try:
+        created_rule = chronicle.create_rule(test_rule_text)
+        
+        # Extract the rule ID from the response
+        rule_name = created_rule.get("name", "")
+        rule_id = rule_name.split("/")[-1]
+        
+        print(f"Created rule with ID: {rule_id}")
+        
+        # Get the rule
+        rule = chronicle.get_rule(rule_id)
+        assert rule.get("name") == rule_name
+        assert "text" in rule
+        
+        # List rules and verify our rule is in the list
+        rules = chronicle.list_rules()
+        rule_names = [r.get("name") for r in rules.get("rules", [])]
+        assert rule_name in rule_names
+        
+        # Update the rule with a modification
+        updated_rule_text = test_rule_text.replace("severity = \"Low\"", "severity = \"Medium\"")
+        updated_rule = chronicle.update_rule(rule_id, updated_rule_text)
+        assert updated_rule.get("name") == rule_name
+        
+        # Enable the rule
+        deployment = chronicle.enable_rule(rule_id)
+        assert "executionState" in deployment
+        
+        # Disable the rule
+        deployment = chronicle.enable_rule(rule_id, False)
+        assert "executionState" in deployment
+        
+        # Finally, delete the rule
+        delete_result = chronicle.delete_rule(rule_id, force=True)
+        assert delete_result == {}  # Empty response on success
+        
+        # Verify the rule is gone
+        with pytest.raises(APIError):
+            chronicle.get_rule(rule_id)
+            
+    except APIError as e:
+        pytest.fail(f"API Error during rule management test: {str(e)}")
+
+
+@pytest.mark.integration
+def test_chronicle_retrohunt():
+    """Test Chronicle retrohunt functionality with real API."""
+    client = SecOpsClient()
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+    
+    # Create a simple test rule for retrohunting
+    test_rule_text = """
+rule test_retrohunt_rule {
+    meta:
+        description = "Test rule for retrohunt SDK testing"
+        author = "Test Author"
+        severity = "Low"
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
+}
+"""
+    
+    try:
+        # Create the rule
+        created_rule = chronicle.create_rule(test_rule_text)
+        rule_name = created_rule.get("name", "")
+        rule_id = rule_name.split("/")[-1]
+        
+        # Set up time range for retrohunt (past 24 hours)
+        end_time = datetime.now(timezone.utc)
+        start_time = end_time - timedelta(hours=24)
+        
+        # Create retrohunt
+        retrohunt = chronicle.create_retrohunt(rule_id, start_time, end_time)
+        
+        # Get operation ID from the response
+        operation_name = retrohunt.get("name", "")
+        operation_id = operation_name.split("/")[-1]
+        
+        print(f"Created retrohunt with operation ID: {operation_id}")
+        
+        # Get retrohunt status
+        retrohunt_status = chronicle.get_retrohunt(rule_id, operation_id)
+        assert "name" in retrohunt_status
+        
+        # Clean up
+        chronicle.delete_rule(rule_id, force=True)
+        
+    except APIError as e:
+        pytest.fail(f"API Error during retrohunt test: {str(e)}")
+
+
+@pytest.mark.integration
+def test_chronicle_rule_detections():
+    """Test Chronicle rule detections functionality with real API."""
+    client = SecOpsClient()
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+
+    # Use the specific rule ID provided
+    rule_id = "ru_b2caeac4-c3bd-4b61-9007-bd1e481eff85"
+    
+    try:
+        # List detections
+        detections = chronicle.list_detections(rule_id)
+        assert isinstance(detections, dict)
+        print(f"Successfully retrieved detections for rule {rule_id}")
+        
+        # List errors
+        errors = chronicle.list_errors(rule_id)
+        assert isinstance(errors, dict)
+        print(f"Successfully retrieved errors for rule {rule_id}")
+        
+    except APIError as e:
+        pytest.fail(f"API Error during rule detections test: {str(e)}")
