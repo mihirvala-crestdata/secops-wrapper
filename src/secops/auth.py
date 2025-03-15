@@ -17,6 +17,7 @@ from typing import Optional, Dict, Any, List
 from google.auth.credentials import Credentials
 from google.oauth2 import service_account
 import google.auth
+import google.auth.transport.requests
 from secops.exceptions import AuthenticationError
 
 # Define default scopes needed for Chronicle API
@@ -48,6 +49,7 @@ class SecOpsAuth:
             service_account_path,
             service_account_info
         )
+        self._session = None
 
     def _get_credentials(
         self,
@@ -76,4 +78,17 @@ class SecOpsAuth:
             credentials, project = google.auth.default(scopes=self.scopes)
             return credentials
         except Exception as e:
-            raise AuthenticationError(f"Failed to get credentials: {str(e)}") 
+            raise AuthenticationError(f"Failed to get credentials: {str(e)}")
+            
+    @property
+    def session(self):
+        """Get an authorized session using the credentials.
+        
+        Returns:
+            Authorized session for API requests
+        """
+        if self._session is None:
+            self._session = google.auth.transport.requests.AuthorizedSession(
+                self.credentials
+            )
+        return self._session 

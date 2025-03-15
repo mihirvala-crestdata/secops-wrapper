@@ -14,6 +14,52 @@
 #
 """Chronicle API specific functionality."""
 
-from secops.chronicle.client import ChronicleClient
+from secops.chronicle.client import ChronicleClient, _detect_value_type, ValueType
+from secops.chronicle.udm_search import fetch_udm_search_csv
+from secops.chronicle.validate import validate_query
+from secops.chronicle.stats import get_stats
+from secops.chronicle.search import search_udm
+from secops.chronicle.entity import summarize_entity, summarize_entities_from_query
+from secops.chronicle.ioc import list_iocs
+from secops.chronicle.case import get_cases
+from secops.chronicle.alert import get_alerts
+from secops.chronicle.models import (
+    Entity, 
+    EntityMetadata, 
+    EntityMetrics, 
+    TimeInterval, 
+    TimelineBucket, 
+    Timeline, 
+    WidgetMetadata, 
+    EntitySummary,
+    AlertCount,
+    Case,
+    SoarPlatformInfo,
+    CaseList
+)
 
-__all__ = ["ChronicleClient"] 
+__all__ = [
+    "ChronicleClient",
+    "ValueType",
+    "fetch_udm_search_csv",
+    "validate_query",
+    "get_stats",
+    "search_udm",
+    "summarize_entity",
+    "summarize_entities_from_query",
+    "list_iocs",
+    "get_cases",
+    "get_alerts",
+    "Entity",
+    "EntityMetadata",
+    "EntityMetrics",
+    "TimeInterval",
+    "TimelineBucket",
+    "Timeline",
+    "WidgetMetadata",
+    "EntitySummary",
+    "AlertCount",
+    "Case",
+    "SoarPlatformInfo",
+    "CaseList"
+] 

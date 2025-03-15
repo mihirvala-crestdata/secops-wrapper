@@ -12,17 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Chronicle API client implementation."""
-from typing import Optional, Dict, Any, List
-from datetime import datetime
-import json
+"""Chronicle API client."""
 import re
-import time
+import json
+import ipaddress
+from datetime import datetime
+from enum import Enum
+from typing import Optional, Dict, Any, List, Tuple
+
 from google.auth.transport import requests as google_auth_requests
 from secops.auth import SecOpsAuth
 from secops.exceptions import APIError
-from secops.chronicle.models import Entity, EntityMetadata, EntityMetrics, TimeInterval, TimelineBucket, Timeline, WidgetMetadata, EntitySummary, AlertCount, CaseList
-from enum import Enum
+
+# Import functions from the new modules
+from secops.chronicle.udm_search import fetch_udm_search_csv as _fetch_udm_search_csv
+from secops.chronicle.validate import validate_query as _validate_query
+from secops.chronicle.stats import get_stats as _get_stats
+from secops.chronicle.search import search_udm as _search_udm
+from secops.chronicle.entity import (
+    summarize_entity as _summarize_entity,
+    summarize_entities_from_query as _summarize_entities_from_query
+)
+from secops.chronicle.ioc import list_iocs as _list_iocs
+from secops.chronicle.case import get_cases as _get_cases
+from secops.chronicle.alert import get_alerts as _get_alerts
+
+from secops.chronicle.models import (
+    Entity, 
+    EntityMetadata, 
+    EntityMetrics, 
+    TimeInterval, 
+    TimelineBucket, 
+    Timeline, 
+    WidgetMetadata, 
+    EntitySummary,
+    AlertCount,
+    CaseList
+)
 
 class ValueType(Enum):
     """Chronicle API value types."""
@@ -37,88 +63,110 @@ class ValueType(Enum):
     USERNAME = "USERNAME"
 
 def _detect_value_type(value: str) -> tuple[Optional[str], Optional[str]]:
-    """Detect the type of value and return appropriate field path or value type.
+    """Detect value type from a string.
     
     Args:
-        value: The value to analyze
+        value: The value to detect type for
         
     Returns:
-        Tuple of (field_path, value_type)
+        Tuple of (field_path, value_type) where one or both may be None
     """
-    # IPv4 pattern with validation for numbers 0-255
-    ipv4_pattern = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
-    if re.match(ipv4_pattern, value):
-        return ("principal.ip", None)  # Use field_path for IPs
-        
-    # MD5 pattern (32 hex chars)
-    md5_pattern = r'^[a-fA-F0-9]{32}$'
-    if re.match(md5_pattern, value):
-        return ("target.file.md5", None)  # Use field_path for file hashes
-        
-    # SHA1 pattern (40 hex chars)
-    sha1_pattern = r'^[a-fA-F0-9]{40}$'
-    if re.match(sha1_pattern, value):
-        return ("target.file.sha1", None)
-        
-    # SHA256 pattern (64 hex chars)
-    sha256_pattern = r'^[a-fA-F0-9]{64}$'
-    if re.match(sha256_pattern, value):
-        return ("target.file.sha256", None)
-        
-    # Domain pattern
-    domain_pattern = r'^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$'
-    if re.match(domain_pattern, value):
-        return (None, ValueType.DOMAIN_NAME.value)
-        
-    # Email pattern
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if re.match(email_pattern, value):
-        return (None, ValueType.EMAIL.value)
-        
-    # MAC address pattern
-    mac_pattern = r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
-    if re.match(mac_pattern, value):
-        return (None, ValueType.MAC.value)
-        
-    # Default to hostname if it looks like one
-    hostname_pattern = r'^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$'
-    if re.match(hostname_pattern, value):
-        return (None, ValueType.HOSTNAME.value)
-        
-    return (None, None)
+    # Try to detect IP address
+    try:
+        ipaddress.ip_address(value)
+        return "principal.ip", None
+    except ValueError:
+        pass
+    
+    # Try to detect MD5 hash
+    if re.match(r"^[a-fA-F0-9]{32}$", value):
+        return "target.file.md5", None
+    
+    # Try to detect SHA-1 hash
+    if re.match(r"^[a-fA-F0-9]{40}$", value):
+        return "target.file.sha1", None
+    
+    # Try to detect SHA-256 hash
+    if re.match(r"^[a-fA-F0-9]{64}$", value):
+        return "target.file.sha256", None
+    
+    # Try to detect domain name
+    if re.match(r"^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$", value):
+        return None, "DOMAIN_NAME"
+    
+    # Try to detect email address
+    if re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", value):
+        return None, "EMAIL"
+    
+    # Try to detect MAC address
+    if re.match(r"^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$", value):
+        return None, "MAC"
+    
+    # Try to detect hostname (simple rule)
+    if re.match(r"^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$", value):
+        return None, "HOSTNAME"
+    
+    # If no match found
+    return None, None
 
 class ChronicleClient:
-    """Client for interacting with Chronicle API."""
+    """Client for the Chronicle API."""
 
     def __init__(
         self,
-        customer_id: str,
         project_id: str,
+        customer_id: str,
         region: str = "us",
-        auth: Optional[SecOpsAuth] = None
+        auth: Optional[Any] = None,
+        session: Optional[Any] = None,
+        extra_scopes: Optional[List[str]] = None,
+        credentials: Optional[Any] = None,
     ):
-        """Initialize Chronicle client.
+        """Initialize ChronicleClient.
         
         Args:
+            project_id: Google Cloud project ID
             customer_id: Chronicle customer ID
-            project_id: GCP project ID
-            region: Chronicle API region (default: "us")
-            auth: Optional SecOpsAuth instance
+            region: Chronicle region, typically "us" or "eu"
+            auth: Authentication object
+            session: Custom session object
+            extra_scopes: Additional OAuth scopes
+            credentials: Credentials object
         """
-        self.customer_id = customer_id
         self.project_id = project_id
+        self.customer_id = customer_id
         self.region = region
-        self.auth = auth or SecOpsAuth()
         
+        # Format the instance ID to match the expected format
         self.instance_id = f"projects/{project_id}/locations/{region}/instances/{customer_id}"
-        self.base_url = f"https://{region}-chronicle.googleapis.com/v1alpha"
-        self._session = None
+        
+        # Set up the base URL
+        self.base_url = f"https://{self.region}-chronicle.googleapis.com/v1alpha"
+        
+        # Create a session with authentication
+        if session:
+            self._session = session
+        else:
+            from secops import auth as secops_auth
+            
+            if auth is None:
+                auth = secops_auth.SecOpsAuth(
+                    scopes=[
+                        "https://www.googleapis.com/auth/cloud-platform",
+                        "https://www.googleapis.com/auth/chronicle-backstory",
+                    ] + (extra_scopes or []),
+                    credentials=credentials,
+                )
+                
+            self._session = auth.session
 
     @property
     def session(self) -> google_auth_requests.AuthorizedSession:
-        """Get or create authorized session."""
-        if self._session is None:
-            self._session = google_auth_requests.AuthorizedSession(self.auth.credentials)
+        """Get an authenticated session.
+        
+        Returns:
+            Authorized session for API requests
+        """
         return self._session
 
     def fetch_udm_search_csv(
@@ -144,60 +192,28 @@ class ChronicleClient:
         Raises:
             APIError: If the API request fails
         """
-        url = f"{self.base_url}/{self.instance_id}/legacy:legacyFetchUdmSearchCsv"
-        
-        search_query = {
-            "baselineQuery": query,
-            "baselineTimeRange": {
-                "startTime": start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-                "endTime": end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-            },
-            "fields": {
-                "fields": fields
-            },
-            "caseInsensitive": case_insensitive
-        }
-
-        response = self.session.post(
-            url,
-            json=search_query,
-            headers={"Accept": "*/*"}
+        return _fetch_udm_search_csv(
+            self,
+            query,
+            start_time,
+            end_time,
+            fields,
+            case_insensitive
         )
 
-        if response.status_code != 200:
-            raise APIError(f"Chronicle API request failed: {response.text}")
-
-        return response.text 
-
     def validate_query(self, query: str) -> Dict[str, Any]:
-        """Validate a UDM search query.
+        """Validate a Chronicle search query.
         
         Args:
-            query: The query to validate
+            query: Chronicle search query to validate
             
         Returns:
-            Dict containing validation results
+            Dictionary with validation results
             
         Raises:
-            APIError: If validation fails
+            APIError: If the API request fails
         """
-        url = f"{self.base_url}/{self.instance_id}:validateQuery"
-        
-        # Replace special characters with Unicode escapes
-        encoded_query = query.replace('!', '\u0021')
-        
-        params = {
-            "rawQuery": encoded_query,
-            "dialect": "DIALECT_UDM_SEARCH",
-            "allowUnreplacedPlaceholders": "false"
-        }
-
-        response = self.session.get(url, params=params)
-        
-        if response.status_code != 200:
-            raise APIError(f"Query validation failed: {response.text}")
-            
-        return response.json()
+        return _validate_query(self, query)
 
     def get_stats(
         self,
@@ -209,137 +225,96 @@ class ChronicleClient:
         case_insensitive: bool = True,
         max_attempts: int = 30
     ) -> Dict[str, Any]:
-        """Perform a UDM stats search query."""
-        url = f"{self.base_url}/{self.instance_id}/legacy:legacyFetchUdmSearchView"
-
-        payload = {
-            "baselineQuery": query,
-            "baselineTimeRange": {
-                "startTime": start_time.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-                "endTime": end_time.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-            },
-            "caseInsensitive": case_insensitive,
-            "returnOperationIdOnly": True,
-            "eventList": {
-                "maxReturnedEvents": max_events
-            },
-            "fieldAggregations": {
-                "maxValuesPerField": max_values
-            },
-            "generateAiOverview": True
-        }
-
-        # Start the search operation
-        response = self.session.post(url, json=payload)
-        if response.status_code != 200:
-            raise APIError(
-                f"Error initiating search: Status {response.status_code}, "
-                f"Response: {response.text}"
-            )
-
-        operation = response.json()
-
-        # Extract operation ID from response
-        try:
-            if isinstance(operation, list):
-                operation_id = operation[0].get("operation")
-            else:
-                operation_id = operation.get("operation") or operation.get("name")
-        except Exception as e:
-            raise APIError(
-                f"Error extracting operation ID. Response: {operation}, Error: {str(e)}"
-            )
-
-        if not operation_id:
-            raise APIError(f"No operation ID found in response: {operation}")
-
-        # Poll for results using the full operation ID path
-        results_url = f"{self.base_url}/{operation_id}:streamSearch"
-        attempt = 0
-        
-        while attempt < max_attempts:
-            results_response = self.session.get(results_url)
-            if results_response.status_code != 200:
-                raise APIError(f"Error fetching results: {results_response.text}")
-
-            results = results_response.json()
-
-            if isinstance(results, list):
-                results = results[0]
-
-            # Check both possible paths for completion status
-            done = (
-                results.get("done") or  # Check top level
-                results.get("operation", {}).get("done") or  # Check under operation
-                results.get("response", {}).get("complete")  # Check under response
-            )
-
-            if done:
-                # Check both possible paths for stats
-                stats = (
-                    results.get("response", {}).get("stats") or  # Check under response
-                    results.get("operation", {}).get("response", {}).get("stats")  # Check under operation.response
-                )
-                if stats:
-                    return self._process_stats_results({"response": {"stats": stats}})
-                else:
-                    raise APIError("No stats found in completed response")
-
-            attempt += 1
-            time.sleep(1)
-        
-        raise APIError(f"Search timed out after {max_attempts} attempts")
-
-    def _process_stats_results(self, results: Dict[str, Any]) -> Dict[str, Any]:
-        """Process and format stats search results.
+        """Get statistics from a Chronicle search query.
         
         Args:
-            results: Raw API response
+            query: Chronicle search query
+            start_time: Search start time
+            end_time: Search end time
+            max_values: Maximum number of values to return per field
+            max_events: Maximum number of events to process
+            case_insensitive: Whether to perform case-insensitive search
+            max_attempts: Maximum number of attempts to poll for results
             
         Returns:
-            Processed results with formatted rows
-        """
-        try:
-            stats = results.get("response", {}).get("stats", {})
-            if not stats:
-                return {"rows": [], "columns": []}
-
-            # Extract column information
-            columns = []
-            for col in stats.get("results", []):
-                if "column" in col:
-                    columns.append(col["column"])
-
-            # Process rows
-            rows = []
-            if stats.get("results"):
-                first_col = stats["results"][0]
-                num_rows = len(first_col.get("values", []))
-                
-                for i in range(num_rows):
-                    row = {}
-                    for col in stats["results"]:
-                        col_name = col["column"]
-                        value = col["values"][i]["value"]
-                        
-                        # Handle different value types
-                        if "stringVal" in value:
-                            row[col_name] = value["stringVal"]
-                        elif "int64Val" in value:
-                            row[col_name] = int(value["int64Val"])
-                        else:
-                            row[col_name] = None
-                            
-                    rows.append(row)
-
-            return {
-                "columns": columns,
-                "rows": rows,
-                "total_rows": len(rows)
-            }
+            Dictionary with search statistics
             
-        except Exception as e:
-            raise APIError(f"Error processing stats results: {str(e)}")
+        Raises:
+            APIError: If the API request fails or times out
+        """
+        return _get_stats(
+            self,
+            query,
+            start_time,
+            end_time,
+            max_values,
+            max_events,
+            case_insensitive,
+            max_attempts
+        )
+
+    def _process_stats_results(self, results: Dict[str, Any]) -> Dict[str, Any]:
+        """Process stats search results.
+        
+        Args:
+            results: Stats search results from API
+            
+        Returns:
+            Processed statistics
+        """
+        processed_results = {
+            "total_rows": 0,
+            "columns": [],
+            "rows": []
+        }
+        
+        # Return early if no stats results
+        if "stats" not in results or "results" not in results["stats"]:
+            return processed_results
+        
+        # Extract columns
+        columns = []
+        column_data = {}
+        
+        for col_data in results["stats"]["results"]:
+            col_name = col_data.get("column", "")
+            columns.append(col_name)
+            
+            # Process values for this column
+            values = []
+            for val_data in col_data.get("values", []):
+                if "value" in val_data:
+                    val = val_data["value"]
+                    if "int64Val" in val:
+                        values.append(int(val["int64Val"]))
+                    elif "doubleVal" in val:
+                        values.append(float(val["doubleVal"]))
+                    elif "stringVal" in val:
+                        values.append(val["stringVal"])
+                    else:
+                        values.append(None)
+                else:
+                    values.append(None)
+            
+            column_data[col_name] = values
+        
+        # Build result rows
+        rows = []
+        if columns and all(col in column_data for col in columns):
+            max_rows = max(len(column_data[col]) for col in columns)
+            processed_results["total_rows"] = max_rows
+            
+            for i in range(max_rows):
+                row = {}
+                for col in columns:
+                    col_values = column_data[col]
+                    row[col] = col_values[i] if i < len(col_values) else None
+                rows.append(row)
+        
+        processed_results["columns"] = columns
+        processed_results["rows"] = rows
+        
+        return processed_results
 
     def search_udm(
         self,
@@ -350,90 +325,31 @@ class ChronicleClient:
         case_insensitive: bool = True,
         max_attempts: int = 30
     ) -> Dict[str, Any]:
-        """Perform a UDM search query.
+        """Search UDM events in Chronicle.
         
         Args:
-            query: The UDM search query
+            query: Chronicle search query
             start_time: Search start time
             end_time: Search end time
-            max_events: Maximum events to return
+            max_events: Maximum number of events to return
             case_insensitive: Whether to perform case-insensitive search
-            max_attempts: Maximum number of polling attempts (default: 30)
+            max_attempts: Maximum number of attempts to poll for results
             
         Returns:
-            Dict containing the search results with events
+            Dictionary with search results
+            
+        Raises:
+            APIError: If the API request fails or times out
         """
-        url = f"{self.base_url}/{self.instance_id}/legacy:legacyFetchUdmSearchView"
-
-        payload = {
-            "baselineQuery": query,
-            "baselineTimeRange": {
-                "startTime": start_time.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-                "endTime": end_time.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-            },
-            "caseInsensitive": case_insensitive,
-            "returnOperationIdOnly": True,
-            "eventList": {
-                "maxReturnedEvents": max_events
-            }
-        }
-
-        # Start the search operation
-        response = self.session.post(url, json=payload)
-        if response.status_code != 200:
-            raise APIError(
-                f"Error initiating search: Status {response.status_code}, "
-                f"Response: {response.text}"
-            )
-
-        operation = response.json()
-
-        # Extract operation ID from response
-        try:
-            if isinstance(operation, list):
-                operation_id = operation[0].get("operation")
-            else:
-                operation_id = operation.get("operation") or operation.get("name")
-        except Exception as e:
-            raise APIError(
-                f"Error extracting operation ID. Response: {operation}, Error: {str(e)}"
-            )
-
-        if not operation_id:
-            raise APIError(f"No operation ID found in response: {operation}")
-
-        # Poll for results using the full operation ID path
-        results_url = f"{self.base_url}/{operation_id}:streamSearch"
-        attempt = 0
-        
-        while attempt < max_attempts:
-            results_response = self.session.get(results_url)
-            if results_response.status_code != 200:
-                raise APIError(f"Error fetching results: {results_response.text}")
-
-            results = results_response.json()
-
-            if isinstance(results, list):
-                results = results[0]
-
-            # Check both possible paths for completion status
-            done = (
-                results.get("done") or  # Check top level
-                results.get("operation", {}).get("done") or  # Check under operation
-                results.get("response", {}).get("complete")  # Check under response
-            )
-
-            if done:
-                events = (
-                    results.get("response", {}).get("events", {}).get("events", []) or
-                    results.get("operation", {}).get("response", {}).get("events", {}).get("events", [])
-                )
-                return {"events": events, "total_events": len(events)}
-
-            attempt += 1
-            time.sleep(1)
-        
-        raise APIError(f"Search timed out after {max_attempts} attempts") 
+        return _search_udm(
+            self,
+            query,
+            start_time,
+            end_time,
+            max_events,
+            case_insensitive,
+            max_attempts
+        )
 
     def summarize_entity(
         self,
@@ -450,133 +366,44 @@ class ChronicleClient:
         page_size: int = 1000,
         page_token: Optional[str] = None
     ) -> EntitySummary:
-        """Get summary information about an entity.
+        """Get entity summary from Chronicle.
         
         Args:
             start_time: Start time for the summary
             end_time: End time for the summary
-            value: Value to search for (IP, domain, file hash, etc)
-            field_path: Optional override for UDM field path
-            value_type: Optional override for value type
-            entity_id: Entity ID to look up
+            value: Entity value to summarize
+            field_path: Field path for the entity
+            value_type: Entity value type
+            entity_id: Entity ID
             entity_namespace: Entity namespace
-            return_alerts: Whether to include alerts
-            return_prevalence: Whether to include prevalence data
-            include_all_udm_types: Whether to include all UDM event types
-            page_size: Maximum number of results per page
-            page_token: Token for pagination
+            return_alerts: Whether to return alerts
+            return_prevalence: Whether to return prevalence
+            include_all_udm_types: Whether to include all UDM types
+            page_size: Page size for results
+            page_token: Page token for pagination
             
         Returns:
-            EntitySummary object containing the results
+            Entity summary
             
         Raises:
             APIError: If the API request fails
+            ValueError: If entity type cannot be determined
         """
-        url = f"{self.base_url}/{self.instance_id}:summarizeEntity"
-        
-        params = {
-            "timeRange.startTime": start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-            "timeRange.endTime": end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-            "returnAlerts": return_alerts,
-            "returnPrevalence": return_prevalence,
-            "includeAllUdmEventTypesForFirstLastSeen": include_all_udm_types,
-            "pageSize": page_size
-        }
-
-        # Add optional parameters
-        if page_token:
-            params["pageToken"] = page_token
-        
-        if entity_id:
-            params["entityId"] = entity_id
-        else:
-            # Auto-detect type if not explicitly provided
-            detected_field_path, detected_value_type = _detect_value_type(value)
-            
-            # Use explicit values if provided, otherwise use detected values
-            final_field_path = field_path or detected_field_path
-            final_value_type = value_type or detected_value_type
-            
-            if final_field_path:
-                params["fieldAndValue.fieldPath"] = final_field_path
-                params["fieldAndValue.value"] = value
-            elif final_value_type:
-                params["fieldAndValue.value"] = value
-                params["fieldAndValue.valueType"] = final_value_type
-            else:
-                raise ValueError(
-                    f"Could not determine type for value: {value}. "
-                    "Please specify field_path or value_type explicitly."
-                )
-                
-            if entity_namespace:
-                params["fieldAndValue.entityNamespace"] = entity_namespace
-
-        response = self.session.get(url, params=params)
-        
-        if response.status_code != 200:
-            raise APIError(f"Error getting entity summary: {response.text}")
-        
-        try:
-            data = response.json()
-            
-            # Parse entities
-            entities = []
-            for entity_data in data.get("entities", []):
-                metadata = entity_data.get("metadata", {})
-                interval = metadata.get("interval", {})
-                
-                entity = Entity(
-                    name=entity_data.get("name", ""),
-                    metadata=EntityMetadata(
-                        entity_type=metadata.get("entityType", ""),
-                        interval=TimeInterval(
-                            start_time=datetime.fromisoformat(interval.get("startTime").replace('Z', '+00:00')),
-                            end_time=datetime.fromisoformat(interval.get("endTime").replace('Z', '+00:00'))
-                        )
-                    ),
-                    metric=EntityMetrics(
-                        first_seen=datetime.fromisoformat(entity_data.get("metric", {}).get("firstSeen").replace('Z', '+00:00')),
-                        last_seen=datetime.fromisoformat(entity_data.get("metric", {}).get("lastSeen").replace('Z', '+00:00'))
-                    ),
-                    entity=entity_data.get("entity", {})
-                )
-                entities.append(entity)
-                
-            # Parse alert counts
-            alert_counts = []
-            for alert_data in data.get("alertCounts", []):
-                alert_counts.append(AlertCount(
-                    rule=alert_data.get("rule", ""),
-                    count=int(alert_data.get("count", 0))
-                ))
-                
-            # Parse timeline
-            timeline_data = data.get("timeline", {})
-            timeline = Timeline(
-                buckets=[TimelineBucket(**bucket) for bucket in timeline_data.get("buckets", [])],
-                bucket_size=timeline_data.get("bucketSize", "")
-            ) if timeline_data else None
-            
-            # Parse widget metadata
-            widget_data = data.get("widgetMetadata")
-            widget_metadata = WidgetMetadata(
-                uri=widget_data.get("uri", ""),
-                detections=widget_data.get("detections", 0),
-                total=widget_data.get("total", 0)
-            ) if widget_data else None
-            
-            return EntitySummary(
-                entities=entities,
-                alert_counts=alert_counts,
-                timeline=timeline,
-                widget_metadata=widget_metadata,
-                has_more_alerts=data.get("hasMoreAlerts", False),
-                next_page_token=data.get("nextPageToken")
-            )
-            
-        except Exception as e:
-            raise APIError(f"Error parsing entity summary response: {str(e)}") 
+        return _summarize_entity(
+            self,
+            start_time,
+            end_time, 
+            value,
+            field_path,
+            value_type,
+            entity_id,
+            entity_namespace,
+            return_alerts,
+            return_prevalence,
+            include_all_udm_types,
+            page_size,
+            page_token
+        )
 
     def summarize_entities_from_query(
         self,
@@ -584,66 +411,25 @@ class ChronicleClient:
         start_time: datetime,
         end_time: datetime,
     ) -> List[EntitySummary]:
-        """Get entity summaries from a UDM query.
+        """Get entity summaries from a query.
         
         Args:
-            query: UDM query to find entities
-            start_time: Start time for the summary
-            end_time: End time for the summary
+            query: Chronicle search query
+            start_time: Start time for the search
+            end_time: End time for the search
             
         Returns:
-            List of EntitySummary objects containing the results
+            List of entity summaries
             
         Raises:
             APIError: If the API request fails
         """
-        url = f"{self.base_url}/{self.instance_id}:summarizeEntitiesFromQuery"
-        
-        params = {
-            "query": query,
-            "timeRange.startTime": start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-            "timeRange.endTime": end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-        }
-
-        response = self.session.get(url, params=params)
-        
-        if response.status_code != 200:
-            raise APIError(f"Error getting entity summaries: {response.text}")
-        
-        try:
-            data = response.json()
-            summaries = []
-            
-            for summary_data in data.get("entitySummaries", []):
-                entities = []
-                for entity_data in summary_data.get("entity", []):
-                    metadata = entity_data.get("metadata", {})
-                    interval = metadata.get("interval", {})
-                    
-                    entity = Entity(
-                        name=entity_data.get("name", ""),
-                        metadata=EntityMetadata(
-                            entity_type=metadata.get("entityType", ""),
-                            interval=TimeInterval(
-                                start_time=datetime.fromisoformat(interval.get("startTime").replace('Z', '+00:00')),
-                                end_time=datetime.fromisoformat(interval.get("endTime").replace('Z', '+00:00'))
-                            )
-                        ),
-                        metric=EntityMetrics(
-                            first_seen=datetime.fromisoformat(entity_data.get("metric", {}).get("firstSeen").replace('Z', '+00:00')),
-                            last_seen=datetime.fromisoformat(entity_data.get("metric", {}).get("lastSeen").replace('Z', '+00:00'))
-                        ),
-                        entity=entity_data.get("entity", {})
-                    )
-                    entities.append(entity)
-                    
-                summary = EntitySummary(entities=entities)
-                summaries.append(summary)
-                
-            return summaries
-            
-        except Exception as e:
-            raise APIError(f"Error parsing entity summaries response: {str(e)}") 
+        return _summarize_entities_from_query(
+            self,
+            query,
+            start_time,
+            end_time
+        )
 
     def list_iocs(
         self,
@@ -653,86 +439,45 @@ class ChronicleClient:
         add_mandiant_attributes: bool = True,
         prioritized_only: bool = False,
     ) -> dict:
-        """List IoC matches against ingested events."""
-        url = f"{self.base_url}/{self.instance_id}/legacy:legacySearchEnterpriseWideIoCs"
-
-        params = {
-            "timestampRange.startTime": start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-            "timestampRange.endTime": end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-            "maxMatchesToReturn": max_matches,
-            "addMandiantAttributes": add_mandiant_attributes,
-            "fetchPrioritizedIocsOnly": prioritized_only,
-        }
-
-        response = self.session.get(url, params=params)
+        """List IoCs from Chronicle.
         
-        if response.status_code != 200:
-            raise APIError(f"Failed to list IoCs: {response.text}")
-
-        try:
-            data = response.json()
-            
-            # Process each IoC match to ensure consistent field names
-            if "matches" in data:
-                for match in data["matches"]:
-                    # Convert timestamps if present
-                    for ts_field in ["iocIngestTimestamp", "firstSeenTimestamp", "lastSeenTimestamp"]:
-                        if ts_field in match:
-                            match[ts_field] = match[ts_field].rstrip("Z")
-                    
-                    # Ensure consistent field names
-                    if "filterProperties" in match and "stringProperties" in match["filterProperties"]:
-                        props = match["filterProperties"]["stringProperties"]
-                        match["properties"] = {
-                            k: [v["rawValue"] for v in values["values"]]
-                            for k, values in props.items()
-                        }
-                    
-                    # Process associations
-                    if "associationIdentifier" in match:
-                        # Remove duplicate associations (some have same name but different regionCode)
-                        seen = set()
-                        unique_associations = []
-                        for assoc in match["associationIdentifier"]:
-                            key = (assoc["name"], assoc["associationType"])
-                            if key not in seen:
-                                seen.add(key)
-                                unique_associations.append(assoc)
-                        match["associationIdentifier"] = unique_associations
-
-            return data
-            
-        except Exception as e:
-            raise APIError(f"Failed to process IoCs response: {str(e)}")
-
-    def get_cases(self, case_ids: list[str]) -> CaseList:
-        """Get details for specified cases.
-
         Args:
-            case_ids (list[str]): List of case IDs to retrieve
-
+            start_time: Start time for IoC search
+            end_time: End time for IoC search
+            max_matches: Maximum number of matches to return
+            add_mandiant_attributes: Whether to add Mandiant attributes
+            prioritized_only: Whether to only include prioritized IoCs
+            
         Returns:
-            CaseList: Collection of cases with helper methods for filtering and lookup
-
+            Dictionary with IoC matches
+            
         Raises:
             APIError: If the API request fails
-            ValueError: If more than 1000 case IDs are requested
         """
-        if len(case_ids) > 1000:
-            raise ValueError("Maximum of 1000 cases can be retrieved in a batch")
+        return _list_iocs(
+            self,
+            start_time,
+            end_time,
+            max_matches,
+            add_mandiant_attributes,
+            prioritized_only
+        )
 
-        url = f"{self.base_url}/{self.instance_id}/legacy:legacyBatchGetCases"
+    def get_cases(self, case_ids: list[str]) -> CaseList:
+        """Get cases from Chronicle.
         
-        params = {
-            "names": case_ids
-        }
-
-        response = self.session.get(url, params=params)
-        
-        if response.status_code != 200:
-            raise APIError(f"Failed to get cases: {response.text}")
+        Args:
+            case_ids: List of case IDs to retrieve
             
-        return CaseList.from_dict(response.json()) 
+        Returns:
+            CaseList object with case details
+            
+        Raises:
+            APIError: If the API request fails
+            ValueError: If too many case IDs are provided
+        """
+        from secops.chronicle.case import get_cases_from_list
+        return get_cases_from_list(self, case_ids)
 
     def get_alerts(
         self,
@@ -745,187 +490,78 @@ class ChronicleClient:
         max_attempts: int = 30,
         poll_interval: float = 1.0
     ) -> dict:
-        """Get alerts within a time range.
+        """Get alerts from Chronicle.
         
         Args:
-            start_time: Start time for alerts search
-            end_time: End time for alerts search
-            snapshot_query: Query to filter alerts (default: non-closed alerts)
-            baseline_query: Optional baseline query
+            start_time: Start time for alert search
+            end_time: End time for alert search
+            snapshot_query: Query to filter alerts
+            baseline_query: Baseline query to compare against
             max_alerts: Maximum number of alerts to return
-            enable_cache: Whether to use caching for the request
-            max_attempts: Maximum number of polling attempts
-            poll_interval: Polling interval in seconds
+            enable_cache: Whether to use cached results
+            max_attempts: Maximum number of attempts to poll for results
+            poll_interval: Interval between polling attempts in seconds
             
         Returns:
-            Dict containing the alerts response
+            Dictionary with alert data
             
         Raises:
-            APIError: If the API request fails or response parsing fails
+            APIError: If the API request fails or times out
         """
-        url = f"{self.base_url}/{self.instance_id}/legacy:legacyFetchAlertsView"
-        
-        params = {
-            "timeRange.startTime": start_time.isoformat(),
-            "timeRange.endTime": end_time.isoformat(),
-            "snapshotQuery": snapshot_query,
-            "alertListOptions.maxReturnedAlerts": max_alerts,
-            "enableCache": "ALERTS_FEATURE_PREFERENCE_ENABLED" if enable_cache else "ALERTS_FEATURE_PREFERENCE_DISABLED",
-            "fieldAggregationOptions.maxValuesPerField": 60
-        }
-        
-        if baseline_query:
-            params["baselineQuery"] = baseline_query
+        return _get_alerts(
+            self,
+            start_time,
+            end_time,
+            snapshot_query,
+            baseline_query,
+            max_alerts,
+            enable_cache,
+            max_attempts,
+            poll_interval
+        )
 
-        headers = {
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-        }
-        
-        # Create an accumulator for all updates
-        final_response = {
-            'progress': 0,
-            'alerts': {'alerts': []},
-            'complete': False
-        }
-        
-        # Poll until complete or max attempts
-        attempt = 0
-        while attempt < max_attempts:
-            attempt += 1
-            
-            # Make the request
-            response = self.session.get(url, params=params, headers=headers, stream=True)
-            
-            if response.status_code != 200:
-                raise APIError(f"Failed to get alerts: {response.text}")
-                
-            # Process this response
-            updates = self._process_alerts_response(response)
-            
-            # Merge the updates into our accumulator
-            self._merge_alert_updates(final_response, updates)
-            
-            # Check if we're done
-            if final_response.get('complete'):
-                break
-                
-            # If not complete and we have more attempts, wait and try again
-            if attempt < max_attempts:
-                time.sleep(poll_interval)
-        
-        return final_response
-        
     def _process_alerts_response(self, response) -> list:
-        """Process streaming response from alerts API.
+        """Process alerts response.
         
         Args:
-            response: HTTP response with streaming data
+            response: Response data from API
             
         Returns:
-            List of parsed JSON updates
-            
-        Raises:
-            APIError: If parsing fails and no valid updates were found
+            Processed response
         """
-        # The API can return either individual JSON objects per line
-        # or an array of objects, or a mix of both
-        line_buffer = []
-        updates = []
-        
-        for line in response.iter_lines():
-            if not line:
-                continue
-                
-            line_str = line.decode('utf-8').strip()
-            if not line_str:
-                continue
-                
-            line_buffer.append(line_str)
-            
-            # Try to parse what we have so far
-            current_buffer = ''.join(line_buffer)
-            
-            # Handle case where response starts with an array bracket
-            if current_buffer.startswith('[') and not current_buffer.endswith(']'):
-                # Not a complete array yet, continue collecting
-                continue
-                
-            # Fix any JSON formatting issues
-            current_buffer = self._fix_json_formatting(current_buffer)
-            
-            try:
-                # Try parsing it as a complete object or array
-                parsed_data = json.loads(current_buffer)
-                
-                # Handle the case where parsed_data is an array of updates
-                if isinstance(parsed_data, list):
-                    updates.extend(parsed_data)
-                else:
-                    updates.append(parsed_data)
-                    
-                # Clear the buffer after successful parsing
-                line_buffer = []
-            except json.JSONDecodeError:
-                # If it fails, it might be incomplete. Continue to the next line
-                pass
-        
-        # If we have leftover data, try once more with aggressive fix-ups
-        if line_buffer:
-            try:
-                current_buffer = ''.join(line_buffer)
-                # Make sure array has closing bracket if it started with one
-                if current_buffer.startswith('[') and not current_buffer.endswith(']'):
-                    current_buffer += ']'
-                # Fix potential trailing commas
-                current_buffer = self._fix_json_formatting(current_buffer)
-                
-                parsed_data = json.loads(current_buffer)
-                if isinstance(parsed_data, list):
-                    updates.extend(parsed_data)
-                else:
-                    updates.append(parsed_data)
-            except json.JSONDecodeError as e:
-                # If we can't parse the remaining data, log but don't fail if we have some updates
-                if not updates:
-                    raise APIError(f"Failed to parse alerts response: {str(e)} - Data: {current_buffer}")
-        
-        if not updates:
-            raise APIError("No valid data received from alerts API")
-            
-        return updates
-        
+        # Simply return the response as it should already be processed
+        return response
+
     def _merge_alert_updates(self, target: dict, updates: list) -> None:
-        """Merge alerts updates into the target dictionary.
+        """Merge alert updates into the target dictionary.
         
         Args:
             target: Target dictionary to update
-            updates: List of updates to merge in
-            
-        This method modifies the target dictionary in place.
+            updates: List of updates to apply
         """
-        for update in updates:
-            # Merge all fields from this update
-            for key, value in update.items():
-                # Special handling for alerts to accumulate them
-                if key == 'alerts' and isinstance(value, dict) and 'alerts' in value:
-                    if 'alerts' not in target:
-                        target['alerts'] = {'alerts': []}
-                    if not isinstance(target['alerts'], dict):
-                        target['alerts'] = {'alerts': []}
-                    if 'alerts' not in target['alerts']:
-                        target['alerts']['alerts'] = []
-                    target['alerts']['alerts'].extend(value['alerts'])
-                # Take the latest value for progress or overwrite other fields
-                elif key == 'progress':
-                    if value > target.get('progress', 0):
-                        target['progress'] = value
-                # For all other fields, take the latest value
-                else:
-                    target[key] = value
+        if "alerts" not in target or "alerts" not in target["alerts"]:
+            return
         
+        alerts = target["alerts"]["alerts"]
+        
+        # Create a map of alerts by ID for faster lookups
+        alert_map = {alert["id"]: alert for alert in alerts}
+        
+        # Apply updates
+        for update in updates:
+            if "id" in update and update["id"] in alert_map:
+                target_alert = alert_map[update["id"]]
+                
+                # Update each field
+                for field, value in update.items():
+                    if field != "id":
+                        if isinstance(value, dict) and field in target_alert and isinstance(target_alert[field], dict):
+                            # Merge nested dictionaries
+                            target_alert[field].update(value)
+                        else:
+                            # Replace value
+                            target_alert[field] = value
+
     def _fix_json_formatting(self, json_str: str) -> str:
         """Fix common JSON formatting issues.
         
@@ -935,7 +571,36 @@ class ChronicleClient:
         Returns:
             Fixed JSON string
         """
-        # Replace trailing commas in arrays and objects which cause JSON parsing to fail
-        # This regex finds commas followed by a closing bracket
-        json_str = re.sub(r',\s*([\]}])', r'\1', json_str)
-        return json_str 
+        # Fix trailing commas in objects
+        json_str = re.sub(r',\s*}', '}', json_str)
+        # Fix trailing commas in arrays
+        json_str = re.sub(r',\s*]', ']', json_str)
+        
+        return json_str
+
+    def _detect_value_type(self, value: str) -> tuple[Optional[str], Optional[str]]:
+        """Instance method version of _detect_value_type for backward compatibility.
+        
+        Args:
+            value: The value to detect type for
+            
+        Returns:
+            Tuple of (field_path, value_type) where one or both may be None
+        """
+        return _detect_value_type(value)
+
+    def _detect_value_type(self, value, value_type=None):
+        """Detect value type for entity values.
+        
+        This is a legacy method maintained for backward compatibility.
+        It calls the standalone detect_value_type function.
+        
+        Args:
+            value: Value to detect type for
+            value_type: Optional explicit value type
+            
+        Returns:
+            Tuple of (field_path, value_type)
+        """
+        from secops.chronicle.entity import _detect_value_type
+        return _detect_value_type(value, value_type) 

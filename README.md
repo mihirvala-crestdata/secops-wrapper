@@ -169,15 +169,13 @@ Get statistics about network connections grouped by hostname:
 
 ```python
 stats = chronicle.get_stats(
-    query="""
-    metadata.event_type = "NETWORK_CONNECTION"
-    match:
-        target.hostname
-    outcome:
-        $count = count(metadata.id)
-    order:
-        $count desc
-    """,
+    query="""metadata.event_type = "NETWORK_CONNECTION"
+match:
+    target.hostname
+outcome:
+    $count = count(metadata.id)
+order:
+    $count desc""",
     start_time=start_time,
     end_time=end_time,
     max_events=1000,
@@ -204,12 +202,7 @@ csv_data = chronicle.fetch_udm_search_csv(
     query='metadata.event_type = "NETWORK_CONNECTION"',
     start_time=start_time,
     end_time=end_time,
-    fields=[
-        "metadata.eventTimestamp",
-        "principal.hostname",
-        "target.ip",
-        "target.port"
-    ]
+    fields=["timestamp", "user", "hostname", "process name"]
 )
 
 # Example response:
@@ -251,7 +244,7 @@ ip_summary = chronicle.summarize_entity(
     value="192.168.1.100"  # Automatically detects IP
 )
 
-# Domain summary
+# Domain summary 
 domain_summary = chronicle.summarize_entity(
     start_time=start_time,
     end_time=end_time,
@@ -307,16 +300,10 @@ Look up entities based on a UDM query:
 
 ```python
 # Search for a specific file hash across multiple UDM paths
-md5 = "e17dd4eef8b4978673791ef4672f4f6a"
-query = (
-    f'principal.file.md5 = "{md5}" OR '
-    f'principal.process.file.md5 = "{md5}" OR '
-    f'target.file.md5 = "{md5}" OR '
-    f'target.process.file.md5 = "{md5}" OR '
-    f'security_result.about.file.md5 = "{md5}"'
-)
+md5_hash = "e17dd4eef8b4978673791ef4672f4f6a"
+query = f'target.file.md5 = "{md5_hash}" OR principal.file.md5 = "{md5_hash}"'
 
-results = chronicle.summarize_entities_from_query(
+entity_summaries = chronicle.summarize_entities_from_query(
     query=query,
     start_time=start_time,
     end_time=end_time
@@ -354,45 +341,93 @@ results = chronicle.summarize_entities_from_query(
 
 ### List IoCs (Indicators of Compromise)
 
-You can retrieve IoC matches against ingested events:
+Retrieve IoC matches against ingested events:
 
 ```python
-from datetime import datetime, timedelta, timezone
-from secops import SecOpsClient
-
-client = SecOpsClient()
-chronicle = client.chronicle(
-    customer_id="your-customer-id",
-    project_id="your-project-id"
-)
-
-# Get IoCs from the last 24 hours
-end_time = datetime.now(timezone.utc)
-start_time = end_time - timedelta(hours=24)
-
 iocs = chronicle.list_iocs(
     start_time=start_time,
     end_time=end_time,
-    max_matches=1000,  # Maximum number of results to return
-    add_mandiant_attributes=True,  # Include Mandiant attributes
-    prioritized_only=False  # Include all IoCs, not just prioritized ones
+    max_matches=1000,
+    add_mandiant_attributes=True,
+    prioritized_only=False
 )
 
 # Process the results
 for ioc in iocs['matches']:
-    print(f"IoC Type: {next(iter(ioc['artifactIndicator'].keys()))}")
-    print(f"IoC Value: {next(iter(ioc['artifactIndicator'].values()))}")
+    ioc_type = next(iter(ioc['artifactIndicator'].keys()))
+    ioc_value = next(iter(ioc['artifactIndicator'].values()))
+    print(f"IoC Type: {ioc_type}, Value: {ioc_value}")
     print(f"Sources: {', '.join(ioc['sources'])}")
-    print(f"Categories: {', '.join(ioc['categories'])}")
 ```
 
-The response includes detailed information about each IoC match, including:
+The IoC response includes:
 - The indicator itself (domain, IP, hash, etc.)
 - Sources and categories
 - Affected assets in your environment
 - First and last seen timestamps
 - Confidence scores and severity ratings
-- Associated threat actors and malware families
+- Associated threat actors and malware families (with Mandiant attributes)
+
+### Alerts and Case Management
+
+Retrieve alerts and their associated cases:
+
+```python
+# Get non-closed alerts
+alerts = chronicle.get_alerts(
+    start_time=start_time,
+    end_time=end_time,
+    snapshot_query='feedback_summary.status != "CLOSED"',
+    max_alerts=100
+)
+
+# Get alerts from the response
+alert_list = alerts.get('alerts', {}).get('alerts', [])
+
+# Extract case IDs from alerts
+case_ids = {alert.get('caseName') for alert in alert_list if alert.get('caseName')}
+
+# Get case details
+if case_ids:
+    cases = chronicle.get_cases(list(case_ids))
+    
+    # Process cases
+    for case in cases.cases:
+        print(f"Case: {case.display_name}")
+        print(f"Priority: {case.priority}")
+        print(f"Status: {case.status}")
+```
+
+The alerts response includes:
+- Progress status and completion status
+- Alert counts (baseline and filtered)
+- Alert details (rule information, detection details, etc.)
+- Case associations
+
+You can filter alerts using the snapshot query parameter with fields like:
+- `detection.rule_name`
+- `detection.alert_state`
+- `feedback_summary.verdict`
+- `feedback_summary.priority`
+- `feedback_summary.status`
+
+### Case Management Helpers
+
+The `CaseList` class provides helper methods for working with cases:
+
+```python
+# Get details for specific cases
+cases = chronicle.get_cases(["case-id-1", "case-id-2"])
+
+# Filter cases by priority
+high_priority = cases.filter_by_priority("PRIORITY_HIGH")
+
+# Filter cases by status
+open_cases = cases.filter_by_status("STATUS_OPEN")
+
+# Look up a specific case
+case = cases.get_case("case-id-1")
+```
 
 ## Error Handling
 
@@ -413,12 +448,9 @@ except SecOpsError as e:
 
 ## Value Type Detection
 
-The SDK automatically detects the type of value being searched for entity summaries:
-
+The SDK automatically detects these entity types:
 - IPv4 addresses
-- MD5 hashes
-- SHA1 hashes
-- SHA256 hashes
+- MD5/SHA1/SHA256 hashes
 - Domain names
 - Email addresses
 - MAC addresses
@@ -433,7 +465,7 @@ domain_summary = chronicle.summarize_entity(value="example.com")
 hash_summary = chronicle.summarize_entity(value="e17dd4eef8b4978673791ef4672f4f6a")
 ```
 
-You can also override the automatic detection by explicitly specifying `field_path` or `value_type`:
+You can also override the automatic detection:
 
 ```python
 summary = chronicle.summarize_entity(
@@ -442,132 +474,6 @@ summary = chronicle.summarize_entity(
     value_type="DOMAIN_NAME"         # Explicitly set value type
 )
 ```
-
-## Case Management
-
-You can retrieve and manage Chronicle cases:
-
-```python
-from secops import SecOpsClient
-
-client = SecOpsClient()
-chronicle = client.chronicle(
-    customer_id="your-customer-id",
-    project_id="your-project-id"
-)
-
-# Get details for specific cases
-cases = chronicle.get_cases(["case-id-1", "case-id-2"])
-
-# Filter cases by priority
-high_priority = cases.filter_by_priority("PRIORITY_HIGH")
-for case in high_priority:
-    print(f"High Priority Case: {case.display_name}")
-    print(f"Stage: {case.stage}")
-    print(f"Status: {case.status}")
-
-# Look up a specific case
-case = cases.get_case("case-id-1")
-if case:
-    print(f"Case Details:")
-    print(f"Display Name: {case.display_name}")
-    print(f"Priority: {case.priority}")
-    print(f"SOAR Case ID: {case.soar_platform_info.case_id}")
-```
-
-The `CaseList` class provides helper methods for working with cases:
-- `get_case(case_id)`: Look up a specific case by ID
-- `filter_by_priority(priority)`: Get cases with specified priority
-- `filter_by_status(status)`: Get cases with specified status
-- `filter_by_stage(stage)`: Get cases with specified stage
-
-## Alerts and Case Management
-
-You can retrieve alerts and their associated cases:
-
-```python
-from datetime import datetime, timedelta, timezone
-from secops import SecOpsClient
-
-client = SecOpsClient()
-chronicle = client.chronicle(
-    customer_id="your-customer-id",
-    project_id="your-project-id"
-)
-
-# Get alerts from the last 24 hours
-end_time = datetime.now(timezone.utc)
-start_time = end_time - timedelta(hours=24)
-
-# Get non-closed alerts
-alerts = chronicle.get_alerts(
-    start_time=start_time,
-    end_time=end_time,
-    snapshot_query='feedback_summary.status != "CLOSED"',
-    max_alerts=1000
-)
-
-# Get alerts from the response
-alert_list = alerts.get('alerts', {}).get('alerts', [])
-
-# Extract case IDs from alerts
-case_ids = {alert.get('caseName') for alert in alert_list if alert.get('caseName')}
-
-# Get details for cases if any found
-if case_ids:
-    cases = chronicle.get_cases(list(case_ids))
-    
-    # Process cases and their related alerts
-    for case in cases.cases:
-        print(f"Case: {case.display_name}")
-        print(f"Priority: {case.priority}")
-        print(f"Stage: {case.stage}")
-        print(f"Status: {case.status}")
-        
-        # Find alerts for this case
-        case_alerts = [
-            alert for alert in alert_list
-            if alert.get('caseName') == case.id
-        ]
-        print(f"Related Alerts: {len(case_alerts)}")
-        
-        # Find high severity alerts
-        high_sev_alerts = [
-            alert for alert in case_alerts
-            if alert.get('feedbackSummary', {}).get('severityDisplay') == 'HIGH'
-        ]
-        if high_sev_alerts:
-            print(f"High Severity Alerts: {len(high_sev_alerts)}")
-```
-
-#### Alert Response Details
-The alerts response includes:
-- Progress status (0-100%)
-- Completion status
-- Alert counts (baseline and filtered)
-- Alert details including:
-  - Rule information
-  - Detection details
-  - Creation time
-  - Case association
-  - Feedback summary (status, priority, severity)
-
-#### Case Details
-Cases include:
-- Display name
-- Priority level
-- Current stage
-- Status
-- Associated alerts
-
-You can filter alerts using the snapshot query parameter, which supports fields like:
-- detection.rule_set
-- detection.rule_name
-- detection.alert_state
-- feedback_summary.verdict
-- feedback_summary.priority
-- feedback_summary.severity_display
-- feedback_summary.status
 
 ## License
 

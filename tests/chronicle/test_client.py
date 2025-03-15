@@ -45,7 +45,8 @@ def mock_response():
     """Create a mock API response."""
     mock = Mock()
     mock.status_code = 200
-    mock.text = "timestamp,user,hostname,process_name\n2024-01-15T00:00:00Z,user1,host1,process1"
+    # Mock the text attribute to return a CSV string
+    mock.text = "timestamp,user,hostname,process_name\n2024-01-15T00:00:00Z,user1,host1,process1\n"
     return mock
 
 def test_fetch_udm_search_csv(chronicle_client, mock_response):
@@ -59,7 +60,7 @@ def test_fetch_udm_search_csv(chronicle_client, mock_response):
         )
         
         assert "timestamp,user,hostname,process_name" in result
-        assert "user1,host1,process1" in result
+        assert "2024-01-15T00:00:00Z,user1,host1,process1" in result
 
 def test_fetch_udm_search_csv_error(chronicle_client):
     """Test handling of API errors."""
@@ -78,52 +79,71 @@ def test_fetch_udm_search_csv_error(chronicle_client):
         
         assert "Chronicle API request failed" in str(exc_info.value)
 
+def test_fetch_udm_search_csv_parsing_error(chronicle_client):
+    """Test handling of parsing errors in CSV response."""
+    error_response = Mock()
+    error_response.status_code = 200
+    error_response.json.side_effect = ValueError("Invalid JSON")
+
+    with patch('google.auth.transport.requests.AuthorizedSession.post', return_value=error_response):
+        with pytest.raises(APIError) as exc_info:
+            chronicle_client.fetch_udm_search_csv(
+                query="metadata.event_type = \"NETWORK_CONNECTION\"",
+                start_time=datetime(2024, 1, 14, 23, 7, tzinfo=timezone.utc),
+                end_time=datetime(2024, 1, 15, 0, 7, tzinfo=timezone.utc),
+                fields=["timestamp"]
+            )
+        
+        assert "Failed to parse CSV response" in str(exc_info.value)
+
 def test_validate_query(chronicle_client):
     """Test query validation."""
     mock_response = Mock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {"isValid": True}
+    mock_response.json.return_value = {
+        "queryType": "QUERY_TYPE_UDM_QUERY", 
+        "isValid": True
+    }
 
     with patch.object(chronicle_client.session, 'get', return_value=mock_response):
         result = chronicle_client.validate_query("metadata.event_type = \"NETWORK_CONNECTION\"")
-        assert result["isValid"] is True
+        
+        assert result.get("isValid") is True
+        assert result.get("queryType") == "QUERY_TYPE_UDM_QUERY"
 
 def test_get_stats(chronicle_client):
     """Test stats search functionality."""
     # Mock the initial search request
     mock_search_response = Mock()
     mock_search_response.status_code = 200
-    mock_search_response.json.return_value = [{
-        "operation": "projects/test-project/locations/us/instances/test-instance/operations/test-operation"
-    }]
+    mock_search_response.json.return_value = {
+        "name": "projects/test-project/locations/us/instances/test-instance/operations/test-operation"
+    }
 
     # Mock the results polling
     mock_results_response = Mock()
     mock_results_response.status_code = 200
-    mock_results_response.json.return_value = [{
-        "operation": {
-            "done": True,
-            "response": {
-                "complete": True,
-                "stats": {
-                    "results": [
-                        {
-                            "column": "count",
-                            "values": [{"value": {"int64Val": "42"}}]
-                        },
-                        {
-                            "column": "hostname",
-                            "values": [{"value": {"stringVal": "test-host"}}]
-                        }
-                    ]
-                }
+    mock_results_response.json.return_value = {
+        "done": True,
+        "response": {
+            "stats": {
+                "results": [
+                    {
+                        "column": "count",
+                        "values": [{"value": {"int64Val": "42"}}]
+                    },
+                    {
+                        "column": "hostname",
+                        "values": [{"value": {"stringVal": "test-host"}}]
+                    }
+                ]
             }
         }
-    }]
+    }
 
     with patch.object(chronicle_client.session, 'post', return_value=mock_search_response), \
          patch.object(chronicle_client.session, 'get', return_value=mock_results_response):
-        
+
         result = chronicle_client.get_stats(
             query="""target.ip != ""
 match:
@@ -140,7 +160,8 @@ order:
 
         assert result["total_rows"] == 1
         assert result["columns"] == ["count", "hostname"]
-        assert result["rows"][0] == {"count": 42, "hostname": "test-host"}
+        assert result["rows"][0]["count"] == 42
+        assert result["rows"][0]["hostname"] == "test-host"
 
 def test_search_udm(chronicle_client):
     """Test UDM search functionality."""
@@ -540,15 +561,23 @@ def test_list_iocs(chronicle_client):
     mock_response.json.return_value = {
         "matches": [
             {
-                "artifactIndicator": {"domain": "malicious.com"},
+                "ioc": {"value": "malicious.com", "type": "DOMAIN_NAME"},
                 "sources": ["Mandiant"],
-                "categories": ["malware"],
-                "assetIndicators": [
-                    {"namespace": "test", "hostname": "infected-host"}
-                ],
+                "firstSeenTimestamp": "2024-01-01T00:00:00.000Z",
+                "lastSeenTimestamp": "2024-01-02T00:00:00.000Z",
+                "filterProperties": {
+                    "stringProperties": {
+                        "category": {
+                            "values": [{"rawValue": "malware"}]
+                        }
+                    }
+                },
+                "associationIdentifier": [
+                    {"name": "test-campaign", "associationType": "CAMPAIGN", "regionCode": "US"},
+                    {"name": "test-campaign", "associationType": "CAMPAIGN", "regionCode": "EU"}
+                ]
             }
-        ],
-        "more_data_available": False
+        ]
     }
 
     with patch.object(chronicle_client.session, 'get', return_value=mock_response):
@@ -556,9 +585,25 @@ def test_list_iocs(chronicle_client):
             start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
             end_time=datetime(2024, 1, 2, tzinfo=timezone.utc)
         )
+
+        # Check that the response has matches
+        assert "matches" in result
+        assert len(result["matches"]) == 1
+        match = result["matches"][0]
         
-        assert result["matches"][0]["artifactIndicator"]["domain"] == "malicious.com"
-        assert not result["more_data_available"]
+        # Check IoC value
+        assert match["ioc"]["value"] == "malicious.com"
+        
+        # Check timestamps are processed (Z removed)
+        assert match["firstSeenTimestamp"] == "2024-01-01T00:00:00.000"
+        assert match["lastSeenTimestamp"] == "2024-01-02T00:00:00.000"
+        
+        # Check properties are extracted
+        assert "properties" in match
+        assert match["properties"]["category"] == ["malware"]
+        
+        # Check associations are deduplicated
+        assert len(match["associationIdentifier"]) == 1
 
 def test_list_iocs_error(chronicle_client):
     """Test error handling when listing IoCs."""
@@ -571,7 +616,7 @@ def test_list_iocs_error(chronicle_client):
             chronicle_client.list_iocs(
                 start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
                 end_time=datetime(2024, 1, 2, tzinfo=timezone.utc)
-            ) 
+            )
 
 def test_get_cases(chronicle_client):
     """Test getting case details."""
