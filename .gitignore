@@ -6,9 +6,7 @@ __pycache__/
 .vscode/
 .env
 how-to-upload.txt
-example.py
 .coverage
-.cursor/
 dist/
 build/
 *.egg-info/
