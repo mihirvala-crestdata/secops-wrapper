@@ -477,6 +477,64 @@ def example_delete_rule(chronicle, rule_id):
     except APIError as e:
         print(f"Error deleting rule: {e}")
 
+def example_validate_rule(chronicle):
+    """Example 13: Rule Validation.
+    
+    Args:
+        chronicle: Chronicle client instance
+    """
+    print("\n=== Example 13: Rule Validation ===")
+    
+    # Example of a valid rule
+    valid_rule = """
+rule test_rule {
+    meta:
+        description = "Test rule for validation"
+        author = "Test Author"
+        severity = "Low"
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
+}
+"""
+    
+    try:
+        print("\nValidating a correct rule:")
+        result = chronicle.validate_rule(valid_rule)
+        if result.success:
+            print("✅ Rule is valid")
+        else:
+            print(f"❌ Rule is invalid: {result.message}")
+            if result.position:
+                print(f"   Error at line {result.position['startLine']}, column {result.position['startColumn']}")
+        
+        # Example of an invalid rule (missing condition)
+        invalid_rule = """
+rule test_rule {
+    meta:
+        description = "Test rule for validation"
+        author = "Test Author"
+        severity = "Low"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+}
+"""
+        
+        print("\nValidating an incorrect rule:")
+        result = chronicle.validate_rule(invalid_rule)
+        if result.success:
+            print("✅ Rule is valid")
+        else:
+            print(f"❌ Rule is invalid: {result.message}")
+            if result.position:
+                print(f"   Error at line {result.position['startLine']}, column {result.position['startColumn']}")
+                
+    except APIError as e:
+        print(f"Error validating rule: {str(e)}")
+
 def main():
     """Main function to run examples."""
     parser = argparse.ArgumentParser(description='Run Chronicle Rule Management examples')
@@ -484,7 +542,7 @@ def main():
     parser.add_argument('--customer_id', required=True, help='Chronicle Customer ID (UUID)')
     parser.add_argument('--region', default='us', help='Chronicle region (us or eu)')
     parser.add_argument('--example', '-e', type=int, 
-                      help='Example number to run (1-12). If not specified, runs all examples.')
+                      help='Example number to run (1-13). If not specified, runs all examples.')
     
     args = parser.parse_args()
     
@@ -495,12 +553,25 @@ def main():
     examples = {
         1: lambda: example_create_rule(chronicle),
         2: lambda: example_list_rules(chronicle),
-        # Examples 3-12 are defined later because they depend on the created rule
+        3: lambda rule_id: example_get_rule(chronicle, rule_id),
+        4: lambda rule_id: example_update_rule(chronicle, rule_id, example_get_rule(chronicle, rule_id)),
+        5: lambda rule_id: example_enable_rule(chronicle, rule_id),
+        6: lambda rule_id: example_create_retrohunt(chronicle, rule_id),
+        7: lambda rule_id: (lambda retrohunt: (time.sleep(2), example_get_retrohunt(chronicle, rule_id, retrohunt)))(example_create_retrohunt(chronicle, rule_id)),
+        8: lambda rule_id: example_list_detections(chronicle, rule_id),
+        9: lambda rule_id: example_list_errors(chronicle, rule_id),
+        10: lambda: example_search_rule_alerts(chronicle),
+        11: lambda: example_rule_set_management(chronicle),
+        12: lambda rule_id: example_delete_rule(chronicle, rule_id),
+        13: lambda: example_validate_rule(chronicle)
     }
     
+    # Examples that require a rule ID
+    REQUIRES_RULE_ID = {3, 4, 5, 6, 7, 8, 9, 12}
+    
     if args.example:
-        if args.example not in range(1, 13):
-            print(f"Invalid example number. Available examples: 1-12")
+        if args.example not in range(1, 14):
+            print(f"Invalid example number. Available examples: 1-13")
             return
         
         if args.example == 1:
@@ -509,42 +580,16 @@ def main():
                 rule_id = created_rule.get("name", "").split("/")[-1]
                 print(f"\nCreated rule with ID: {rule_id}")
                 print("You can use this ID with other examples.")
-        elif args.example == 2:
-            examples[2]()
-        else:
-            # For examples 3-12, we need a rule ID
+        elif args.example in REQUIRES_RULE_ID:
+            # Only ask for rule ID if the example needs it
             rule_id = input("\nPlease enter a rule ID to use for this example: ")
             if not rule_id:
                 print("No rule ID provided.")
                 return
-                
-            if args.example == 3:
-                rule = example_get_rule(chronicle, rule_id)
-            elif args.example == 4:
-                rule = example_get_rule(chronicle, rule_id)
-                example_update_rule(chronicle, rule_id, rule)
-            elif args.example == 5:
-                example_enable_rule(chronicle, rule_id)
-            elif args.example == 6:
-                example_create_retrohunt(chronicle, rule_id)
-            elif args.example == 7:
-                retrohunt = example_create_retrohunt(chronicle, rule_id)
-                time.sleep(2)  # Wait a bit for the retrohunt to be registered
-                example_get_retrohunt(chronicle, rule_id, retrohunt)
-            elif args.example == 8:
-                example_list_detections(chronicle, rule_id)
-            elif args.example == 9:
-                example_list_errors(chronicle, rule_id)
-            elif args.example == 10:
-                example_search_rule_alerts(chronicle)
-            elif args.example == 11:
-                example_rule_set_management(chronicle)
-            elif args.example == 12:
-                confirm = input(f"\nAre you sure you want to delete rule {rule_id}? (y/n): ")
-                if confirm.lower() == 'y':
-                    example_delete_rule(chronicle, rule_id)
-                else:
-                    print("Rule deletion cancelled.")
+            examples[args.example](rule_id)
+        else:
+            # Examples that don't need a rule ID
+            examples[args.example]()
     else:
         # Run all examples in sequence
         print("\n=== Running all examples ===")
@@ -558,41 +603,32 @@ def main():
             
         rule_id = created_rule.get("name", "").split("/")[-1]
         
-        # Example 2: List rules
+        # Example 2: List rules (doesn't need rule ID)
         example_list_rules(chronicle)
         
-        # Example 3: Get rule details
-        rule = example_get_rule(chronicle, rule_id)
-        
-        # Example 4: Update rule
-        updated_rule = example_update_rule(chronicle, rule_id, rule)
-        
-        # Example 5: Enable rule
-        example_enable_rule(chronicle, rule_id)
+        # Examples that need rule ID
+        examples[3](rule_id)  # Get rule details
+        examples[4](rule_id)  # Update rule
+        examples[5](rule_id)  # Enable rule
         
         # Example 6 & 7: Create retrohunt and get status
-        retrohunt = example_create_retrohunt(chronicle, rule_id)
-        time.sleep(2)  # Wait a bit for the retrohunt to be registered
-        example_get_retrohunt(chronicle, rule_id, retrohunt)
+        examples[7](rule_id)
         
         # Example 8: List detections
-        example_list_detections(chronicle, rule_id)
+        examples[8](rule_id)
         
         # Example 9: List errors
-        example_list_errors(chronicle, rule_id)
+        examples[9](rule_id)
         
-        # Example 10: Search rule alerts
-        example_search_rule_alerts(chronicle)
+        # Examples that don't need rule ID
+        examples[10]()  # Search rule alerts
+        examples[11]()  # Rule set management
         
-        # Example 11: Rule set management
-        example_rule_set_management(chronicle)
+        # Example 12: Delete rule (needs rule ID)
+        examples[12](rule_id)
         
-        # Example 12: Delete rule
-        confirm = input(f"\nAre you sure you want to delete the created rule {rule_id}? (y/n): ")
-        if confirm.lower() == 'y':
-            example_delete_rule(chronicle, rule_id)
-        else:
-            print(f"Rule {rule_id} was not deleted.")
+        # Example 13: Validate rule (doesn't need rule ID)
+        examples[13]()
 
 if __name__ == "__main__":
     main() 

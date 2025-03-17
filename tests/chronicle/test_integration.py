@@ -452,8 +452,8 @@ rule test_retrohunt_rule {
         rule_name = created_rule.get("name", "")
         rule_id = rule_name.split("/")[-1]
         
-        # Set up time range for retrohunt (past 24 hours)
-        end_time = datetime.now(timezone.utc)
+        # Set up time range for retrohunt (from 48 hours ago to 24 hours ago)
+        end_time = datetime.now(timezone.utc) - timedelta(hours=24)
         start_time = end_time - timedelta(hours=24)
         
         # Create retrohunt
@@ -498,3 +498,50 @@ def test_chronicle_rule_detections():
         
     except APIError as e:
         pytest.fail(f"API Error during rule detections test: {str(e)}")
+
+@pytest.mark.integration
+def test_chronicle_rule_validation():
+    """Test Chronicle rule validation functionality with real API."""
+    client = SecOpsClient()
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+    
+    # Test with a valid rule
+    valid_rule = """
+rule test_rule {
+    meta:
+        description = "Test rule for validation"
+        author = "Test Author"
+        severity = "Low"
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
+}
+"""
+    
+    try:
+        # Validate valid rule
+        result = chronicle.validate_rule(valid_rule)
+        assert result.success is True
+        assert result.message is None
+        assert result.position is None
+        
+        # Test with an invalid rule (missing condition)
+        invalid_rule = """
+rule test_rule {
+    meta:
+        description = "Test rule for validation"
+        author = "Test Author"
+        severity = "Low"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+}
+"""
+        result = chronicle.validate_rule(invalid_rule)
+        assert result.success is False
+        assert result.message is not None
+        
+    except APIError as e:
+        pytest.fail(f"API Error during rule validation test: {str(e)}")

@@ -607,6 +607,38 @@ deployments = [
 chronicle.batch_update_curated_rule_set_deployments(deployments)
 ```
 
+### Rule Validation
+
+Validate a YARA-L2 rule before creating or updating it:
+
+```python
+# Example rule
+rule_text = """
+rule test_rule {
+    meta:
+        description = "Test rule for validation"
+        author = "Test Author"
+        severity = "Low"
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
+}
+"""
+
+# Validate the rule
+result = chronicle.validate_rule(rule_text)
+
+if result.success:
+    print("Rule is valid")
+else:
+    print(f"Rule is invalid: {result.message}")
+    if result.position:
+        print(f"Error at line {result.position['startLine']}, column {result.position['startColumn']}")
+```
+
 ## Error Handling
 
 The SDK defines several custom exceptions:

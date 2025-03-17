@@ -63,6 +63,7 @@ from secops.chronicle.rule_retrohunt import (
 from secops.chronicle.rule_set import (
     batch_update_curated_rule_set_deployments as _batch_update_curated_rule_set_deployments
 )
+from .rule_validation import validate_rule as _validate_rule
 
 from secops.chronicle.models import (
     Entity, 
@@ -1008,4 +1009,21 @@ class ChronicleClient:
             APIError: If the API request fails
             ValueError: If required fields are missing from the deployments
         """
-        return _batch_update_curated_rule_set_deployments(self, deployments) 
+        return _batch_update_curated_rule_set_deployments(self, deployments)
+
+    def validate_rule(self, rule_text: str):
+        """Validates a YARA-L2 rule against the Chronicle API.
+        
+        Args:
+            rule_text: Content of the rule to validate
+            
+        Returns:
+            ValidationResult containing:
+                - success: Whether the rule is valid
+                - message: Error message if validation failed, None if successful
+                - position: Dictionary containing position information for errors, if available
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _validate_rule(self, rule_text) 
