@@ -8,13 +8,22 @@ from secops.exceptions import APIError
 import json
 import argparse
 
-def get_client():
-    """Initialize and return the Chronicle client."""
+def get_client(project_id, customer_id, region):
+    """Initialize and return the Chronicle client.
+    
+    Args:
+        project_id: Google Cloud Project ID
+        customer_id: Chronicle Customer ID (UUID)
+        region: Chronicle region (us or eu)
+        
+    Returns:
+        Chronicle client instance
+    """
     client = SecOpsClient()
     chronicle = client.chronicle(
-        customer_id="c3c6260c1c9340dcbbb802603bbf9636",
-        project_id="725716774503",
-        region="us"
+        customer_id=customer_id,
+        project_id=project_id,
+        region=region
     )
     return chronicle
 
@@ -24,10 +33,9 @@ def get_time_range():
     start_time = end_time - timedelta(hours=24)
     return start_time, end_time
 
-def example_udm_search():
+def example_udm_search(chronicle):
     """Example 1: Basic UDM Search."""
     print("\n=== Example 1: Basic UDM Search ===")
-    chronicle = get_client()
     start_time, end_time = get_time_range()
     
     try:
@@ -47,10 +55,9 @@ def example_udm_search():
     except Exception as e:
         print(f"Error performing UDM search: {e}")
 
-def example_stats_query():
+def example_stats_query(chronicle):
     """Example 2: Stats Query."""
     print("\n=== Example 2: Stats Query ===")
-    chronicle = get_client()
     start_time, end_time = get_time_range()
     
     try:
@@ -73,10 +80,9 @@ order:
     except Exception as e:
         print(f"Error performing stats query: {e}")
 
-def example_entity_summary():
+def example_entity_summary(chronicle):
     """Example 3: Entity Summary."""
     print("\n=== Example 3: Entity Summary ===")
-    chronicle = get_client()
     start_time, end_time = get_time_range()
     
     try:
@@ -101,10 +107,9 @@ def example_entity_summary():
     except APIError as e:
         print(f"Error: {str(e)}")
 
-def example_csv_export():
+def example_csv_export(chronicle):
     """Example 4: CSV Export."""
     print("\n=== Example 4: CSV Export ===")
-    chronicle = get_client()
     start_time, end_time = get_time_range()
     
     try:
@@ -140,10 +145,9 @@ def example_csv_export():
     except APIError as e:
         print(f"Error: {str(e)}")
 
-def example_list_iocs():
+def example_list_iocs(chronicle):
     """Example 5: List IoCs."""
     print("\n=== Example 5: List IoCs ===")
-    chronicle = get_client()
     start_time, end_time = get_time_range()
     
     try:
@@ -163,10 +167,9 @@ def example_list_iocs():
     except APIError as e:
         print(f"Error: {str(e)}")
 
-def example_alerts_and_cases():
+def example_alerts_and_cases(chronicle):
     """Example 6: Alerts and Cases."""
     print("\n=== Example 6: Alerts and Cases ===")
-    chronicle = get_client()
     start_time, end_time = get_time_range()
     
     try:
@@ -226,10 +229,9 @@ def example_alerts_and_cases():
     except APIError as e:
         print(f"Error: {str(e)}")
 
-def example_validate_query():
+def example_validate_query(chronicle):
     """Example 7: Query Validation."""
     print("\n=== Example 7: Query Validation ===")
-    chronicle = get_client()
     
     # Example 1: Valid UDM Query
     try:
@@ -327,10 +329,9 @@ order:
     except APIError as e:
         print(f"Error validating query: {str(e)}")
 
-def example_entities_from_query():
+def example_entities_from_query(chronicle):
     """Example 8: Entities from Query."""
     print("\n=== Example 8: Entities from Query ===")
-    chronicle = get_client()
     start_time, end_time = get_time_range()
     
     try:
@@ -452,6 +453,62 @@ def example_entities_from_query():
     except APIError as e:
         print(f"Error in entity query: {str(e)}")
 
+def example_nl_search(chronicle):
+    """Example 9: Natural Language Search."""
+    print("\n=== Example 9: Natural Language Search ===")
+    start_time, end_time = get_time_range()
+    
+    try:
+        # First, translate a natural language query to UDM
+        print("\nPart 1: Translate natural language to UDM query")
+        print("\nTranslating: 'show me network connections'")
+        
+        udm_query = chronicle.translate_nl_to_udm("show me network connections")
+        print(f"\nTranslated UDM query: {udm_query}")
+        
+        # Now perform a search using natural language directly
+        print("\nPart 2: Perform a search using natural language")
+        print("\nSearching for: 'show me network connections'")
+        
+        results = chronicle.nl_search(
+            text="show me network connections",
+            start_time=start_time,
+            end_time=end_time,
+            max_events=5
+        )
+        
+        print(f"\nFound {results['total_events']} events")
+        if results['events']:
+            print("\nFirst event details:")
+            pprint(results['events'][0])
+            
+        # Try a more specific query
+        print("\nPart 3: More specific natural language search")
+        print("\nSearching for: 'show me inbound connections to port 443'")
+        
+        specific_results = chronicle.nl_search(
+            text="show me inbound connections to port 443",
+            start_time=start_time,
+            end_time=end_time,
+            max_events=5
+        )
+        
+        print(f"\nFound {specific_results['total_events']} events")
+        if specific_results['events']:
+            print("\nFirst event details:")
+            pprint(specific_results['events'][0])
+        
+    except APIError as e:
+        if "no valid query could be generated" in str(e):
+            print(f"\nAPI returned an expected error: {str(e)}")
+            print("\nTry using a different phrasing or more specific language.")
+            print("Examples of good queries:")
+            print("- 'show me all network connections'")
+            print("- 'find authentication events'")
+            print("- 'show me file modification events'")
+        else:
+            print(f"API Error: {str(e)}")
+
 # Map of example functions
 EXAMPLES = {
     '1': example_udm_search,
@@ -462,25 +519,32 @@ EXAMPLES = {
     '6': example_alerts_and_cases,
     '7': example_validate_query,
     '8': example_entities_from_query,
+    '9': example_nl_search,
 }
 
 def main():
     """Main function to run examples."""
     parser = argparse.ArgumentParser(description='Run Chronicle API examples')
+    parser.add_argument('--project_id', required=True, help='Google Cloud Project ID')
+    parser.add_argument('--customer_id', required=True, help='Chronicle Customer ID (UUID)')
+    parser.add_argument('--region', default='us', help='Chronicle region (us or eu)')
     parser.add_argument('--example', '-e', 
-                      help='Example number to run (1-8). If not specified, runs all examples.')
+                      help='Example number to run (1-9). If not specified, runs all examples.')
     
     args = parser.parse_args()
+    
+    # Initialize the client
+    chronicle = get_client(args.project_id, args.customer_id, args.region)
     
     if args.example:
         if args.example not in EXAMPLES:
             print(f"Invalid example number. Available examples: {', '.join(EXAMPLES.keys())}")
             return
-        EXAMPLES[args.example]()
+        EXAMPLES[args.example](chronicle)
     else:
         # Run all examples in order
         for example_num in sorted(EXAMPLES.keys()):
-            EXAMPLES[example_num]()
+            EXAMPLES[example_num](chronicle)
 
 if __name__ == "__main__":
     main()

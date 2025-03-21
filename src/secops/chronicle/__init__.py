@@ -23,6 +23,7 @@ from secops.chronicle.entity import summarize_entity, summarize_entities_from_qu
 from secops.chronicle.ioc import list_iocs
 from secops.chronicle.case import get_cases
 from secops.chronicle.alert import get_alerts
+from secops.chronicle.nl_search import translate_nl_to_udm, nl_search
 
 # Rule functionality
 from secops.chronicle.rule import (
@@ -76,6 +77,10 @@ __all__ = [
     "validate_query",
     "get_stats",
     "search_udm",
+    
+    # Natural Language Search
+    "translate_nl_to_udm",
+    "nl_search",
     
     # Entity
     "summarize_entity",

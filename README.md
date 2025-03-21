@@ -232,6 +232,70 @@ validation = chronicle.validate_query(query)
 }
 ```
 
+### Natural Language Search
+
+Search for events using natural language instead of UDM query syntax:
+
+```python
+from datetime import datetime, timedelta, timezone
+
+# Set time range for queries
+end_time = datetime.now(timezone.utc)
+start_time = end_time - timedelta(hours=24)  # Last 24 hours
+
+# Option 1: Translate natural language to UDM query
+udm_query = chronicle.translate_nl_to_udm("show me network connections")
+print(f"Translated query: {udm_query}")
+# Example output: 'metadata.event_type="NETWORK_CONNECTION"'
+
+# Then run the query manually if needed
+results = chronicle.search_udm(
+    query=udm_query,
+    start_time=start_time,
+    end_time=end_time
+)
+
+# Option 2: Perform complete search with natural language
+results = chronicle.nl_search(
+    text="show me failed login attempts",
+    start_time=start_time,
+    end_time=end_time,
+    max_events=100
+)
+
+# Example response (same format as search_udm):
+{
+    "events": [
+        {
+            "event": {
+                "metadata": {
+                    "eventTimestamp": "2024-02-09T10:30:00Z",
+                    "eventType": "USER_LOGIN"
+                },
+                "principal": {
+                    "user": {
+                        "userid": "jdoe"
+                    }
+                },
+                "securityResult": {
+                    "action": "BLOCK",
+                    "summary": "Failed login attempt"
+                }
+            }
+        }
+    ],
+    "total_events": 1
+}
+```
+
+The natural language search feature supports various query patterns:
+- "Show me network connections"
+- "Find suspicious processes"
+- "Show login failures in the last hour"
+- "Display connections to IP address 192.168.1.100"
+
+If the natural language cannot be translated to a valid UDM query, an `APIError` will be raised with a message indicating that no valid query could be generated.
+
 ### Entity Summary
 
 Get detailed information about specific entities:

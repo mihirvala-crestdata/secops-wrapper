@@ -78,6 +78,8 @@ from secops.chronicle.models import (
     CaseList
 )
 
+from secops.chronicle.nl_search import translate_nl_to_udm, nl_search as _nl_search
+
 class ValueType(Enum):
     """Chronicle API value types."""
     ASSET_IP_ADDRESS = "ASSET_IP_ADDRESS"
@@ -1026,4 +1028,53 @@ class ChronicleClient:
         Raises:
             APIError: If the API request fails
         """
-        return _validate_rule(self, rule_text) 
+        return _validate_rule(self, rule_text)
+
+    def translate_nl_to_udm(self, text: str) -> str:
+        """Translate natural language query to UDM search syntax.
+        
+        Args:
+            text: Natural language query text
+            
+        Returns:
+            UDM search query string
+            
+        Raises:
+            APIError: If the API request fails or no valid query can be generated
+        """
+        return translate_nl_to_udm(self, text)
+    
+    def nl_search(
+        self,
+        text: str,
+        start_time: datetime,
+        end_time: datetime,
+        max_events: int = 10000,
+        case_insensitive: bool = True,
+        max_attempts: int = 30
+    ) -> Dict[str, Any]:
+        """Perform a search using natural language that is translated to UDM.
+        
+        Args:
+            text: Natural language query text
+            start_time: Search start time
+            end_time: Search end time
+            max_events: Maximum events to return
+            case_insensitive: Whether to perform case-insensitive search
+            max_attempts: Maximum number of polling attempts
+            
+        Returns:
+            Dict containing the search results with events
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _nl_search(
+            self,
+            text=text,
+            start_time=start_time,
+            end_time=end_time,
+            max_events=max_events,
+            case_insensitive=case_insensitive,
+            max_attempts=max_attempts
+        ) 

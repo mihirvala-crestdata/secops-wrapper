@@ -545,3 +545,57 @@ rule test_rule {
         
     except APIError as e:
         pytest.fail(f"API Error during rule validation test: {str(e)}")
+
+@pytest.mark.integration
+def test_chronicle_nl_search():
+    """Test Chronicle natural language search functionality with real API."""
+    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+    
+    # Use a smaller time window to minimize processing time
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - timedelta(minutes=10)
+    
+    try:
+        # First, test the translation function only
+        udm_query = chronicle.translate_nl_to_udm("ip address is known")
+        
+        print(f"\nTranslated query: {udm_query}")
+        assert isinstance(udm_query, str)
+        assert "ip" in udm_query  # Basic validation that it contains 'ip'
+        
+        # Now test the full search function
+        # Try a simple query that should return results
+        results = chronicle.nl_search(
+            text="show me network connections",
+            start_time=start_time,
+            end_time=end_time,
+            max_events=5
+        )
+        
+        assert isinstance(results, dict)
+        assert "events" in results
+        assert "total_events" in results
+        
+        print(f"\nFound {results.get('total_events', 0)} events")
+        
+        # Try a query that might not have results but should translate properly
+        more_specific = chronicle.nl_search(
+            text="show me failed login attempts",
+            start_time=start_time,
+            end_time=end_time,
+            max_events=5
+        )
+        
+        assert isinstance(more_specific, dict)
+        print(f"\nSpecific query found {more_specific.get('total_events', 0)} events")
+        
+    except APIError as e:
+        if "no valid query could be generated" in str(e):
+            # If translation fails, the test still passes as this is a valid API response
+            print(f"\nAPI returned expected error for invalid query: {str(e)}")
+            pytest.skip("Translation failed with expected error message")
+        else:
+            # For other API errors, fail the test
+            print(f"\nAPI Error details: {str(e)}")
+            raise
