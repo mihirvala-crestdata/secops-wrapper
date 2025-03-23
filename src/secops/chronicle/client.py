@@ -36,6 +36,7 @@ from secops.chronicle.entity import (
 from secops.chronicle.ioc import list_iocs as _list_iocs
 from secops.chronicle.case import get_cases_from_list
 from secops.chronicle.alert import get_alerts as _get_alerts
+from secops.chronicle.log_ingest import ingest_log as _ingest_log, get_or_create_forwarder as _get_or_create_forwarder
 
 # Import rule functions
 from secops.chronicle.rule import (
@@ -1077,4 +1078,60 @@ class ChronicleClient:
             max_events=max_events,
             case_insensitive=case_insensitive,
             max_attempts=max_attempts
+        )
+
+    def ingest_log(
+        self,
+        log_type: str,
+        log_message: str,
+        log_entry_time: Optional[datetime] = None,
+        collection_time: Optional[datetime] = None,
+        forwarder_id: Optional[str] = None,
+        force_log_type: bool = False
+    ) -> Dict[str, Any]:
+        """Ingest a log into Chronicle.
+        
+        Args:
+            log_type: Chronicle log type (e.g., "OKTA", "WINDOWS", etc.)
+            log_message: The raw log message to ingest
+            log_entry_time: The time the log entry was created (defaults to current time)
+            collection_time: The time the log was collected (defaults to current time)
+            forwarder_id: ID of the forwarder to use (creates or uses default if None)
+            force_log_type: Whether to force using the log type even if not in the valid list
+            
+        Returns:
+            Dictionary containing the operation details for the ingestion
+            
+        Raises:
+            ValueError: If the log type is invalid or timestamps are invalid
+            APIError: If the API request fails
+        """
+        return _ingest_log(
+            self,
+            log_type=log_type,
+            log_message=log_message,
+            log_entry_time=log_entry_time,
+            collection_time=collection_time,
+            forwarder_id=forwarder_id,
+            force_log_type=force_log_type
+        )
+
+    def get_or_create_forwarder(
+        self,
+        display_name: str = "Wrapper-SDK-Forwarder"
+    ) -> Dict[str, Any]:
+        """Get an existing forwarder by name or create a new one if none exists.
+        
+        Args:
+            display_name: Name of the forwarder to find or create
+            
+        Returns:
+            Dictionary containing the forwarder details
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return _get_or_create_forwarder(
+            self,
+            display_name=display_name
         ) 

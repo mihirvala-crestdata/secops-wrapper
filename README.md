@@ -118,6 +118,102 @@ chronicle = client.chronicle(
 )
 ```
 
+### Log Ingestion
+
+Ingest raw logs directly into Chronicle:
+
+```python
+from datetime import datetime, timezone
+import json
+
+# Create a sample log (this is an OKTA log)
+current_time = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+okta_log = {
+    "actor": {
+        "displayName": "Joe Doe",
+        "alternateId": "jdoe@example.com"
+    },
+    "client": {
+        "ipAddress": "192.168.1.100",
+        "userAgent": {
+            "os": "Mac OS X",
+            "browser": "SAFARI"
+        }
+    },
+    "displayMessage": "User login to Okta",
+    "eventType": "user.session.start",
+    "outcome": {
+        "result": "SUCCESS"
+    },
+    "published": current_time  # Current time in ISO format
+}
+
+# Ingest the log using the default forwarder
+result = chronicle.ingest_log(
+    log_type="OKTA",  # Chronicle log type
+    log_message=json.dumps(okta_log)  # JSON string of the log
+)
+
+print(f"Operation: {result.get('operation')}")
+```
+
+The SDK supports all log types available in Chronicle. You can:
+
+1. View available log types:
+```python
+# Get all available log types
+log_types = chronicle.get_all_log_types()
+for lt in log_types[:5]:  # Show first 5
+    print(f"{lt.id}: {lt.description}")
+```
+
+2. Search for specific log types:
+```python
+# Search for log types related to firewalls
+firewall_types = chronicle.search_log_types("firewall")
+for lt in firewall_types:
+    print(f"{lt.id}: {lt.description}")
+```
+
+3. Validate log types:
+```python
+# Check if a log type is valid
+if chronicle.is_valid_log_type("OKTA"):
+    print("Valid log type")
+else:
+    print("Invalid log type")
+```
+
+4. Use custom forwarders:
+```python
+# Create or get a custom forwarder
+forwarder = chronicle.get_or_create_forwarder(display_name="MyCustomForwarder")
+forwarder_id = forwarder["name"].split("/")[-1]
+
+# Use the custom forwarder for log ingestion
+result = chronicle.ingest_log(
+    log_type="WINDOWS",
+    log_message=json.dumps(windows_log),
+    forwarder_id=forwarder_id
+)
+```
+
+5. Use custom timestamps:
+```python
+from datetime import datetime, timedelta, timezone
+
+# Define custom timestamps
+log_entry_time = datetime.now(timezone.utc) - timedelta(hours=1)
+collection_time = datetime.now(timezone.utc)
+
+result = chronicle.ingest_log(
+    log_type="OKTA",
+    log_message=json.dumps(okta_log),
+    log_entry_time=log_entry_time,  # When the log was generated
+    collection_time=collection_time  # When the log was collected
+)
+```
+
 ### Basic UDM Search
 
 Search for network connection events:

@@ -509,6 +509,134 @@ def example_nl_search(chronicle):
         else:
             print(f"API Error: {str(e)}")
 
+def example_log_ingestion(chronicle):
+    """Example 10: Log Ingestion."""
+    print("\n=== Example 10: Log Ingestion ===")
+    
+    # Create a sample OKTA log to ingest
+    current_time = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    
+    okta_log = {
+        "actor": {
+            "alternateId": "oshamir1@cymbal-investments.org",
+            "detail": None,
+            "displayName": "Joe Doe",
+            "id": "00u4j7xcb5N6zfiRP5d9",
+            "type": "User"
+        },
+        "client": {
+            "userAgent": {
+                "rawUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15",
+                "os": "Mac OS X",
+                "browser": "SAFARI"
+            },
+            "zone": "null",
+            "device": "Computer",
+            "id": None,
+            "ipAddress": "159.250.183.180",
+            "geographicalContext": {
+                "city": "Miami",
+                "state": "Florida",
+                "country": "United States",
+                "postalCode": "33131",
+                "geolocation": {
+                    "lat": 25.7634,
+                    "lon": -80.1886
+                }
+            }
+        },
+        "authenticationContext": {
+            "authenticationProvider": None,
+            "credentialProvider": None,
+            "credentialType": None,
+            "issuer": None,
+            "interface": None,
+            "authenticationStep": 0,
+            "externalSessionId": "102VLe8EG5zT2yawpoqTqalcA"
+        },
+        "displayMessage": "User login to Okta",
+        "eventType": "user.session.start",
+        "outcome": {
+            "result": "SUCCESS",
+            "reason": None
+        },
+        "published": current_time,
+        "securityContext": {
+            "asNumber": 11776,
+            "asOrg": "atlantic broadband",
+            "isp": "atlantic broadband finance llc",
+            "domain": "atlanticbb.net",
+            "isProxy": False
+        },
+        "severity": "INFO",
+        "debugContext": {
+            "debugData": {
+                "dtHash": "57e8b514704467a0b0d82a96331c8082a94540c2cab5eb838250fb06d3939f11",
+                "behaviors": "{New Geo-Location=NEGATIVE, New Device=POSITIVE, New IP=POSITIVE, New State=NEGATIVE, New Country=NEGATIVE, Velocity=NEGATIVE, New City=POSITIVE}",
+                "requestId": "Xfxq0rWgTpMflVcjGjapWAtABNA",
+                "requestUri": "/api/v1/authn",
+                "threatSuspected": "true",
+                "url": "/api/v1/authn?"
+            }
+        },
+        "legacyEventType": "core.user_auth.login_success",
+        "transaction": {
+            "type": "WEB",
+            "id": "Xfxq0rWgTpMflVcjGjapWAtABNA",
+            "detail": {}
+        },
+        "uuid": "661c6bda-12f2-11ea-84eb-2b5358b2525a",
+        "version": "0",
+        "request": {
+            "ipChain": [{
+                "ip": "159.250.183.180",
+                "geographicalContext": {
+                    "city": "Miami",
+                    "state": "Florida",
+                    "country": "United States",
+                    "postalCode": "33131",
+                    "geolocation": {
+                        "lat": 24.7634,
+                        "lon": -81.1666
+                    }
+                },
+                "version": "V4",
+                "source": None
+            }]
+        },
+        "target": None
+    }
+    
+    try:
+        print("\nPart 1: Creating or Finding a Forwarder")
+        forwarder = chronicle.get_or_create_forwarder(display_name="Wrapper-SDK-Forwarder")
+        print(f"Using forwarder: {forwarder.get('displayName', 'Unknown')}")
+        
+        print("\nPart 2: Ingesting OKTA Log")
+        print("Ingesting OKTA log with timestamp:", current_time)
+        
+        result = chronicle.ingest_log(
+            log_type="OKTA",
+            log_message=json.dumps(okta_log)
+        )
+        
+        print("\nLog ingestion successful!")
+        print(f"Operation ID: {result.get('operation', 'Unknown')}")
+        
+        print("\nPart 3: Listing Available Log Types")
+        # Get the first 5 log types for display
+        log_types = chronicle.get_all_log_types()[:5]
+        print(f"\nFound {len(chronicle.get_all_log_types())} log types. First 5 examples:")
+        
+        for lt in log_types:
+            print(f"- {lt.id}: {lt.description}")
+            
+        print("\nTip: You can search for specific log types:")
+        print('search_result = chronicle.search_log_types("firewall")')
+        
+    except Exception as e:
+        print(f"\nError during log ingestion: {e}")
+
 # Map of example functions
 EXAMPLES = {
     '1': example_udm_search,
@@ -520,6 +648,7 @@ EXAMPLES = {
     '7': example_validate_query,
     '8': example_entities_from_query,
     '9': example_nl_search,
+    '10': example_log_ingestion,
 }
 
 def main():
@@ -529,7 +658,7 @@ def main():
     parser.add_argument('--customer_id', required=True, help='Chronicle Customer ID (UUID)')
     parser.add_argument('--region', default='us', help='Chronicle region (us or eu)')
     parser.add_argument('--example', '-e', 
-                      help='Example number to run (1-9). If not specified, runs all examples.')
+                      help='Example number to run (1-10). If not specified, runs all examples.')
     
     args = parser.parse_args()
     
