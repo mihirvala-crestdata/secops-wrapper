@@ -118,6 +118,140 @@ chronicle = client.chronicle(
 )
 ```
 
+### Log Ingestion
+
+Ingest raw logs directly into Chronicle:
+
+```python
+from datetime import datetime, timezone
+import json
+
+# Create a sample log (this is an OKTA log)
+current_time = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+okta_log = {
+    "actor": {
+        "displayName": "Joe Doe",
+        "alternateId": "jdoe@example.com"
+    },
+    "client": {
+        "ipAddress": "192.168.1.100",
+        "userAgent": {
+            "os": "Mac OS X",
+            "browser": "SAFARI"
+        }
+    },
+    "displayMessage": "User login to Okta",
+    "eventType": "user.session.start",
+    "outcome": {
+        "result": "SUCCESS"
+    },
+    "published": current_time  # Current time in ISO format
+}
+
+# Ingest the log using the default forwarder
+result = chronicle.ingest_log(
+    log_type="OKTA",  # Chronicle log type
+    log_message=json.dumps(okta_log)  # JSON string of the log
+)
+
+print(f"Operation: {result.get('operation')}")
+```
+
+The SDK also supports non-JSON log formats. Here's an example with XML for Windows Event logs:
+
+```python
+# Create a Windows Event XML log
+xml_content = """<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
+  <System>
+    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{54849625-5478-4994-A5BA-3E3B0328C30D}'/>
+    <EventID>4624</EventID>
+    <Version>1</Version>
+    <Level>0</Level>
+    <Task>12544</Task>
+    <Opcode>0</Opcode>
+    <Keywords>0x8020000000000000</Keywords>
+    <TimeCreated SystemTime='2024-05-10T14:30:00Z'/>
+    <EventRecordID>202117513</EventRecordID>
+    <Correlation/>
+    <Execution ProcessID='656' ThreadID='700'/>
+    <Channel>Security</Channel>
+    <Computer>WIN-SERVER.xyz.net</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data Name='SubjectUserSid'>S-1-0-0</Data>
+    <Data Name='SubjectUserName'>-</Data>
+    <Data Name='TargetUserName'>svcUser</Data>
+    <Data Name='WorkstationName'>CLIENT-PC</Data>
+    <Data Name='LogonType'>3</Data>
+  </EventData>
+</Event>"""
+
+# Ingest the XML log - no json.dumps() needed for XML
+result = chronicle.ingest_log(
+    log_type="WINEVTLOG_XML",  # Windows Event Log XML format
+    log_message=xml_content    # Raw XML content
+)
+
+print(f"Operation: {result.get('operation')}")
+```
+The SDK supports all log types available in Chronicle. You can:
+
+1. View available log types:
+```python
+# Get all available log types
+log_types = chronicle.get_all_log_types()
+for lt in log_types[:5]:  # Show first 5
+    print(f"{lt.id}: {lt.description}")
+```
+
+2. Search for specific log types:
+```python
+# Search for log types related to firewalls
+firewall_types = chronicle.search_log_types("firewall")
+for lt in firewall_types:
+    print(f"{lt.id}: {lt.description}")
+```
+
+3. Validate log types:
+```python
+# Check if a log type is valid
+if chronicle.is_valid_log_type("OKTA"):
+    print("Valid log type")
+else:
+    print("Invalid log type")
+```
+
+4. Use custom forwarders:
+```python
+# Create or get a custom forwarder
+forwarder = chronicle.get_or_create_forwarder(display_name="MyCustomForwarder")
+forwarder_id = forwarder["name"].split("/")[-1]
+
+# Use the custom forwarder for log ingestion
+result = chronicle.ingest_log(
+    log_type="WINDOWS",
+    log_message=json.dumps(windows_log),
+    forwarder_id=forwarder_id
+)
+```
+
+5. Use custom timestamps:
+```python
+from datetime import datetime, timedelta, timezone
+
+# Define custom timestamps
+log_entry_time = datetime.now(timezone.utc) - timedelta(hours=1)
+collection_time = datetime.now(timezone.utc)
+
+result = chronicle.ingest_log(
+    log_type="OKTA",
+    log_message=json.dumps(okta_log),
+    log_entry_time=log_entry_time,  # When the log was generated
+    collection_time=collection_time  # When the log was collected
+)
+```
+
 ### Basic UDM Search
 
 Search for network connection events:

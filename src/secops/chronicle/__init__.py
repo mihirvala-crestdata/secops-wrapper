@@ -24,6 +24,8 @@ from secops.chronicle.ioc import list_iocs
 from secops.chronicle.case import get_cases
 from secops.chronicle.alert import get_alerts
 from secops.chronicle.nl_search import translate_nl_to_udm, nl_search
+from secops.chronicle.log_ingest import ingest_log, create_forwarder, get_or_create_forwarder, list_forwarders, get_forwarder, extract_forwarder_id
+from secops.chronicle.log_types import LogType, get_all_log_types, is_valid_log_type, get_log_type_description, search_log_types
 
 # Rule functionality
 from secops.chronicle.rule import (
@@ -94,6 +96,21 @@ __all__ = [
     
     # Alert
     "get_alerts",
+    
+    # Log Ingestion
+    "ingest_log",
+    "create_forwarder",
+    "get_or_create_forwarder",
+    "list_forwarders",
+    "get_forwarder",
+    "extract_forwarder_id",
+    
+    # Log Types
+    "LogType",
+    "get_all_log_types",
+    "is_valid_log_type",
+    "get_log_type_description",
+    "search_log_types",
     
     # Rule management
     "create_rule",

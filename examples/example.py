@@ -509,6 +509,192 @@ def example_nl_search(chronicle):
         else:
             print(f"API Error: {str(e)}")
 
+def example_log_ingestion(chronicle):
+    """Example 10: Log Ingestion."""
+    print("\n=== Example 10: Log Ingestion ===")
+    
+    # Get current time for examples
+    current_time = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    
+    # Create a sample OKTA log to ingest
+    okta_log = {
+        "actor": {
+            "alternateId": "oshamir1@cymbal-investments.org",
+            "detail": None,
+            "displayName": "Joe Doe",
+            "id": "00u4j7xcb5N6zfiRP5d9",
+            "type": "User"
+        },
+        "client": {
+            "userAgent": {
+                "rawUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15",
+                "os": "Mac OS X",
+                "browser": "SAFARI"
+            },
+            "zone": "null",
+            "device": "Computer",
+            "id": None,
+            "ipAddress": "159.250.183.180",
+            "geographicalContext": {
+                "city": "Miami",
+                "state": "Florida",
+                "country": "United States",
+                "postalCode": "33131",
+                "geolocation": {
+                    "lat": 25.7634,
+                    "lon": -80.1886
+                }
+            }
+        },
+        "authenticationContext": {
+            "authenticationProvider": None,
+            "credentialProvider": None,
+            "credentialType": None,
+            "issuer": None,
+            "interface": None,
+            "authenticationStep": 0,
+            "externalSessionId": "102VLe8EG5zT2yawpoqTqalcA"
+        },
+        "displayMessage": "User login to Okta",
+        "eventType": "user.session.start",
+        "outcome": {
+            "result": "SUCCESS",
+            "reason": None
+        },
+        "published": current_time,
+        "securityContext": {
+            "asNumber": 11776,
+            "asOrg": "atlantic broadband",
+            "isp": "atlantic broadband finance llc",
+            "domain": "atlanticbb.net",
+            "isProxy": False
+        },
+        "severity": "INFO",
+        "debugContext": {
+            "debugData": {
+                "dtHash": "57e8b514704467a0b0d82a96331c8082a94540c2cab5eb838250fb06d3939f11",
+                "behaviors": "{New Geo-Location=NEGATIVE, New Device=POSITIVE, New IP=POSITIVE, New State=NEGATIVE, New Country=NEGATIVE, Velocity=NEGATIVE, New City=POSITIVE}",
+                "requestId": "Xfxq0rWgTpMflVcjGjapWAtABNA",
+                "requestUri": "/api/v1/authn",
+                "threatSuspected": "true",
+                "url": "/api/v1/authn?"
+            }
+        },
+        "legacyEventType": "core.user_auth.login_success",
+        "transaction": {
+            "type": "WEB",
+            "id": "Xfxq0rWgTpMflVcjGjapWAtABNA",
+            "detail": {}
+        },
+        "uuid": "661c6bda-12f2-11ea-84eb-2b5358b2525a",
+        "version": "0",
+        "request": {
+            "ipChain": [{
+                "ip": "159.250.183.180",
+                "geographicalContext": {
+                    "city": "Miami",
+                    "state": "Florida",
+                    "country": "United States",
+                    "postalCode": "33131",
+                    "geolocation": {
+                        "lat": 24.7634,
+                        "lon": -81.1666
+                    }
+                },
+                "version": "V4",
+                "source": None
+            }]
+        },
+        "target": None
+    }
+    
+    try:
+        print("\nPart 1: Creating or Finding a Forwarder")
+        forwarder = chronicle.get_or_create_forwarder(display_name="Wrapper-SDK-Forwarder")
+        print(f"Using forwarder: {forwarder.get('displayName', 'Unknown')}")
+        
+        print("\nPart 2: Ingesting OKTA Log (JSON format)")
+        print("Ingesting OKTA log with timestamp:", current_time)
+        
+        result = chronicle.ingest_log(
+            log_type="OKTA",
+            log_message=json.dumps(okta_log)
+        )
+        
+        print("\nLog ingestion successful!")
+        print(f"Operation ID: {result.get('operation', 'Unknown')}")
+        
+        # Example of ingesting a Windows Event XML log
+        print("\nPart 3: Ingesting Windows Event Log (XML format)")
+        
+        # Create a Windows Event XML log with current timestamp
+        # Use proper XML structure with <System> tags
+        xml_content = f"""<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
+  <System>
+    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{{54849625-5478-4994-A5BA-3E3B0328C30D}}'/>
+    <EventID>4624</EventID>
+    <Version>1</Version>
+    <Level>0</Level>
+    <Task>12544</Task>
+    <Opcode>0</Opcode>
+    <Keywords>0x8020000000000000</Keywords>
+    <TimeCreated SystemTime='{current_time}'/>
+    <EventRecordID>202117513</EventRecordID>
+    <Correlation/>
+    <Execution ProcessID='656' ThreadID='700'/>
+    <Channel>Security</Channel>
+    <Computer>WINSQLPRD354.xyz.net</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data Name='SubjectUserSid'>S-1-0-0</Data>
+    <Data Name='SubjectUserName'>-</Data>
+    <Data Name='SubjectDomainName'>-</Data>
+    <Data Name='SubjectLogonId'>0x0</Data>
+    <Data Name='TargetUserSid'>S-1-5-21-3666632573-2959896787-3198913328-396976</Data>
+    <Data Name='TargetUserName'>svcECM15Search</Data>
+    <Data Name='TargetDomainName'>XYZ</Data>
+    <Data Name='TargetLogonId'>0x2cc559155</Data>
+    <Data Name='LogonType'>3</Data>
+    <Data Name='LogonProcessName'>NtLmSsp </Data>
+    <Data Name='AuthenticationPackageName'>NTLM</Data>
+    <Data Name='WorkstationName'>OKCFSTPRD402</Data>
+    <Data Name='LogonGuid'>{{00000000-0000-0000-0000-000000000000}}</Data>
+    <Data Name='TransmittedServices'>-</Data>
+    <Data Name='LmPackageName'>NTLM V1</Data>
+    <Data Name='KeyLength'>128</Data>
+    <Data Name='ProcessId'>0x1</Data>
+    <Data Name='ProcessName'>-</Data>
+    <Data Name='IpAddress'>-</Data>
+    <Data Name='IpPort'>-</Data>
+    <Data Name='ImpersonationLevel'>%%1833</Data>
+  </EventData>
+</Event>"""
+        
+        print("Ingesting Windows Event log with timestamp:", current_time)
+        
+        win_result = chronicle.ingest_log(
+            log_type="WINEVTLOG_XML",
+            log_message=xml_content  # Note: XML is passed directly, no json.dumps()
+        )
+        
+        print("\nWindows Event log ingestion successful!")
+        print(f"Operation ID: {win_result.get('operation', 'Unknown')}")
+        
+        print("\nPart 4: Listing Available Log Types")
+        # Get the first 5 log types for display
+        log_types = chronicle.get_all_log_types()[:5]
+        print(f"\nFound {len(chronicle.get_all_log_types())} log types. First 5 examples:")
+        
+        for lt in log_types:
+            print(f"- {lt.id}: {lt.description}")
+            
+        print("\nTip: You can search for specific log types:")
+        print('search_result = chronicle.search_log_types("firewall")')
+        
+    except Exception as e:
+        print(f"\nError during log ingestion: {e}")
+
 # Map of example functions
 EXAMPLES = {
     '1': example_udm_search,
@@ -520,6 +706,7 @@ EXAMPLES = {
     '7': example_validate_query,
     '8': example_entities_from_query,
     '9': example_nl_search,
+    '10': example_log_ingestion,
 }
 
 def main():
@@ -529,7 +716,7 @@ def main():
     parser.add_argument('--customer_id', required=True, help='Chronicle Customer ID (UUID)')
     parser.add_argument('--region', default='us', help='Chronicle region (us or eu)')
     parser.add_argument('--example', '-e', 
-                      help='Example number to run (1-9). If not specified, runs all examples.')
+                      help='Example number to run (1-10). If not specified, runs all examples.')
     
     args = parser.parse_args()
     
