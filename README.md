@@ -157,6 +157,44 @@ result = chronicle.ingest_log(
 print(f"Operation: {result.get('operation')}")
 ```
 
+The SDK also supports non-JSON log formats. Here's an example with XML for Windows Event logs:
+
+```python
+# Create a Windows Event XML log
+xml_content = """<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
+  <System>
+    <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{54849625-5478-4994-A5BA-3E3B0328C30D}'/>
+    <EventID>4624</EventID>
+    <Version>1</Version>
+    <Level>0</Level>
+    <Task>12544</Task>
+    <Opcode>0</Opcode>
+    <Keywords>0x8020000000000000</Keywords>
+    <TimeCreated SystemTime='2024-05-10T14:30:00Z'/>
+    <EventRecordID>202117513</EventRecordID>
+    <Correlation/>
+    <Execution ProcessID='656' ThreadID='700'/>
+    <Channel>Security</Channel>
+    <Computer>WIN-SERVER.xyz.net</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data Name='SubjectUserSid'>S-1-0-0</Data>
+    <Data Name='SubjectUserName'>-</Data>
+    <Data Name='TargetUserName'>svcUser</Data>
+    <Data Name='WorkstationName'>CLIENT-PC</Data>
+    <Data Name='LogonType'>3</Data>
+  </EventData>
+</Event>"""
+
+# Ingest the XML log - no json.dumps() needed for XML
+result = chronicle.ingest_log(
+    log_type="WINEVTLOG_XML",  # Windows Event Log XML format
+    log_message=xml_content    # Raw XML content
+)
+
+print(f"Operation: {result.get('operation')}")
+```
 The SDK supports all log types available in Chronicle. You can:
 
 1. View available log types:

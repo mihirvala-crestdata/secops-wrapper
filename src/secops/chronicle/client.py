@@ -37,6 +37,7 @@ from secops.chronicle.ioc import list_iocs as _list_iocs
 from secops.chronicle.case import get_cases_from_list
 from secops.chronicle.alert import get_alerts as _get_alerts
 from secops.chronicle.log_ingest import ingest_log as _ingest_log, get_or_create_forwarder as _get_or_create_forwarder
+from secops.chronicle.log_types import get_all_log_types as _get_all_log_types, is_valid_log_type as _is_valid_log_type, get_log_type_description as _get_log_type_description, search_log_types as _search_log_types, LogType
 
 # Import rule functions
 from secops.chronicle.rule import (
@@ -1134,4 +1135,52 @@ class ChronicleClient:
         return _get_or_create_forwarder(
             self,
             display_name=display_name
-        ) 
+        )
+
+    def get_all_log_types(self) -> List[LogType]:
+        """Get all available Chronicle log types.
+        
+        Returns:
+            List of LogType objects representing all available log types
+        """
+        return _get_all_log_types()
+        
+    def is_valid_log_type(self, log_type_id: str) -> bool:
+        """Check if a log type ID is valid.
+        
+        Args:
+            log_type_id: The log type ID to validate
+            
+        Returns:
+            True if the log type exists, False otherwise
+        """
+        return _is_valid_log_type(log_type_id)
+        
+    def get_log_type_description(self, log_type_id: str) -> Optional[str]:
+        """Get the description for a log type ID.
+        
+        Args:
+            log_type_id: The log type ID to get the description for
+            
+        Returns:
+            Description string if the log type exists, None otherwise
+        """
+        return _get_log_type_description(log_type_id)
+        
+    def search_log_types(
+        self,
+        search_term: str,
+        case_sensitive: bool = False,
+        search_in_description: bool = True
+    ) -> List[LogType]:
+        """Search log types by ID or description.
+        
+        Args:
+            search_term: Term to search for
+            case_sensitive: Whether the search should be case sensitive
+            search_in_description: Whether to search in descriptions as well as IDs
+            
+        Returns:
+            List of matching LogType objects
+        """
+        return _search_log_types(search_term, case_sensitive, search_in_description) 

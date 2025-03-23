@@ -279,4 +279,32 @@ def test_ingest_log_with_custom_forwarder(chronicle_client, mock_ingest_response
             forwarder_id="custom-forwarder-id"
         )
         
-        assert "operation" in result 
+        assert "operation" in result
+
+
+def test_ingest_xml_log(chronicle_client, mock_forwarders_list_response, mock_ingest_response):
+    """Test ingesting an XML log."""
+    xml_log = """<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
+    <System>
+        <Provider Name='Microsoft-Windows-Security-Auditing' Guid='{54849625-5478-4994-A5BA-3E3B0328C30D}'/>
+        <EventID>4624</EventID>
+        <TimeCreated SystemTime='2025-03-23T14:47:00.647937Z'/>
+        <Computer>WINSERVER.example.com</Computer>
+    </System>
+    <EventData>
+        <Data Name='TargetUserName'>TestUser</Data>
+        <Data Name='LogonType'>3</Data>
+    </EventData>
+</Event>"""
+    
+    with patch.object(chronicle_client.session, 'get', return_value=mock_forwarders_list_response), \
+         patch.object(chronicle_client.session, 'post', return_value=mock_ingest_response), \
+         patch('secops.chronicle.log_ingest.is_valid_log_type', return_value=True):
+        result = ingest_log(
+            client=chronicle_client,
+            log_type="WINEVTLOG_XML",
+            log_message=xml_log
+        )
+        
+        assert "operation" in result
+        assert result["operation"] == "projects/test-project/locations/us/operations/operation-id" 
