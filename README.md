@@ -114,9 +114,10 @@ After creating a SecOpsClient, you need to initialize the Chronicle-specific cli
 chronicle = client.chronicle(
     customer_id="your-chronicle-instance-id",  # Your Chronicle instance ID
     project_id="your-project-id",             # Your GCP project ID
-    region="us"                               # Chronicle API region [See available regions](regions.md)
+    region="us"                               # Chronicle API region 
 )
 ```
+[See available regions](regions.md)
 
 ### Log Ingestion
 
