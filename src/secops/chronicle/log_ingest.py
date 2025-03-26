@@ -16,6 +16,7 @@
 
 import base64
 import uuid
+import copy
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Union
 
@@ -308,4 +309,126 @@ def ingest_log(
     if response.status_code != 200:
         raise APIError(f"Failed to ingest log: {response.text}")
     
-    return response.json() 
+    return response.json()
+
+
+def ingest_udm(
+    client,
+    udm_events: Union[Dict[str, Any], List[Dict[str, Any]]],
+    add_missing_ids: bool = True
+) -> Dict[str, Any]:
+    """Ingest UDM events directly into Chronicle.
+    
+    Args:
+        client: ChronicleClient instance
+        udm_events: A single UDM event dictionary or a list of UDM event dictionaries
+        add_missing_ids: Whether to automatically add unique IDs to events missing them
+        
+    Returns:
+        Dictionary containing the operation details for the ingestion
+        
+    Raises:
+        ValueError: If any required fields are missing or events are malformed
+        APIError: If the API request fails
+        
+    Example:
+        ```python
+        # Ingest a single UDM event
+        single_event = {
+            "metadata": {
+                "event_type": "NETWORK_CONNECTION",
+                "product_name": "My Security Product"
+            },
+            "principal": {"ip": "192.168.1.100"},
+            "target": {"ip": "10.0.0.1"}
+        }
+        
+        result = chronicle.ingest_udm(single_event)
+        
+        # Ingest multiple UDM events
+        events = [
+            {
+                "metadata": {
+                    "event_type": "NETWORK_CONNECTION",
+                    "product_name": "My Security Product"
+                },
+                "principal": {"ip": "192.168.1.100"},
+                "target": {"ip": "10.0.0.1"}
+            },
+            {
+                "metadata": {
+                    "event_type": "PROCESS_LAUNCH",
+                    "product_name": "My Security Product"
+                },
+                "principal": {
+                    "hostname": "workstation1",
+                    "process": {"command_line": "./malware.exe"}
+                }
+            }
+        ]
+        
+        result = chronicle.ingest_udm(events)
+        ```
+    """
+    # Ensure we have a list of events
+    if isinstance(udm_events, dict):
+        udm_events = [udm_events]
+    
+    if not udm_events:
+        raise ValueError("No UDM events provided")
+    
+    # Create deep copies to avoid modifying the original objects
+    events_copy = copy.deepcopy(udm_events)
+    
+    # Process each event: validate and add IDs if needed
+    for event in events_copy:
+        # Validate basic structure
+        if not isinstance(event, dict):
+            raise ValueError(f"Invalid UDM event type: {type(event)}. Events must be dictionaries.")
+        
+        # Check for required metadata section
+        if "metadata" not in event:
+            raise ValueError("UDM event missing required 'metadata' section")
+        
+        if not isinstance(event["metadata"], dict):
+            raise ValueError("UDM 'metadata' must be a dictionary")
+        
+        # Add event timestamp if missing
+        if "event_timestamp" not in event["metadata"]:
+            current_time = datetime.now().astimezone()
+            event["metadata"]["event_timestamp"] = current_time.isoformat().replace("+00:00", "Z")
+        
+        # Add ID if needed
+        if add_missing_ids and "id" not in event["metadata"]:
+            event["metadata"]["id"] = str(uuid.uuid4())
+    
+    # Prepare the request
+    parent = f"projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}"
+    url = f"https://{client.region}-chronicle.googleapis.com/v1alpha/{parent}/events:import"
+    
+    # Format the request body
+    body = {
+        "inline_source": {
+            "events": [{"udm": event} for event in events_copy]
+        }
+    }
+    
+    # Make the API request
+    response = client.session.post(url, json=body)
+    
+    # Check for errors
+    if response.status_code >= 400:
+        error_message = f"Failed to ingest UDM events: {response.text}"
+        raise APIError(error_message)
+    
+    response_data = {}
+    
+    # Parse response if it has content
+    if response.text.strip():
+        try:
+            response_data = response.json()
+        except ValueError:
+            # If JSON parsing fails, provide the raw text in the return value
+            response_data = {"raw_response": response.text}
+    
+    return response_data 

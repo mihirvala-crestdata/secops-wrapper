@@ -14,10 +14,11 @@
 #
 """Integration tests for Chronicle log ingestion functionality."""
 import json
+import uuid
 import pytest
 from datetime import datetime, timezone
 from secops import SecOpsClient
-from secops.chronicle.log_ingest import ingest_log, get_or_create_forwarder
+from secops.chronicle.log_ingest import ingest_log, get_or_create_forwarder, ingest_udm
 from secops.exceptions import APIError
 from ..config import CHRONICLE_CONFIG, SERVICE_ACCOUNT_JSON
 
@@ -174,4 +175,122 @@ def test_log_ingest_okta():
         # Skip the test rather than fail if permissions are not available
         if "permission" in str(e).lower():
             pytest.skip("Insufficient permissions to ingest logs")
+        raise 
+
+
+@pytest.mark.integration
+def test_udm_ingestion():
+    """Test ingesting UDM events with real API."""
+    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+    
+    # Get current time for use in events
+    current_time = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    
+    # Generate unique IDs for events
+    event_id1 = str(uuid.uuid4())
+    event_id2 = str(uuid.uuid4())
+    
+    # Sample network connection UDM event
+    network_event = {
+        "metadata": {
+            "id": event_id1,
+            "event_timestamp": current_time,
+            "event_type": "NETWORK_CONNECTION",
+            "product_name": "SecOps SDK Test",
+            "vendor_name": "Google"
+        },
+        "principal": {
+            "hostname": "test-workstation",
+            "ip": "192.168.1.100",
+            "port": 12345
+        },
+        "target": {
+            "ip": "203.0.113.5",
+            "port": 443
+        },
+        "network": {
+            "application_protocol": "HTTPS",
+            "direction": "OUTBOUND"
+        }
+    }
+    
+    # Sample process launch UDM event
+    process_event = {
+        "metadata": {
+            "id": event_id2,
+            "event_timestamp": current_time,
+            "event_type": "PROCESS_LAUNCH",
+            "product_name": "SecOps SDK Test",
+            "vendor_name": "Google"
+        },
+        "principal": {
+            "hostname": "test-workstation",
+            "process": {
+                "command_line": "python --version",
+                "pid": 12345,
+                "file": {
+                    "full_path": "/usr/bin/python3"
+                }
+            },
+            "user": {
+                "userid": "testuser"
+            }
+        }
+    }
+    
+    try:
+        # Test 1: Ingest a single UDM event
+        print("\nTest 1: Ingesting a single UDM event")
+        result1 = ingest_udm(
+            client=chronicle,
+            udm_events=network_event
+        )
+        
+        print(f"Result: {result1}")
+        print(f"Event ID: {event_id1}")
+        
+        # Test 2: Ingest multiple UDM events
+        print("\nTest 2: Ingesting multiple UDM events")
+        result2 = ingest_udm(
+            client=chronicle,
+            udm_events=[network_event, process_event]
+        )
+        
+        print(f"Result: {result2}")
+        print(f"Event IDs: {event_id1}, {event_id2}")
+        
+        # Test 3: Ingest event without explicit ID (should add one)
+        print("\nTest 3: Ingesting event without explicit ID")
+        event_without_id = {
+            "metadata": {
+                "event_type": "FILE_READ",
+                "product_name": "SecOps SDK Test",
+                # No ID provided
+            },
+            "principal": {
+                "hostname": "test-workstation"
+            },
+            "target": {
+                "file": {
+                    "full_path": "/etc/passwd"
+                }
+            }
+        }
+        
+        result3 = ingest_udm(
+            client=chronicle,
+            udm_events=event_without_id
+        )
+        
+        print(f"Result: {result3}")
+        
+        # All tests passed if we got here without exceptions
+        assert True
+        
+    except APIError as e:
+        print(f"\nAPI Error details: {str(e)}")
+        # Skip the test rather than fail if permissions are not available
+        if "permission" in str(e).lower():
+            pytest.skip("Insufficient permissions to ingest UDM events")
         raise 

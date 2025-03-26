@@ -36,7 +36,7 @@ from secops.chronicle.entity import (
 from secops.chronicle.ioc import list_iocs as _list_iocs
 from secops.chronicle.case import get_cases_from_list
 from secops.chronicle.alert import get_alerts as _get_alerts
-from secops.chronicle.log_ingest import ingest_log as _ingest_log, get_or_create_forwarder as _get_or_create_forwarder
+from secops.chronicle.log_ingest import ingest_log as _ingest_log, get_or_create_forwarder as _get_or_create_forwarder, ingest_udm as _ingest_udm
 from secops.chronicle.log_types import get_all_log_types as _get_all_log_types, is_valid_log_type as _is_valid_log_type, get_log_type_description as _get_log_type_description, search_log_types as _search_log_types, LogType
 
 # Import rule functions
@@ -1183,4 +1183,28 @@ class ChronicleClient:
         Returns:
             List of matching LogType objects
         """
-        return _search_log_types(search_term, case_sensitive, search_in_description) 
+        return _search_log_types(search_term, case_sensitive, search_in_description)
+
+    def ingest_udm(
+        self,
+        udm_events: Union[Dict[str, Any], List[Dict[str, Any]]],
+        add_missing_ids: bool = True
+    ) -> Dict[str, Any]:
+        """Ingest UDM events directly into Chronicle.
+        
+        Args:
+            udm_events: A single UDM event dictionary or a list of UDM event dictionaries
+            add_missing_ids: Whether to automatically add unique IDs to events missing them
+            
+        Returns:
+            Dictionary containing the operation details for the ingestion
+            
+        Raises:
+            ValueError: If any required fields are missing or events are malformed
+            APIError: If the API request fails
+        """
+        return _ingest_udm(
+            self,
+            udm_events=udm_events,
+            add_missing_ids=add_missing_ids
+        ) 

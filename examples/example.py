@@ -7,6 +7,7 @@ from pprint import pprint
 from secops.exceptions import APIError
 import json
 import argparse
+import uuid
 
 def get_client(project_id, customer_id, region):
     """Initialize and return the Chronicle client.
@@ -695,6 +696,134 @@ def example_log_ingestion(chronicle):
     except Exception as e:
         print(f"\nError during log ingestion: {e}")
 
+def example_udm_ingestion(chronicle):
+    """Example 11: UDM Event Ingestion."""
+    print("\n=== Example 11: UDM Event Ingestion ===")
+    
+    # Generate current time in ISO 8601 format
+    current_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    
+    try:
+        print("\nPart 1: Creating and Ingesting a Single UDM Event")
+        
+        # Generate unique ID
+        event_id = str(uuid.uuid4())
+        
+        # Create a network connection UDM event
+        network_event = {
+            "metadata": {
+                "id": event_id,
+                "event_timestamp": current_time,
+                "event_type": "NETWORK_CONNECTION",
+                "product_name": "SecOps SDK Example",
+                "vendor_name": "Google"
+            },
+            "principal": {
+                "hostname": "workstation-1",
+                "ip": "192.168.1.100",
+                "port": 52734
+            },
+            "target": {
+                "ip": "203.0.113.10",
+                "port": 443
+            },
+            "network": {
+                "application_protocol": "HTTPS",
+                "direction": "OUTBOUND"
+            }
+        }
+        
+        print(f"Created network connection event with ID: {event_id}")
+        print(f"Event type: {network_event['metadata']['event_type']}")
+        print(f"Timestamp: {network_event['metadata']['event_timestamp']}")
+        
+        # Ingest the single event
+        result = chronicle.ingest_udm(udm_events=network_event)
+        print("\nSuccessfully ingested single UDM event!")
+        print(f"API Response: {result}")
+        
+        print("\nPart 2: Ingesting Multiple UDM Events")
+        
+        # Create a second event - process launch
+        process_id = str(uuid.uuid4())
+        process_event = {
+            "metadata": {
+                "id": process_id,
+                "event_timestamp": current_time,
+                "event_type": "PROCESS_LAUNCH",
+                "product_name": "SecOps SDK Example",
+                "vendor_name": "Google"
+            },
+            "principal": {
+                "hostname": "workstation-1",
+                "process": {
+                    "command_line": "python example.py",
+                    "pid": "12345",
+                    "file": {
+                        "full_path": "/usr/bin/python3"
+                    }
+                },
+                "user": {
+                    "userid": "user123"
+                }
+            },
+            "target": {
+                "process": {
+                    "pid": "0",
+                    "command_line": "bash"
+                }
+            }
+        }
+        
+        print(f"Created process launch event with ID: {process_id}")
+        
+        # Ingest both events together
+        result = chronicle.ingest_udm(udm_events=[network_event, process_event])
+        print("\nSuccessfully ingested multiple UDM events!")
+        print(f"API Response: {result}")
+        
+        print("\nPart 3: Auto-generating Event IDs")
+        
+        # Create an event without an ID
+        file_event = {
+            "metadata": {
+                "event_timestamp": current_time,
+                "event_type": "FILE_READ",
+                "product_name": "SecOps SDK Example",
+                "vendor_name": "Google"
+                # No ID provided - will be auto-generated
+            },
+            "principal": {
+                "hostname": "workstation-1",
+                "user": {
+                    "userid": "user123"
+                }
+            },
+            "target": {
+                "file": {
+                    "full_path": "/etc/passwd",
+                    "size": "4096"
+                }
+            }
+        }
+        
+        print("Created file read event without ID (will be auto-generated)")
+        
+        # Ingest with auto-ID generation
+        result = chronicle.ingest_udm(udm_events=file_event)
+        print("\nSuccessfully ingested event with auto-generated ID!")
+        print(f"API Response: {result}")
+        
+        print("\nUDM events are structured security telemetry in Chronicle's Unified Data Model format.")
+        print("Benefits of using UDM events directly:")
+        print("- No need to format data as raw logs")
+        print("- Structured data with semantic meaning")
+        print("- Already normalized for Chronicle analytics")
+        print("- Supports multiple event types in a single request")
+        
+    except APIError as e:
+        print(f"\nError during UDM ingestion: {e}")
+
 # Map of example functions
 EXAMPLES = {
     '1': example_udm_search,
@@ -707,6 +836,7 @@ EXAMPLES = {
     '8': example_entities_from_query,
     '9': example_nl_search,
     '10': example_log_ingestion,
+    '11': example_udm_ingestion,
 }
 
 def main():
@@ -716,7 +846,7 @@ def main():
     parser.add_argument('--customer_id', required=True, help='Chronicle Customer ID (UUID)')
     parser.add_argument('--region', default='us', help='Chronicle region (us or eu)')
     parser.add_argument('--example', '-e', 
-                      help='Example number to run (1-10). If not specified, runs all examples.')
+                      help='Example number to run (1-11). If not specified, runs all examples.')
     
     args = parser.parse_args()
     
