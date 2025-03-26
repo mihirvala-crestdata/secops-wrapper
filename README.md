@@ -157,73 +157,6 @@ result = chronicle.ingest_log(
 
 print(f"Operation: {result.get('operation')}")
 ```
-
-Ingest UDM events directly into Chronicle:
-
-```python
-import uuid
-from datetime import datetime, timezone
-
-# Generate a unique ID
-event_id = str(uuid.uuid4())
-
-# Get current time in ISO 8601 format
-current_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-# Create a UDM event for a network connection
-network_event = {
-    "metadata": {
-        "id": event_id,
-        "event_timestamp": current_time,
-        "event_type": "NETWORK_CONNECTION",
-        "product_name": "My Security Product", 
-        "vendor_name": "My Company"
-    },
-    "principal": {
-        "hostname": "workstation-1",
-        "ip": "192.168.1.100",
-        "port": 12345
-    },
-    "target": {
-        "ip": "203.0.113.10",
-        "port": 443
-    },
-    "network": {
-        "application_protocol": "HTTPS",
-        "direction": "OUTBOUND"
-    }
-}
-
-# Ingest a single UDM event
-result = chronicle.ingest_udm(udm_events=network_event)
-print(f"Ingested event with ID: {event_id}")
-
-# Create a second event
-process_event = {
-    "metadata": {
-        # No ID - one will be auto-generated
-        "event_timestamp": current_time,
-        "event_type": "PROCESS_LAUNCH",
-        "product_name": "My Security Product", 
-        "vendor_name": "My Company"
-    },
-    "principal": {
-        "hostname": "workstation-1",
-        "process": {
-            "command_line": "ping 8.8.8.8",
-            "pid": 1234
-        },
-        "user": {
-            "userid": "user123"
-        }
-    }
-}
-
-# Ingest multiple UDM events in a single call
-result = chronicle.ingest_udm(udm_events=[network_event, process_event])
-print("Multiple events ingested successfully")
-```
-
 The SDK also supports non-JSON log formats. Here's an example with XML for Windows Event logs:
 
 ```python
@@ -318,6 +251,73 @@ result = chronicle.ingest_log(
     collection_time=collection_time  # When the log was collected
 )
 ```
+
+Ingest UDM events directly into Chronicle:
+
+```python
+import uuid
+from datetime import datetime, timezone
+
+# Generate a unique ID
+event_id = str(uuid.uuid4())
+
+# Get current time in ISO 8601 format
+current_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+# Create a UDM event for a network connection
+network_event = {
+    "metadata": {
+        "id": event_id,
+        "event_timestamp": current_time,
+        "event_type": "NETWORK_CONNECTION",
+        "product_name": "My Security Product", 
+        "vendor_name": "My Company"
+    },
+    "principal": {
+        "hostname": "workstation-1",
+        "ip": "192.168.1.100",
+        "port": 12345
+    },
+    "target": {
+        "ip": "203.0.113.10",
+        "port": 443
+    },
+    "network": {
+        "application_protocol": "HTTPS",
+        "direction": "OUTBOUND"
+    }
+}
+
+# Ingest a single UDM event
+result = chronicle.ingest_udm(udm_events=network_event)
+print(f"Ingested event with ID: {event_id}")
+
+# Create a second event
+process_event = {
+    "metadata": {
+        # No ID - one will be auto-generated
+        "event_timestamp": current_time,
+        "event_type": "PROCESS_LAUNCH",
+        "product_name": "My Security Product", 
+        "vendor_name": "My Company"
+    },
+    "principal": {
+        "hostname": "workstation-1",
+        "process": {
+            "command_line": "ping 8.8.8.8",
+            "pid": 1234
+        },
+        "user": {
+            "userid": "user123"
+        }
+    }
+}
+
+# Ingest multiple UDM events in a single call
+result = chronicle.ingest_udm(udm_events=[network_event, process_event])
+print("Multiple events ingested successfully")
+```
+
 
 ### Basic UDM Search
 
