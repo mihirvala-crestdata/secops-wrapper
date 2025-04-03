@@ -52,7 +52,19 @@ def example_udm_search(chronicle):
         print(f"\nFound {events['total_events']} events")
         if events['events']:
             print("\nFirst event details:")
-            pprint(events['events'][0])
+            event = events['events'][0]
+            print(f"Event name: {event.get('name', 'N/A')}")
+            # Extract metadata from UDM
+            metadata = event.get('udm', {}).get('metadata', {})
+            print(f"Event type: {metadata.get('eventType', 'N/A')}")
+            print(f"Event timestamp: {metadata.get('eventTimestamp', 'N/A')}")
+            
+            # Show IP information if available
+            principal_ip = event.get('udm', {}).get('principal', {}).get('ip', ['N/A'])[0]
+            target_ip = event.get('udm', {}).get('target', {}).get('ip', ['N/A'])[0]
+            print(f"Connection: {principal_ip} -> {target_ip}")
+            
+            print(f"\nMore data available: {events.get('more_data_available', False)}")
     except Exception as e:
         print(f"Error performing UDM search: {e}")
 
@@ -82,31 +94,76 @@ order:
         print(f"Error performing stats query: {e}")
 
 def example_entity_summary(chronicle):
-    """Example 3: Entity Summary."""
+    """Example 3: Entity Summary (IP, Domain, Hash)."""
     print("\n=== Example 3: Entity Summary ===")
     start_time, end_time = get_time_range()
     
-    try:
-        file_summary = chronicle.summarize_entity(
-            start_time=start_time,
-            end_time=end_time,
-            field_path="target.file.md5",
-            value="e17dd4eef8b4978673791ef4672f4f6a"
-        )
-        
-        print("\nFile Entity Summary:")
-        for entity in file_summary.entities:
-            print(f"Entity Type: {entity.metadata.entity_type}")
-            print(f"First Seen: {entity.metric.first_seen}")
-            print(f"Last Seen: {entity.metric.last_seen}")
-            
-        if file_summary.alert_counts:
-            print("\nAlert Counts:")
-            for alert in file_summary.alert_counts:
-                print(f"Rule: {alert.rule}")
-                print(f"Count: {alert.count}")
-    except APIError as e:
-        print(f"Error: {str(e)}")
+    entities_to_summarize = {
+        "IP Address": "8.8.8.8",
+        "Domain": "google.com",
+        "File Hash (SHA256)": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" # Empty file hash
+    }
+
+    for entity_type, value in entities_to_summarize.items():
+        print(f"\n--- Summarizing {entity_type}: {value} ---")
+        try:
+            summary = chronicle.summarize_entity(
+                value=value,
+                start_time=start_time,
+                end_time=end_time,
+            )
+
+            if summary.primary_entity:
+                print("\nPrimary Entity:")
+                print(f"  Type: {summary.primary_entity.metadata.entity_type}")
+                if summary.primary_entity.metric:
+                    print(f"  First Seen: {summary.primary_entity.metric.first_seen}")
+                    print(f"  Last Seen: {summary.primary_entity.metric.last_seen}")
+                # Print specific entity details
+                if "ip" in summary.primary_entity.entity.get("asset", {}):
+                    print(f"  IPs: {summary.primary_entity.entity['asset']['ip']}")
+                elif "name" in summary.primary_entity.entity.get("domain", {}):
+                    print(f"  Domain Name: {summary.primary_entity.entity['domain']['name']}")
+                elif "md5" in summary.primary_entity.entity.get("file", {}):
+                    print(f"  MD5: {summary.primary_entity.entity['file']['md5']}")
+                elif "sha256" in summary.primary_entity.entity.get("file", {}):
+                     print(f"  SHA256: {summary.primary_entity.entity['file']['sha256']}")
+            else:
+                 print("\nNo primary entity found.")
+
+            if summary.related_entities:
+                print(f"\nRelated Entities ({len(summary.related_entities)} found):")
+                for rel_entity in summary.related_entities[:3]: # Show first 3
+                    print(f"  - Type: {rel_entity.metadata.entity_type}")
+
+            if summary.alert_counts:
+                print("\nAlert Counts:")
+                for alert in summary.alert_counts:
+                    print(f"  Rule: {alert.rule}, Count: {alert.count}")
+
+            if summary.timeline:
+                print(f"\nTimeline: {len(summary.timeline.buckets)} buckets (size: {summary.timeline.bucket_size})")
+
+            if summary.prevalence:
+                print(f"\nPrevalence ({len(summary.prevalence)} entries):")
+                # Show first entry
+                print(f"  Time: {summary.prevalence[0].prevalence_time}, Count: {summary.prevalence[0].count}")
+
+            if summary.file_metadata_and_properties:
+                print("\nFile Properties:")
+                if summary.file_metadata_and_properties.metadata:
+                    print("  Metadata:")
+                    for prop in summary.file_metadata_and_properties.metadata[:2]: # Show first 2
+                        print(f"    {prop.key}: {prop.value}")
+                if summary.file_metadata_and_properties.properties:
+                     print("  Properties:")
+                     for group in summary.file_metadata_and_properties.properties:
+                         print(f"    {group.title}:")
+                         for prop in group.properties[:2]: # Show first 2 per group
+                             print(f"      {prop.key}: {prop.value}")
+
+        except APIError as e:
+            print(f"Error summarizing {entity_type} ({value}): {str(e)}")
 
 def example_csv_export(chronicle):
     """Example 4: CSV Export."""
@@ -329,130 +386,6 @@ order:
         print(f"Full response: {result}")
     except APIError as e:
         print(f"Error validating query: {str(e)}")
-
-def example_entities_from_query(chronicle):
-    """Example 8: Entities from Query."""
-    print("\n=== Example 8: Entities from Query ===")
-    start_time, end_time = get_time_range()
-    
-    try:
-        # Use a specific file hash search that's more likely to find entity data
-        print("\nFinding entities related to a specific file hash:")
-        
-        # MD5 hash to search for
-        md5_hash = "e17dd4eef8b4978673791ef4672f4f6a"
-        
-        # Search for this hash across multiple UDM fields where it might appear
-        # This is a more comprehensive search that will find the file regardless of context
-        query = (
-            f'principal.file.md5 = "{md5_hash}" OR '
-            f'principal.process.file.md5 = "{md5_hash}" OR '
-            f'target.file.md5 = "{md5_hash}" OR '
-            f'target.process.file.md5 = "{md5_hash}" OR '
-            f'security_result.about.file.md5 = "{md5_hash}"'
-        )
-        
-        print(f"MD5 Hash: {md5_hash}")
-        print(f"Query: {query}")
-        print(f"Time range: {start_time.isoformat()} to {end_time.isoformat()}")
-        
-        print("\nWhat is summarize_entities_from_query?")
-        print("This method takes a search query and finds entities mentioned in matching events.")
-        print("It then provides summary information about these entities, such as:")
-        print("- Entity types (files, IPs, hosts, users, etc.)")
-        print("- First and last seen times")
-        print("- Event counts")
-        print("- Related alerts")
-        print("\nThis is useful for threat hunting and investigation to get a quick overview")
-        print("of entities related to potentially suspicious behavior.")
-        
-        print("\nSending API request to summarize entities...")
-        entity_summaries = chronicle.summarize_entities_from_query(
-            query=query,
-            start_time=start_time,
-            end_time=end_time
-        )
-        
-        print(f"\nFound {len(entity_summaries)} entity summaries")
-        
-        if entity_summaries:
-            # Show the first few entities
-            max_display = min(3, len(entity_summaries))
-            print(f"\nShowing details for first {max_display} entities:")
-            
-            for i, summary in enumerate(entity_summaries[:max_display]):
-                print(f"\nEntity {i+1}:")
-                
-                for entity in summary.entities:
-                    print(f"Entity Type: {entity.metadata.entity_type}")
-                    
-                    # Try to extract and display the hash if this is a file entity
-                    if hasattr(entity, 'entity') and hasattr(entity.entity, 'file'):
-                        file_data = entity.entity.file
-                        if hasattr(file_data, 'md5'):
-                            print(f"MD5: {file_data.md5}")
-                        if hasattr(file_data, 'sha1'):
-                            print(f"SHA1: {file_data.sha1}")
-                        if hasattr(file_data, 'sha256'):
-                            print(f"SHA256: {file_data.sha256}")
-                        if hasattr(file_data, 'filename'):
-                            print(f"Filename: {file_data.filename}")
-                    
-                    print(f"First Seen: {entity.metric.first_seen}")
-                    print(f"Last Seen: {entity.metric.last_seen}")
-                    
-                    # Remove the event_count attribute which doesn't exist
-                    # Print available metric attributes instead
-                    print("\nAvailable metric attributes:")
-                    for attr_name in dir(entity.metric):
-                        # Skip private attributes (those starting with underscore)
-                        if not attr_name.startswith('_'):
-                            attr_value = getattr(entity.metric, attr_name)
-                            # Only print if it's not a method or function
-                            if not callable(attr_value):
-                                print(f"  - {attr_name}: {attr_value}")
-                
-                # Show alert information if available
-                if summary.alert_counts:
-                    print("\nAlerts associated with this entity:")
-                    for alert in summary.alert_counts:
-                        print(f"  - Rule: {alert.rule}")
-                        print(f"    Count: {alert.count}")
-                        
-                # Print full entity structure for debugging
-                print("\nDebug - Entity structure:")
-                print("This is the full entity object structure to help understand available attributes")
-                try:
-                    # Attempt to get all attributes of the entity object
-                    for entity in summary.entities:
-                        for attr_name in dir(entity):
-                            if not attr_name.startswith('_'):  # Skip private attrs
-                                print(f"{attr_name}")
-                except Exception as e:
-                    print(f"Error examining entity structure: {e}")
-        else:
-            print("\nNo entity summaries found. This could be because:")
-            print("1. No events match the query criteria in the time range")
-            print("2. The specific file hash doesn't exist in your Chronicle data")
-            print("3. The API might not be returning entity data for this query")
-            print("\nTry a different time range or a different entity (hash, IP, etc.)")
-            
-            # Attempt a regular search to see if data exists
-            print("\nChecking if any events match the file hash...")
-            events = chronicle.search_udm(
-                query=query,
-                start_time=start_time,
-                end_time=end_time,
-                max_events=5
-            )
-            print(f"UDM search found {events.get('total_events', 0)} matching events")
-            
-            # Suggest trying a regular entity lookup instead
-            print("\nYou could also try looking up this hash directly using summarize_entity:")
-            print("chronicle.summarize_entity(value=\"e17dd4eef8b4978673791ef4672f4f6a\", start_time=start_time, end_time=end_time)")
-            
-    except APIError as e:
-        print(f"Error in entity query: {str(e)}")
 
 def example_nl_search(chronicle):
     """Example 9: Natural Language Search."""
@@ -833,10 +766,9 @@ EXAMPLES = {
     '5': example_list_iocs,
     '6': example_alerts_and_cases,
     '7': example_validate_query,
-    '8': example_entities_from_query,
-    '9': example_nl_search,
-    '10': example_log_ingestion,
-    '11': example_udm_ingestion,
+    '8': example_nl_search,
+    '9': example_log_ingestion,
+    '10': example_udm_ingestion,
 }
 
 def main():
@@ -846,7 +778,7 @@ def main():
     parser.add_argument('--customer_id', required=True, help='Chronicle Customer ID (UUID)')
     parser.add_argument('--region', default='us', help='Chronicle region (us or eu)')
     parser.add_argument('--example', '-e', 
-                      help='Example number to run (1-11). If not specified, runs all examples.')
+                      help='Example number to run (1-10). If not specified, runs all examples.')
     
     args = parser.parse_args()
     

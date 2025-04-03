@@ -149,13 +149,28 @@ okta_log = {
     "published": current_time  # Current time in ISO format
 }
 
-# Ingest the log using the default forwarder
+# Ingest a single log using the default forwarder
 result = chronicle.ingest_log(
     log_type="OKTA",  # Chronicle log type
     log_message=json.dumps(okta_log)  # JSON string of the log
 )
 
 print(f"Operation: {result.get('operation')}")
+
+# Batch ingestion: Ingest multiple logs in a single request
+batch_logs = [
+    json.dumps({"actor": {"displayName": "User 1"}, "eventType": "user.session.start"}),
+    json.dumps({"actor": {"displayName": "User 2"}, "eventType": "user.session.start"}),
+    json.dumps({"actor": {"displayName": "User 3"}, "eventType": "user.session.start"})
+]
+
+# Ingest multiple logs in a single API call
+batch_result = chronicle.ingest_log(
+    log_type="OKTA",
+    log_message=batch_logs  # List of log message strings
+)
+
+print(f"Batch operation: {batch_result.get('operation')}")
 ```
 The SDK also supports non-JSON log formats. Here's an example with XML for Windows Event logs:
 
@@ -318,6 +333,71 @@ result = chronicle.ingest_udm(udm_events=[network_event, process_event])
 print("Multiple events ingested successfully")
 ```
 
+### Data Export
+
+> **Note**: The Data Export API features are currently under test and review. We welcome your feedback and encourage you to submit any issues or unexpected behavior to the issue tracker so we can improve this functionality.
+
+You can export Chronicle logs to Google Cloud Storage using the Data Export API:
+
+```python
+from datetime import datetime, timedelta, timezone
+
+# Set time range for export
+end_time = datetime.now(timezone.utc)
+start_time = end_time - timedelta(days=1)  # Last 24 hours
+
+# Get available log types for export
+available_log_types = chronicle.fetch_available_log_types(
+    start_time=start_time,
+    end_time=end_time
+)
+
+# Print available log types
+for log_type in available_log_types["available_log_types"]:
+    print(f"{log_type.display_name} ({log_type.log_type.split('/')[-1]})")
+    print(f"  Available from {log_type.start_time} to {log_type.end_time}")
+
+# Create a data export for a specific log type
+export = chronicle.create_data_export(
+    gcs_bucket="projects/my-project/buckets/my-export-bucket",
+    start_time=start_time,
+    end_time=end_time,
+    log_type="GCP_DNS"  # Specify log type to export
+)
+
+# Get the export ID
+export_id = export["name"].split("/")[-1]
+print(f"Created export with ID: {export_id}")
+print(f"Status: {export['data_export_status']['stage']}")
+
+# Check export status
+status = chronicle.get_data_export(export_id)
+print(f"Export status: {status['data_export_status']['stage']}")
+print(f"Progress: {status['data_export_status'].get('progress_percentage', 0)}%")
+
+# Cancel an export if needed
+if status['data_export_status']['stage'] in ['IN_QUEUE', 'PROCESSING']:
+    cancelled = chronicle.cancel_data_export(export_id)
+    print(f"Export has been cancelled. New status: {cancelled['data_export_status']['stage']}")
+
+# Export all log types at once
+export_all = chronicle.create_data_export(
+    gcs_bucket="projects/my-project/buckets/my-export-bucket",
+    start_time=start_time,
+    end_time=end_time,
+    export_all_logs=True
+)
+
+print(f"Created export for all logs. Status: {export_all['data_export_status']['stage']}")
+```
+
+The Data Export API supports:
+- Exporting one or all log types to Google Cloud Storage
+- Checking export status and progress
+- Cancelling exports in progress
+- Fetching available log types for a specific time range
+
+If you encounter any issues with the Data Export functionality, please submit them to our issue tracker with detailed information about the problem and steps to reproduce.
 
 ### Basic UDM Search
 
@@ -345,13 +425,14 @@ results = chronicle.search_udm(
 {
     "events": [
         {
-            "event": {
+            "name": "projects/my-project/locations/us/instances/my-instance/events/encoded-event-id",
+            "udm": {
                 "metadata": {
                     "eventTimestamp": "2024-02-09T10:30:00Z",
                     "eventType": "NETWORK_CONNECTION"
                 },
                 "target": {
-                    "ip": "192.168.1.100",
+                    "ip": ["192.168.1.100"],
                     "port": 443
                 },
                 "principal": {
@@ -360,7 +441,8 @@ results = chronicle.search_udm(
             }
         }
     ],
-    "total_events": 1
+    "total_events": 1,
+    "more_data_available": false
 }
 ```
 
@@ -499,109 +581,64 @@ If the natural language cannot be translated to a valid UDM query, an `APIError`
 
 ### Entity Summary
 
-Get detailed information about specific entities:
+Get detailed information about specific entities like IP addresses, domains, or file hashes. The function automatically detects the entity type based on the provided value and fetches a comprehensive summary including related entities, alerts, timeline, prevalence, and more.
 
 ```python
 # IP address summary
 ip_summary = chronicle.summarize_entity(
-    start_time=start_time,
-    end_time=end_time,
-    value="192.168.1.100"  # Automatically detects IP
-)
-
-# Domain summary 
-domain_summary = chronicle.summarize_entity(
-    start_time=start_time,
-    end_time=end_time,
-    value="example.com"  # Automatically detects domain
-)
-
-# File hash summary
-file_summary = chronicle.summarize_entity(
-    start_time=start_time,
-    end_time=end_time,
-    value="e17dd4eef8b4978673791ef4672f4f6a"  # Automatically detects MD5
-)
-
-# Example response structure:
-{
-    "entities": [
-        {
-            "name": "entities/...",
-            "metadata": {
-                "entityType": "ASSET",
-                "interval": {
-                    "startTime": "2024-02-08T10:30:00Z",
-                    "endTime": "2024-02-09T10:30:00Z"
-                }
-            },
-            "metric": {
-                "firstSeen": "2024-02-08T10:30:00Z",
-                "lastSeen": "2024-02-09T10:30:00Z"
-            },
-            "entity": {
-                "asset": {
-                    "ip": ["192.168.1.100"]
-                }
-            }
-        }
-    ],
-    "alertCounts": [
-        {
-            "rule": "Suspicious Network Connection",
-            "count": 5
-        }
-    ],
-    "widgetMetadata": {
-        "detections": 5,
-        "total": 1000
-    }
-}
-```
-
-### Entity Summary from Query
-
-Look up entities based on a UDM query:
-
-```python
-# Search for a specific file hash across multiple UDM paths
-md5_hash = "e17dd4eef8b4978673791ef4672f4f6a"
-query = f'target.file.md5 = "{md5_hash}" OR principal.file.md5 = "{md5_hash}"'
-
-entity_summaries = chronicle.summarize_entities_from_query(
-    query=query,
+    value="8.8.8.8",
     start_time=start_time,
     end_time=end_time
 )
 
-# Example response:
-[
-    {
-        "entities": [
-            {
-                "name": "entities/...",
-                "metadata": {
-                    "entityType": "FILE",
-                    "interval": {
-                        "startTime": "2024-02-08T10:30:00Z",
-                        "endTime": "2024-02-09T10:30:00Z"
-                    }
-                },
-                "metric": {
-                    "firstSeen": "2024-02-08T10:30:00Z",
-                    "lastSeen": "2024-02-09T10:30:00Z"
-                },
-                "entity": {
-                    "file": {
-                        "md5": "e17dd4eef8b4978673791ef4672f4f6a",
-                        "sha1": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
-                        "filename": "suspicious.exe"
-                    }
-                }
-            }
-        ]
-    }
-]
+# Domain summary
+domain_summary = chronicle.summarize_entity(
+    value="google.com",
+    start_time=start_time,
+    end_time=end_time
+)
+
+# File hash summary (SHA256)
+file_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" 
+file_summary = chronicle.summarize_entity(
+    value=file_hash,
+    start_time=start_time,
+    end_time=end_time
+)
+
+# Optionally hint the preferred type if auto-detection might be ambiguous
+user_summary = chronicle.summarize_entity(
+    value="jdoe",
+    start_time=start_time,
+    end_time=end_time,
+    preferred_entity_type="USER"
+)
+
+
+# Example response structure (EntitySummary object):
+# Access attributes like: ip_summary.primary_entity, ip_summary.related_entities,
+# ip_summary.alert_counts, ip_summary.timeline, ip_summary.prevalence, etc.
+
+# Example fields within the EntitySummary object:
+# primary_entity: {
+#     "name": "entities/...",
+#     "metadata": {
+#         "entityType": "ASSET",  # Or FILE, DOMAIN_NAME, USER, etc.
+#         "interval": { "startTime": "...", "endTime": "..." }
+#     },
+#     "metric": { "firstSeen": "...", "lastSeen": "..." },
+#     "entity": {  # Contains specific details like 'asset', 'file', 'domain'
+#         "asset": { "ip": ["8.8.8.8"] }
+#     }
+# }
+# related_entities: [ { ... similar to primary_entity ... } ]
+# alert_counts: [ { "rule": "Rule Name", "count": 5 } ]
+# timeline: { "buckets": [ { "alertCount": 1, "eventCount": 10 } ], "bucketSize": "3600s" }
+# prevalence: [ { "prevalenceTime": "...", "count": 100 } ]
+# file_metadata_and_properties: {  # Only for FILE entities
+#     "metadata": [ { "key": "...", "value": "..." } ],
+#     "properties": [ { "title": "...", "properties": [ { "key": "...", "value": "..." } ] } ]
+# }
 ```
 
 ### List IoCs (Indicators of Compromise)
@@ -923,32 +960,24 @@ except SecOpsError as e:
 
 ## Value Type Detection
 
-The SDK automatically detects these entity types:
-- IPv4 addresses
+The SDK automatically detects the most common entity types when using the `summarize_entity` function:
+- IP addresses (IPv4 and IPv6)
 - MD5/SHA1/SHA256 hashes
 - Domain names
 - Email addresses
 - MAC addresses
 - Hostnames
 
-Example of automatic detection:
+This detection happens internally within `summarize_entity`, simplifying its usage. You only need to provide the `value` argument.
 
 ```python
-# These will automatically use the correct field paths and value types
-ip_summary = chronicle.summarize_entity(value="192.168.1.100")
-domain_summary = chronicle.summarize_entity(value="example.com")
-hash_summary = chronicle.summarize_entity(value="e17dd4eef8b4978673791ef4672f4f6a")
+# The SDK automatically determines how to query for these values
+ip_summary = chronicle.summarize_entity(value="192.168.1.100", ...)
+domain_summary = chronicle.summarize_entity(value="example.com", ...)
+hash_summary = chronicle.summarize_entity(value="e17dd4eef8b4978673791ef4672f4f6a", ...)
 ```
 
-You can also override the automatic detection:
-
-```python
-summary = chronicle.summarize_entity(
-    value="example.com",
-    field_path="custom.field.path",  # Override automatic detection
-    value_type="DOMAIN_NAME"         # Explicitly set value type
-)
-```
+You can optionally provide a `preferred_entity_type` hint to `summarize_entity` if the automatic detection might be ambiguous (e.g., a string could be a username or a hostname).
 
 ## License
 

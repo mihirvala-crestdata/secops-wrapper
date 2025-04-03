@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2025-04-10
+
+### Added
+- Enhanced log ingestion with batch processing capability for improved performance
+- Support for ingesting multiple logs in a single API call through the existing `ingest_log` method
+- Backward compatibility maintained for single log ingestion
+- New Data Export API integration for exporting Chronicle logs to Google Cloud Storage
+- Methods for creating, monitoring, and canceling data exports
+- Support for exporting specific log types or all logs within a time range
+- Comprehensive documentation and examples for Data Export functionality
+
+### Fixed
+- Resolved issues with entity summary functionality for improved entity lookups and correlation
+- Fixed incorrect handling of entity relationships in entity summaries
+- Corrected statistics query processing bug that affected aggregation results
+- Improved error handling for statistics queries with complex aggregations
+
 ## [0.1.5] - 2025-03-26
 
 ### Added
