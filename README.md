@@ -945,7 +945,9 @@ else:
 
 You can use Chronicle's Gemini AI to get security insights, generate detection rules, explain security concepts, and more:
 
-> **Note:** Users must opt-in to use Gemini in Chronicle before accessing this functionality. The SDK will automatically attempt to opt you in when you first use the Gemini functionality. If the automatic opt-in fails due to permission issues, you'll see an error message that includes "users must opt-in before using Gemini."
+> **Note:** Only enterprise tier users have access to Advanced Gemini features. Users must opt-in to use Gemini in Chronicle before accessing this functionality. 
+The SDK will automatically attempt to opt you in when you first use the Gemini functionality. If the automatic opt-in fails due to permission issues, 
+you'll see an error message that includes "users must opt-in before using Gemini."
 
 ```python
 # Query Gemini with a security question
