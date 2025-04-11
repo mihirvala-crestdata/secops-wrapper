@@ -941,6 +941,157 @@ else:
         print(f"Error at line {result.position['startLine']}, column {result.position['startColumn']}")
 ```
 
+## Gemini AI
+
+You can use Chronicle's Gemini AI to get security insights, generate detection rules, explain security concepts, and more:
+
+> **Note:** Only enterprise tier users have access to Advanced Gemini features. Users must opt-in to use Gemini in Chronicle before accessing this functionality. 
+The SDK will automatically attempt to opt you in when you first use the Gemini functionality. If the automatic opt-in fails due to permission issues, 
+you'll see an error message that includes "users must opt-in before using Gemini."
+
+```python
+# Query Gemini with a security question
+response = chronicle.gemini("What is Windows event ID 4625?")
+
+# Get text content (combines TEXT blocks and stripped HTML content)
+text_explanation = response.get_text_content()
+print("Explanation:", text_explanation)
+
+# Work with different content blocks
+for block in response.blocks:
+    print(f"Block type: {block.block_type}")
+    if block.block_type == "TEXT":
+        print("Text content:", block.content)
+    elif block.block_type == "CODE":
+        print(f"Code ({block.title}):", block.content)
+    elif block.block_type == "HTML":
+        print("HTML content (with tags):", block.content)
+
+# Get all code blocks
+code_blocks = response.get_code_blocks()
+for code_block in code_blocks:
+    print(f"Code block ({code_block.title}):", code_block.content)
+
+# Get all HTML blocks (with HTML tags preserved)
+html_blocks = response.get_html_blocks()
+for html_block in html_blocks:
+    print(f"HTML block (with tags):", html_block.content)
+
+# Check for references
+if response.references:
+    print(f"Found {len(response.references)} references")
+
+# Check for suggested actions
+for action in response.suggested_actions:
+    print(f"Suggested action: {action.display_text} ({action.action_type})")
+    if action.navigation:
+        print(f"Action URI: {action.navigation.target_uri}")
+```
+
+### Response Content Methods
+
+The `GeminiResponse` class provides several methods to work with response content:
+
+- `get_text_content()`: Returns a combined string of all TEXT blocks plus the text content from HTML blocks with HTML tags removed
+- `get_code_blocks()`: Returns a list of blocks with `block_type == "CODE"`
+- `get_html_blocks()`: Returns a list of blocks with `block_type == "HTML"` (HTML tags preserved)
+- `get_raw_response()`: Returns the complete, unprocessed API response as a dictionary
+
+These methods help you work with different types of content in a structured way.
+
+### Accessing Raw API Response
+
+For advanced use cases or debugging, you can access the raw API response:
+
+```python
+# Get the complete raw API response
+response = chronicle.gemini("What is Windows event ID 4625?")
+raw_response = response.get_raw_response()
+
+# Now you can access any part of the original JSON structure
+print(json.dumps(raw_response, indent=2))
+
+# Example of navigating the raw response structure
+if "responses" in raw_response:
+    for resp in raw_response["responses"]:
+        if "blocks" in resp:
+            print(f"Found {len(resp['blocks'])} blocks in raw response")
+```
+
+This gives you direct access to the original API response format, which can be useful for accessing advanced features or troubleshooting.
+
+### Manual Opt-In
+
+If your account has sufficient permissions, you can manually opt-in to Gemini before using it:
+
+```python
+# Manually opt-in to Gemini
+opt_success = chronicle.opt_in_to_gemini()
+if opt_success:
+    print("Successfully opted in to Gemini")
+else:
+    print("Unable to opt-in due to permission issues")
+
+# Then use Gemini as normal
+response = chronicle.gemini("What is Windows event ID 4625?")
+```
+
+This can be useful in environments where you want to explicitly control when the opt-in happens.
+
+### Generate Detection Rules
+
+Chronicle Gemini can generate YARA-L rules for detection:
+
+```python
+# Generate a rule to detect potential security issues
+rule_response = chronicle.gemini("Write a rule to detect powershell downloading a file called gdp.zip")
+
+# Extract the generated rule(s)
+code_blocks = rule_response.get_code_blocks()
+if code_blocks:
+    rule = code_blocks[0].content
+    print("Generated rule:", rule)
+    
+    # Check for rule editor action
+    for action in rule_response.suggested_actions:
+        if action.display_text == "Open in Rule Editor" and action.action_type == "NAVIGATION":
+            rule_editor_url = action.navigation.target_uri
+            print("Rule can be opened in editor:", rule_editor_url)
+```
+
+### Get Intel Information
+
+Get detailed information about malware, threat actors, files, vulnerabilities:
+
+```python
+# Ask about a CVE
+cve_response = chronicle.gemini("tell me about CVE-2021-44228")
+
+# Get the explanation
+cve_explanation = cve_response.get_text_content()
+print("CVE explanation:", cve_explanation)
+```
+
+### Maintain Conversation Context
+
+You can maintain conversation context by reusing the same conversation ID:
+
+```python
+# Start a conversation
+initial_response = chronicle.gemini("What is a DDoS attack?")
+
+# Get the conversation ID from the response
+conversation_id = initial_response.name.split('/')[-3]  # Extract from format: .../conversations/{id}/messages/{id}
+
+# Ask a follow-up question in the same conversation context
+followup_response = chronicle.gemini(
+    "What are the most common mitigation techniques?",
+    conversation_id=conversation_id
+)
+
+# Gemini will remember the context of the previous question about DDoS
+```
+
 ## Error Handling
 
 The SDK defines several custom exceptions:
