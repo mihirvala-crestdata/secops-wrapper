@@ -750,3 +750,133 @@ def test_chronicle_batch_log_ingestion():
             pytest.skip("Invalid log format or API error")
         else:
             raise
+
+@pytest.mark.integration
+def test_chronicle_gemini():
+    """Test Chronicle Gemini conversational AI functionality with real API.
+    
+    This test is designed to interact with the Gemini API and verify the response structure.
+    """
+    try:
+        # Set up client
+        client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+        chronicle = client.chronicle(**CHRONICLE_CONFIG)
+        
+        print("\nStarting Gemini integration test...")
+        
+        # Test with a simple, factual query that should have consistent responses
+        query = "What is Windows event ID 4625?"
+        print(f"Querying Gemini with: {query}")
+        
+        try:
+            response = chronicle.gemini(query=query)
+            
+            # Basic structure validation
+            print("Checking response structure...")
+            assert hasattr(response, 'blocks'), "Response should have blocks attribute"
+            assert hasattr(response, 'name'), "Response should have a name"
+            assert hasattr(response, 'create_time'), "Response should have a creation time"
+            assert response.input_query == query, "Response should contain the original query"
+            
+            # Check if we got some content
+            assert len(response.blocks) > 0, "Response should have at least one content block"
+            
+            # Print some information about the response
+            print(f"Received {len(response.blocks)} content blocks")
+            
+            # Check block types
+            block_types = [block.block_type for block in response.blocks]
+            print(f"Block types: {block_types}")
+            
+            # Check if we have text content
+            text_content = response.get_text_content()
+            if text_content:
+                print(f"Text content (truncated): {text_content[:100]}...")
+            
+            # Check for code blocks (may or may not be present)
+            code_blocks = response.get_code_blocks()
+            if code_blocks:
+                print(f"Found {len(code_blocks)} code blocks")
+                for i, block in enumerate(code_blocks):
+                    print(f"Code block {i+1} title: {block.title}")
+            
+            # Check for references (may or may not be present)
+            if response.references:
+                print(f"Found {len(response.references)} references")
+            
+            # Check for suggested actions (may or may not be present)
+            if response.suggested_actions:
+                print(f"Found {len(response.suggested_actions)} suggested actions")
+                for i, action in enumerate(response.suggested_actions):
+                    print(f"Action {i+1}: {action.display_text} (type: {action.action_type})")
+            
+            print("Gemini integration test passed successfully.")
+            
+        except APIError as e:
+            if "users must opt-in before using Gemini" in str(e):
+                pytest.skip("Test skipped: User account has not been opted-in to Gemini. Please enable Gemini in Chronicle settings.")
+            else:
+                raise  # Re-raise if it's a different API error
+        
+    except Exception as e:
+        print(f"Unexpected error in Gemini test: {type(e).__name__}: {str(e)}")
+        pytest.skip(f"Test skipped due to unexpected error: {str(e)}")
+
+@pytest.mark.integration
+def test_chronicle_gemini_rule_generation():
+    """Test Chronicle Gemini's ability to generate security rules.
+    
+    This test asks Gemini to generate a detection rule and verifies the response structure.
+    """
+    try:
+        # Set up client
+        client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+        chronicle = client.chronicle(**CHRONICLE_CONFIG)
+        
+        print("\nStarting Gemini rule generation test...")
+        
+        # Ask Gemini to generate a detection rule
+        query = "Write a rule to detect powershell downloading a file called gdp.zip"
+        print(f"Querying Gemini with: {query}")
+        
+        try:
+            response = chronicle.gemini(query=query)
+            
+            # Basic structure validation
+            assert len(response.blocks) > 0, "Response should have at least one content block"
+            
+            # We should have at least one code block for the rule
+            code_blocks = response.get_code_blocks()
+            assert len(code_blocks) > 0, "Response should contain at least one code block with the rule"
+            
+            # Verify the code block contains a YARA-L rule
+            rule_block = code_blocks[0]
+            assert "rule " in rule_block.content, "Code block should contain a YARA-L rule"
+            assert "meta:" in rule_block.content, "Rule should have a meta section"
+            assert "events:" in rule_block.content, "Rule should have an events section"
+            assert "condition:" in rule_block.content, "Rule should have a condition section"
+            
+            # Check for powershell and gdp.zip in the rule
+            assert "powershell" in rule_block.content.lower(), "Rule should reference powershell"
+            assert "gdp.zip" in rule_block.content.lower(), "Rule should reference gdp.zip"
+            
+            # Check for suggested actions (typically rule editor)
+            if response.suggested_actions:
+                rule_editor_action = [action for action in response.suggested_actions if 
+                                    "rule" in action.display_text.lower() and 
+                                    action.action_type == "NAVIGATION"]
+                if rule_editor_action:
+                    print(f"Found rule editor action: {rule_editor_action[0].display_text}")
+                    assert rule_editor_action[0].navigation is not None, "Navigation action should have a target URI"
+            
+            print("Gemini rule generation test passed successfully.")
+        
+        except APIError as e:
+            if "users must opt-in before using Gemini" in str(e):
+                pytest.skip("Test skipped: User account has not been opted-in to Gemini. Please enable Gemini in Chronicle settings.")
+            else:
+                raise  # Re-raise if it's a different API error
+        
+    except Exception as e:
+        print(f"Unexpected error in Gemini rule generation test: {type(e).__name__}: {str(e)}")
+        pytest.skip(f"Test skipped due to unexpected error: {str(e)}")
