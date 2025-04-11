@@ -757,6 +757,175 @@ def example_udm_ingestion(chronicle):
     except APIError as e:
         print(f"\nError during UDM ingestion: {e}")
 
+def example_gemini(chronicle):
+    """Example 11: Chronicle Gemini AI."""
+    print("\n=== Example 11: Chronicle Gemini AI ===")
+    
+    try:
+        # First, explicitly opt-in to Gemini (optional, as gemini() will do this automatically)
+        print("\nPart 1: Opting in to Gemini")
+        try:
+            opt_in_result = chronicle.opt_in_to_gemini()
+            if opt_in_result:
+                print("Successfully opted in to Gemini")
+            else:
+                print("Unable to opt-in due to permission issues (will try automatically later)")
+        except Exception as e:
+            print(f"Error during opt-in: {e}")
+            print("Will continue and let gemini() handle opt-in automatically")
+    
+        print("\nPart 2: Ask a security question")
+        print("Asking: What is Windows event ID 4625?")
+        
+        try:
+            # Query Gemini with a security question
+            response = chronicle.gemini("What is Windows event ID 4625?")
+            print(f"\nResponse object: {response}")
+            
+            # Display raw response information
+            print("\nAccessing raw API response:")
+            raw_response = response.get_raw_response()
+            if raw_response:
+                print(f"- Raw response contains {len(raw_response.keys())} top-level keys")
+                if "responses" in raw_response:
+                    response_blocks = sum(len(resp.get("blocks", [])) for resp in raw_response["responses"])
+                    print(f"- Total blocks in raw response: {response_blocks}")
+            
+            if hasattr(response, 'raw_response'):
+                print("\nRaw API response (first 1000 chars):")
+                raw_str = str(response.raw_response)
+                print(raw_str[:1000] + ('...' if len(raw_str) > 1000 else ''))
+            
+            # Display the types of content blocks received
+            print(f"\nReceived {len(response.blocks)} content blocks")
+            block_types = [block.block_type for block in response.blocks]
+            print(f"Block types in response: {block_types}")
+            
+            # Print details for each block
+            print("\nDetailed block information:")
+            for i, block in enumerate(response.blocks):
+                print(f"  Block {i+1}:")
+                print(f"    Type: {block.block_type}")
+                print(f"    Title: {block.title}")
+                print(f"    Content length: {len(block.content)} chars")
+                print(f"    Content preview: {block.content[:100]}..." if len(block.content) > 100 
+                      else f"    Content: {block.content}")
+            
+            # Display text content
+            text_content = response.get_text_content()
+            if text_content:
+                print("\nText explanation (from both TEXT and HTML blocks):")
+                # Truncate long responses for display
+                max_length = 300
+                if len(text_content) > max_length:
+                    print(f"{text_content[:max_length]}... (truncated)")
+                else:
+                    print(text_content)
+            
+            # Display HTML content (if present)
+            html_blocks = response.get_html_blocks()
+            if html_blocks:
+                print(f"\nFound {len(html_blocks)} HTML blocks (HTML tags included here)")
+                for i, block in enumerate(html_blocks):
+                    print(f"  HTML Block {i+1} preview: {block.content[:100]}..." if len(block.content) > 100 
+                          else f"  HTML Block {i+1}: {block.content}")
+            
+            # Display references (if present)
+            if response.references:
+                print(f"\nFound {len(response.references)} references")
+                for i, ref in enumerate(response.references):
+                    print(f"  Reference {i+1} type: {ref.block_type}")
+                    print(f"  Reference {i+1} preview: {ref.content[:100]}..." if len(ref.content) > 100 
+                          else f"  Reference {i+1}: {ref.content}")
+            
+            # Part 3: Generate a detection rule
+            print("\nPart 3: Generate a detection rule")
+            print("Asking: Write a rule to detect powershell downloading a file called gdp.zip")
+            
+            rule_response = chronicle.gemini("Write a rule to detect powershell downloading a file called gdp.zip")
+            print(f"\nRule generation response object: {rule_response}")
+            
+            # Print detailed info about rule response blocks
+            print(f"\nReceived {len(rule_response.blocks)} content blocks in rule response")
+            rule_block_types = [block.block_type for block in rule_response.blocks]
+            print(f"Block types in rule response: {rule_block_types}")
+            
+            # Print details for each rule response block
+            print("\nDetailed rule response block information:")
+            for i, block in enumerate(rule_response.blocks):
+                print(f"  Block {i+1}:")
+                print(f"    Type: {block.block_type}")
+                print(f"    Title: {block.title}")
+                print(f"    Content length: {len(block.content)} chars")
+                content_preview = block.content[:100] + '...' if len(block.content) > 100 else block.content
+                print(f"    Content preview: {content_preview}")
+                if block.block_type == "CODE" or "rule" in str(block.content).lower():
+                    print(f"    Full content:\n{block.content}")
+            
+            # Get code blocks that contain the rule
+            code_blocks = rule_response.get_code_blocks()
+            if code_blocks:
+                print(f"\nFound {len(code_blocks)} code blocks")
+                
+                # Display the first code block (the rule)
+                rule_block = code_blocks[0]
+                if rule_block.title:
+                    print(f"\nRule title: {rule_block.title}")
+                
+                print("\nGenerated rule:")
+                print(rule_block.content)
+            else:
+                print("\nNo dedicated code blocks found in the response")
+                # Try to find rule content in other blocks
+                for block in rule_response.blocks:
+                    if "rule" in block.content.lower() and "events:" in block.content.lower():
+                        print(f"\nPossible rule found in {block.block_type} block:")
+                        print(block.content)
+                        break
+            
+            # Display suggested actions (if present)
+            if rule_response.suggested_actions:
+                print(f"\nFound {len(rule_response.suggested_actions)} suggested actions:")
+                for action in rule_response.suggested_actions:
+                    print(f"  - {action.display_text} ({action.action_type})")
+                    if action.navigation:
+                        print(f"    Target: {action.navigation.target_uri}")
+            
+            # Part 4: Ask about a CVE
+            print("\nPart 4: Ask about a CVE")
+            print("Asking: tell me about CVE 2025 3310")
+            
+            cve_response = chronicle.gemini("tell me about CVE 2025 3310")
+            
+            # Display text content
+            cve_text = cve_response.get_text_content()
+            if cve_text:
+                print("\nCVE Information (from both TEXT and HTML blocks):")
+                # Truncate long responses for display
+                max_length = 300
+                if len(cve_text) > max_length:
+                    print(f"{cve_text[:max_length]}... (truncated)")
+                else:
+                    print(cve_text)
+                
+            print("\nThe Gemini API provides structured responses with different content types:")
+            print("- TEXT: Plain text for explanations and answers")
+            print("- CODE: Code blocks for rules, scripts, and examples")
+            print("- HTML: Formatted HTML content with rich formatting")
+            print("- get_text_content() combines TEXT blocks and strips HTML from HTML blocks")
+            print("It also provides references, suggested actions, and more.")
+        
+        except Exception as e:
+            if "users must opt-in before using Gemini" in str(e):
+                print("\nERROR: User account has not been opted-in to Gemini.")
+                print("You must enable Gemini in Chronicle settings before using this feature.")
+                print("Please check your Chronicle settings to opt-in to Gemini.")
+            else:
+                raise
+        
+    except Exception as e:
+        print(f"\nError using Gemini API: {e}")
+
 # Map of example functions
 EXAMPLES = {
     '1': example_udm_search,
@@ -769,6 +938,7 @@ EXAMPLES = {
     '8': example_nl_search,
     '9': example_log_ingestion,
     '10': example_udm_ingestion,
+    '11': example_gemini,
 }
 
 def main():
@@ -778,7 +948,7 @@ def main():
     parser.add_argument('--customer_id', required=True, help='Chronicle Customer ID (UUID)')
     parser.add_argument('--region', default='us', help='Chronicle region (us or eu)')
     parser.add_argument('--example', '-e', 
-                      help='Example number to run (1-10). If not specified, runs all examples.')
+                      help='Example number to run (1-11). If not specified, runs all examples.')
     
     args = parser.parse_args()
     

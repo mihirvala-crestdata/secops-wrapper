@@ -70,8 +70,13 @@ from secops.chronicle.models import (
     CaseList,
     DataExport,
     DataExportStatus,
-    DataExportStage
+    DataExportStage,
+    PrevalenceData,
+    FileMetadataAndProperties
 )
+
+from secops.chronicle.rule_validation import ValidationResult
+from secops.chronicle.gemini import GeminiResponse, Block, SuggestedAction, NavigationAction
 
 __all__ = [
     # Client
@@ -162,5 +167,12 @@ __all__ = [
     "AlertCount",
     "Case",
     "SoarPlatformInfo",
-    "CaseList"
+    "CaseList",
+    "PrevalenceData",
+    "FileMetadataAndProperties",
+    "ValidationResult",
+    "GeminiResponse",
+    "Block",
+    "SuggestedAction",
+    "NavigationAction"
 ] 

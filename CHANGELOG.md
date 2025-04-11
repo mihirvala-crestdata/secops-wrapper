@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2025-04-15
+
+### Added
+- New Gemini AI integration providing access to Chronicle's conversational AI interface
+- `gemini()` method for querying the Gemini API with natural language questions
+- Automatic user opt-in to Gemini functionality when first used
+- Manual opt-in method `opt_in_to_gemini()` for explicit user control
+- Structured response parsing with TEXT, CODE, and HTML block handling
+- Smart extraction of text content from both TEXT and HTML blocks with HTML tag stripping
+- Helper methods for accessing specific content types: `get_text_content()`, `get_code_blocks()`, `get_html_blocks()`
+- Access to raw API responses via `get_raw_response()` for advanced use cases
+- Comprehensive documentation and examples for Gemini functionality
+
+
 ## [0.1.6] - 2025-04-10
 
 ### Added

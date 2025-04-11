@@ -87,6 +87,7 @@ from secops.chronicle.models import (
 )
 
 from secops.chronicle.nl_search import translate_nl_to_udm, nl_search as _nl_search
+from secops.chronicle.gemini import query_gemini as _query_gemini, opt_in_to_gemini as _opt_in_to_gemini, GeminiResponse
 
 class ValueType(Enum):
     """Chronicle API value types."""
@@ -1031,6 +1032,80 @@ class ChronicleClient:
             APIError: If the API request fails or no valid query can be generated
         """
         return translate_nl_to_udm(self, text)
+    
+    def gemini(
+        self,
+        query: str,
+        conversation_id: Optional[str] = None,
+        context_uri: str = "/search",
+        context_body: Optional[Dict[str, Any]] = None
+    ) -> GeminiResponse:
+        """Query Chronicle Gemini with a prompt.
+        
+        This method provides access to Chronicle's Gemini conversational AI interface,
+        which can answer security questions, generate detection rules, explain 
+        CVEs, and provide other security insights.
+        
+        Args:
+            query: The text query to send to Gemini
+            conversation_id: Optional conversation ID. If not provided, a new conversation will be created
+            context_uri: URI context for the query (default: "/search")
+            context_body: Optional additional context as a dictionary
+            
+        Returns:
+            A GeminiResponse object with structured content blocks (text, code, HTML) and
+            suggested actions if applicable
+            
+        Raises:
+            APIError: If the API request fails
+            
+        Example:
+            ```python
+            # Ask about a security concept
+            response = chronicle.gemini("What is Windows event ID 4625?")
+            
+            # Get explanatory text
+            print(response.get_text_content())
+            
+            # Get code blocks separately (for rule generation, etc.)
+            for code_block in response.get_code_blocks():
+                print(f"Code: {code_block.content}")
+            ```
+        """
+        return _query_gemini(
+            self,
+            query=query,
+            conversation_id=conversation_id,
+            context_uri=context_uri,
+            context_body=context_body
+        )
+    
+    def opt_in_to_gemini(self) -> bool:
+        """Opt the user into Gemini (Duet AI) in Chronicle.
+        
+        This method updates the user's preferences to enable Duet AI chat,
+        which is required before using the Gemini functionality. The Gemini method
+        will attempt to do this automatically if needed, but this method
+        allows for explicit opt-in.
+        
+        Returns:
+            True if successful, False if permission error
+            
+        Raises:
+            APIError: If the API request fails for a reason other than permissions
+            
+        Example:
+            ```python
+            # Explicitly opt in to Gemini before using it
+            chronicle.opt_in_to_gemini()
+            
+            # Now use Gemini
+            response = chronicle.gemini("What is Windows event ID 4625?")
+            ```
+        """
+        # Set the opt-in attempted flag
+        self._gemini_opt_in_attempted = True
+        return _opt_in_to_gemini(self)
     
     def nl_search(
         self,
