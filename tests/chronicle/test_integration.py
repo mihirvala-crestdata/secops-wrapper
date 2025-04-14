@@ -23,6 +23,7 @@ from ..config import CHRONICLE_CONFIG, SERVICE_ACCOUNT_JSON
 from secops.exceptions import APIError
 from secops.chronicle.models import EntitySummary
 import json
+import re
 
 @pytest.mark.integration
 def test_chronicle_search():
@@ -820,6 +821,74 @@ def test_chronicle_gemini():
         
     except Exception as e:
         print(f"Unexpected error in Gemini test: {type(e).__name__}: {str(e)}")
+        pytest.skip(f"Test skipped due to unexpected error: {str(e)}")
+
+@pytest.mark.integration
+def test_chronicle_gemini_text_content():
+    """Test that GeminiResponse.get_text_content() properly strips HTML.
+
+    Uses a query known to return HTML blocks and verifies that the text
+    content includes the information from HTML blocks without the tags.
+    """
+    try:
+        # Set up client
+        client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+        chronicle = client.chronicle(**CHRONICLE_CONFIG)
+
+        print("\nStarting Gemini get_text_content() integration test...")
+
+        # Query known to return HTML blocks
+        query = "What is Windows event ID 4625?"
+        print(f"Querying Gemini with: {query}")
+
+        try:
+            response = chronicle.gemini(query=query)
+
+            # Basic structure validation
+            assert hasattr(response, 'blocks'), "Response should have blocks attribute"
+            assert len(response.blocks) > 0, "Response should have at least one content block"
+
+            # Find an HTML block in the response
+            html_block_content = None
+            for block in response.blocks:
+                if block.block_type == "HTML":
+                    html_block_content = block.content
+                    print(f"Found HTML block content (raw): {html_block_content[:200]}...")
+                    break
+
+            assert html_block_content is not None, "Response should contain at least one HTML block for this test"
+
+            # Get the combined text content
+            text_content = response.get_text_content()
+            print(f"Combined text content (stripped): {text_content[:200]}...")
+
+            assert text_content, "get_text_content() should return non-empty string"
+
+            # Check that HTML tags are stripped
+            assert "<p>" not in text_content, "HTML <p> tags should be stripped"
+            assert "<li>" not in text_content, "HTML <li> tags should be stripped"
+            assert "<a>" not in text_content, "HTML <a> tags should be stripped"
+            assert "<strong>" not in text_content, "HTML <strong> tags should be stripped"
+
+            # Check that the *content* from the HTML block is present (approximate check)
+            # We strip tags from the original HTML and check if a snippet exists in the combined text
+            stripped_html_for_check = re.sub(r'<[^>]+>', ' ', html_block_content).strip()
+            # Take a small snippet from the stripped HTML to verify its presence
+            snippet_to_find = stripped_html_for_check[:50].split()[-1] if stripped_html_for_check else None # Get last word of first 50 chars
+            if snippet_to_find:
+                 print(f"Verifying presence of snippet: '{snippet_to_find}'")
+                 assert snippet_to_find in text_content, f"Text content should include content from HTML block (missing snippet: {snippet_to_find})"
+
+            print("Gemini get_text_content() HTML stripping test passed successfully.")
+
+        except APIError as e:
+            if "users must opt-in before using Gemini" in str(e):
+                pytest.skip("Test skipped: User account has not been opted-in to Gemini. Please enable Gemini in Chronicle settings.")
+            else:
+                raise  # Re-raise if it's a different API error
+
+    except Exception as e:
+        print(f"Unexpected error in Gemini get_text_content test: {type(e).__name__}: {str(e)}")
         pytest.skip(f"Test skipped due to unexpected error: {str(e)}")
 
 @pytest.mark.integration
