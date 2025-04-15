@@ -53,4 +53,7 @@ python_files = ["test_*.py"]
 addopts = "-v --cov=secops"
 markers = [
     "integration: marks tests as integration tests that interact with real APIs",
-] 
+]
+
+[project.scripts]
+secops = "secops.cli:main" 
