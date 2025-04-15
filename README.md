@@ -14,13 +14,6 @@ pip install secops
 The SDK also provides a comprehensive command-line interface (CLI) that makes it easy to interact with Google Security Operations products from your terminal:
 
 ```bash
-# Example: Search for network connections
-secops search --query "metadata.event_type = \"NETWORK_CONNECTION\"" --max-events 10
-```
-
-The CLI supports credential persistence, allowing you to save your Chronicle settings for reuse across commands:
-
-```bash
 # Save your credentials
 secops config set --customer-id "your-instance-id" --project-id "your-project-id" --region "us"
 
