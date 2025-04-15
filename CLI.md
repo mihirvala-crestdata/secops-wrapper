@@ -116,8 +116,10 @@ secops search --nl-query "show me failed login attempts" --time-window 24
 Export search results as CSV:
 
 ```bash
-secops search --query "metadata.event_type = \"NETWORK_CONNECTION\"" --fields "timestamp,hostname,ip" --csv
+secops search --query "metadata.event_type = \"USER_LOGIN\" AND security_result.action = \"BLOCK\"" --fields "metadata.event_timestamp,principal.user.userid,principal.ip,security_result.summary" --time-window 24 --csv
 ```
+
+> **Note:** Chronicle API uses snake_case for UDM field names. For example, use `security_result` instead of `securityResult`, `event_timestamp` instead of `eventTimestamp`. Valid UDM fields include: `metadata`, `principal`, `target`, `security_result`, `network`, etc.
 
 ### Get Statistics
 
@@ -293,7 +295,7 @@ secops search --query "metadata.event_type = \"NETWORK_CONNECTION\"" --time-wind
 ### Export Failed Login Attempts to CSV
 
 ```bash
-secops search --query "metadata.event_type = \"USER_LOGIN\" AND securityResult.action = \"BLOCK\"" --fields "timestamp,principal.user.userid,principal.ip,securityResult.summary" --time-window 24 --csv
+secops search --query "metadata.event_type = \"USER_LOGIN\" AND security_result.action = \"BLOCK\"" --fields "metadata.event_timestamp,principal.user.userid,principal.ip,security_result.summary" --time-window 24 --csv
 ```
 
 ### Find Entity Details for an IP Address
