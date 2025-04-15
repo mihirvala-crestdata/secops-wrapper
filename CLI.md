@@ -21,12 +21,6 @@ The CLI supports the same authentication methods as the SDK:
 gcloud auth application-default login
 ```
 
-### Using a Service Account JSON file
-
-```bash
-secops search --service-account /path/to/service-account.json --query "metadata.event_type = \"NETWORK_CONNECTION\""
-```
-
 ## Configuration
 
 The CLI allows you to save your credentials and other common settings in a configuration file, so you don't have to specify them in every command.
