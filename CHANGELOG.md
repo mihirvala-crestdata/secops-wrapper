@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive CLI documentation covering all available commands and options
 - Added examples for all CLI commands in documentation
 
+### Fixed
+- Resolved error in entity command when handling AlertCount objects
+- Improved error handling for unsupported entity types
+- Enhanced handling of prevalence data in entity summaries
+- Fixed serialization issues in CLI output formatting
+
 ## [0.1.8] - 2025-04-15
 
 ### Added

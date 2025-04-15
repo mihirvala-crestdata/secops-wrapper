@@ -390,17 +390,46 @@ def handle_entity_command(args, chronicle):
             end_time=end_time,
             preferred_entity_type=args.entity_type
         )
+        
+        # Handle alert_counts properly - could be different types based on API
+        alert_counts_list = []
+        if result.alert_counts:
+            for ac in result.alert_counts:
+                # Try different methods to convert to dict
+                try:
+                    if hasattr(ac, '_asdict'):
+                        alert_counts_list.append(ac._asdict())
+                    elif hasattr(ac, '__dict__'):
+                        alert_counts_list.append(vars(ac))
+                    else:
+                        # If it's already a dict or another type, just use it
+                        alert_counts_list.append(ac)
+                except Exception:
+                    # If all conversion attempts fail, use string representation
+                    alert_counts_list.append(str(ac))
+        
+        # Safely handle prevalence data which may not be available for all entity types
+        prevalence_list = []
+        if result.prevalence:
+            try:
+                prevalence_list = [vars(p) for p in result.prevalence]
+            except Exception as prev_err:
+                print(f"Warning: Unable to process prevalence data: {prev_err}", file=sys.stderr)
+        
         # Convert the EntitySummary to a dictionary for output
         result_dict = {
             "primary_entity": result.primary_entity,
             "related_entities": result.related_entities,
-            "alert_counts": [ac._asdict() for ac in result.alert_counts] if result.alert_counts else [],
+            "alert_counts": alert_counts_list,
             "timeline": vars(result.timeline) if result.timeline else None,
-            "prevalence": [vars(p) for p in result.prevalence] if result.prevalence else []
+            "prevalence": prevalence_list
         }
         output_formatter(result_dict, args.output)
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        if "Unsupported artifact type" in str(e):
+            print(f"Error: The entity type for '{args.value}' is not supported. Try specifying a different entity type with --entity-type.", file=sys.stderr)
+        else:
+            print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
 
