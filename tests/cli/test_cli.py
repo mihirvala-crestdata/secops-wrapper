@@ -5,13 +5,17 @@ from unittest.mock import patch, MagicMock
 from argparse import Namespace
 from datetime import datetime, timezone
 import sys
+from pathlib import Path
+import tempfile
 
 from secops.cli import (
     main, 
     parse_datetime,
     setup_client,
     get_time_range,
-    output_formatter
+    output_formatter,
+    load_config,
+    save_config
 )
 
 
@@ -145,3 +149,30 @@ def test_main_command_dispatch(mock_parse_args, mock_setup_client):
     
     # Verify handler was called
     mock_handler.assert_called_once_with(args, mock_chronicle)
+
+
+def test_time_config():
+    """Test saving and loading time-related configuration."""
+    # Create temp directory for config file
+    with tempfile.TemporaryDirectory() as temp_dir:
+        config_file = Path(temp_dir) / "config.json"
+        
+        # Test data
+        test_config = {
+            "customer_id": "test-customer",
+            "start_time": "2023-01-01T00:00:00Z",
+            "end_time": "2023-01-02T00:00:00Z",
+            "time_window": 48
+        }
+        
+        # Save config
+        with patch("secops.cli.CONFIG_FILE", config_file):
+            save_config(test_config)
+            
+            # Load config
+            loaded_config = load_config()
+            
+            # Verify values
+            assert loaded_config.get("start_time") == "2023-01-01T00:00:00Z"
+            assert loaded_config.get("end_time") == "2023-01-02T00:00:00Z" 
+            assert loaded_config.get("time_window") == 48

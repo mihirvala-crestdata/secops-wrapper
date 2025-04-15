@@ -586,7 +586,7 @@ def test_cli_config_lifecycle(cli_env):
         with patch('secops.cli.CONFIG_DIR', Path(temp_dir)), \
              patch('secops.cli.CONFIG_FILE', Path(temp_dir) / "config.json"):
             
-            # 1. Set configuration
+            # 1. Set configuration - standard parameters
             set_cmd = [
                 "secops", "config", "set",
                 "--customer-id", "test-customer-id",
@@ -605,7 +605,26 @@ def test_cli_config_lifecycle(cli_env):
             assert set_result.returncode == 0
             assert "Configuration saved" in set_result.stdout
             
-            # 2. View configuration
+            # 2. Set time-related configuration
+            time_set_cmd = [
+                "secops", "config", "set",
+                "--start-time", "2023-01-01T00:00:00Z",
+                "--end-time", "2023-01-02T00:00:00Z",
+                "--time-window", "48"
+            ]
+            
+            time_set_result = subprocess.run(
+                time_set_cmd,
+                env=cli_env,
+                capture_output=True,
+                text=True
+            )
+            
+            # Check that the time set command executed successfully
+            assert time_set_result.returncode == 0
+            assert "Configuration saved" in time_set_result.stdout
+            
+            # 3. View configuration
             view_cmd = ["secops", "config", "view"]
             
             view_result = subprocess.run(
@@ -620,8 +639,11 @@ def test_cli_config_lifecycle(cli_env):
             assert "test-customer-id" in view_result.stdout
             assert "test-project-id" in view_result.stdout
             assert "test-region" in view_result.stdout
+            assert "2023-01-01T00:00:00Z" in view_result.stdout
+            assert "2023-01-02T00:00:00Z" in view_result.stdout
+            assert "48" in view_result.stdout
             
-            # 3. Run a command that should use the configuration
+            # 4. Run a command that should use the configuration
             search_cmd = ["secops", "search", "--query", "metadata.event_type = \"NETWORK_CONNECTION\"", "--max-events", "1"]
             
             search_result = subprocess.run(
@@ -633,7 +655,7 @@ def test_cli_config_lifecycle(cli_env):
             
             # This might fail if the test credentials don't work, so we'll just check that it tried to use them
             
-            # 4. Clear configuration
+            # 5. Clear configuration
             clear_cmd = ["secops", "config", "clear"]
             
             clear_result = subprocess.run(
@@ -647,7 +669,7 @@ def test_cli_config_lifecycle(cli_env):
             assert clear_result.returncode == 0
             assert "Configuration cleared" in clear_result.stdout
             
-            # 5. View again to confirm it's cleared
+            # 6. View again to confirm it's cleared
             view_cmd = ["secops", "config", "view"]
             
             view_result = subprocess.run(

@@ -63,6 +63,9 @@ def setup_config_command(subparsers):
     set_parser.add_argument("--project-id", help="GCP project ID")
     set_parser.add_argument("--region", help="Chronicle API region")
     set_parser.add_argument("--service-account", help="Path to service account JSON file")
+    set_parser.add_argument("--start-time", help="Default start time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
+    set_parser.add_argument("--end-time", help="Default end time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
+    set_parser.add_argument("--time-window", type=int, help="Default time window in hours")
     set_parser.set_defaults(func=handle_config_set_command)
     
     # View config command
@@ -92,6 +95,12 @@ def handle_config_set_command(args, chronicle=None):
         config["region"] = args.region
     if args.service_account:
         config["service_account"] = args.service_account
+    if args.start_time:
+        config["start_time"] = args.start_time
+    if args.end_time:
+        config["end_time"] = args.end_time
+    if args.time_window is not None:
+        config["time_window"] = args.time_window
     
     save_config(config)
     print(f"Configuration saved to {CONFIG_FILE}")
@@ -240,10 +249,18 @@ def add_time_range_args(parser: argparse.ArgumentParser) -> None:
     Args:
         parser: Parser to add arguments to
     """
-    parser.add_argument("--start-time", help="Start time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
-    parser.add_argument("--end-time", help="End time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
-    parser.add_argument("--time-window", help="Time window in hours (alternative to start/end time)", 
-                      type=int, default=24)
+    config = load_config()
+    
+    parser.add_argument("--start-time", 
+                      default=config.get("start_time"),
+                      help="Start time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
+    parser.add_argument("--end-time", 
+                      default=config.get("end_time"),
+                      help="End time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
+    parser.add_argument("--time-window", 
+                      type=int, 
+                      default=config.get("time_window", 24),
+                      help="Time window in hours (alternative to start/end time)")
 
 
 def get_time_range(args: argparse.Namespace) -> Tuple[datetime, datetime]:
