@@ -21,6 +21,28 @@ The CLI supports the same authentication methods as the SDK:
 gcloud auth application-default login
 ```
 
+## Command Line Flexibility
+
+The CLI accepts flags in both kebab-case and snake_case formats. The following are equivalent:
+
+```bash
+# Kebab case (with hyphens)
+secops search --customer-id "your-instance-id" --max-events 10
+
+# Snake case (with underscores)
+secops search --customer_id "your-instance-id" --max_events 10
+```
+
+You can also specify values using either space or equals sign:
+
+```bash
+# Using space between flag and value
+secops search --customer-id "your-instance-id"
+
+# Using equals sign
+secops search --customer-id="your-instance-id"
+```
+
 ## Configuration
 
 The CLI allows you to save your credentials and other common settings in a configuration file, so you don't have to specify them in every command.

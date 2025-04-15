@@ -59,13 +59,13 @@ def setup_config_command(subparsers):
     
     # Set config command
     set_parser = config_subparsers.add_parser("set", help="Set configuration values")
-    set_parser.add_argument("--customer-id", help="Chronicle instance ID")
-    set_parser.add_argument("--project-id", help="GCP project ID")
+    set_parser.add_argument("--customer-id", "--customer_id", dest="customer_id", help="Chronicle instance ID")
+    set_parser.add_argument("--project-id", "--project_id", dest="project_id", help="GCP project ID")
     set_parser.add_argument("--region", help="Chronicle API region")
-    set_parser.add_argument("--service-account", help="Path to service account JSON file")
-    set_parser.add_argument("--start-time", help="Default start time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
-    set_parser.add_argument("--end-time", help="Default end time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
-    set_parser.add_argument("--time-window", type=int, help="Default time window in hours")
+    set_parser.add_argument("--service-account", "--service_account", dest="service_account", help="Path to service account JSON file")
+    set_parser.add_argument("--start-time", "--start_time", dest="start_time", help="Default start time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
+    set_parser.add_argument("--end-time", "--end_time", dest="end_time", help="Default end time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
+    set_parser.add_argument("--time-window", "--time_window", dest="time_window", type=int, help="Default time window in hours")
     set_parser.set_defaults(func=handle_config_set_command)
     
     # View config command
@@ -217,7 +217,7 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
     """
     config = load_config()
     
-    parser.add_argument("--service-account", 
+    parser.add_argument("--service-account", "--service_account", dest="service_account",
                       default=config.get("service_account"),
                       help="Path to service account JSON file")
     parser.add_argument("--output", choices=["json", "text"], default="json", 
@@ -232,10 +232,10 @@ def add_chronicle_args(parser: argparse.ArgumentParser) -> None:
     """
     config = load_config()
     
-    parser.add_argument("--customer-id", 
+    parser.add_argument("--customer-id", "--customer_id", dest="customer_id", 
                       default=config.get("customer_id"),
                       help="Chronicle instance ID")
-    parser.add_argument("--project-id", 
+    parser.add_argument("--project-id", "--project_id", dest="project_id", 
                       default=config.get("project_id"),
                       help="GCP project ID")
     parser.add_argument("--region", 
@@ -251,13 +251,13 @@ def add_time_range_args(parser: argparse.ArgumentParser) -> None:
     """
     config = load_config()
     
-    parser.add_argument("--start-time", 
+    parser.add_argument("--start-time", "--start_time", dest="start_time", 
                       default=config.get("start_time"),
                       help="Start time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
-    parser.add_argument("--end-time", 
+    parser.add_argument("--end-time", "--end_time", dest="end_time", 
                       default=config.get("end_time"),
                       help="End time in ISO format (YYYY-MM-DDTHH:MM:SSZ)")
-    parser.add_argument("--time-window", 
+    parser.add_argument("--time-window", "--time_window", dest="time_window", 
                       type=int, 
                       default=config.get("time_window", 24),
                       help="Time window in hours (alternative to start/end time)")
@@ -290,8 +290,8 @@ def setup_search_command(subparsers):
     """
     search_parser = subparsers.add_parser("search", help="Search UDM events")
     search_parser.add_argument("--query", help="UDM query string")
-    search_parser.add_argument("--nl-query", help="Natural language query")
-    search_parser.add_argument("--max-events", type=int, default=100, 
+    search_parser.add_argument("--nl-query", "--nl_query", dest="nl_query", help="Natural language query")
+    search_parser.add_argument("--max-events", "--max_events", dest="max_events", type=int, default=100, 
                              help="Maximum events to return")
     search_parser.add_argument("--fields", help="Comma-separated list of fields to include in CSV output")
     search_parser.add_argument("--csv", action="store_true", help="Output in CSV format")
@@ -343,9 +343,9 @@ def setup_stats_command(subparsers):
     """Set up the stats command parser."""
     stats_parser = subparsers.add_parser("stats", help="Get UDM statistics")
     stats_parser.add_argument("--query", required=True, help="Stats query string")
-    stats_parser.add_argument("--max-events", type=int, default=1000, 
+    stats_parser.add_argument("--max-events", "--max_events", dest="max_events", type=int, default=1000, 
                             help="Maximum events to process")
-    stats_parser.add_argument("--max-values", type=int, default=100, 
+    stats_parser.add_argument("--max-values", "--max_values", dest="max_values", type=int, default=100, 
                             help="Maximum values per field")
     add_time_range_args(stats_parser)
     stats_parser.set_defaults(func=handle_stats_command)
@@ -374,7 +374,7 @@ def setup_entity_command(subparsers):
     entity_parser = subparsers.add_parser("entity", help="Get entity information")
     entity_parser.add_argument("--value", required=True, 
                              help="Entity value (IP, domain, hash, etc.)")
-    entity_parser.add_argument("--entity-type", help="Entity type hint")
+    entity_parser.add_argument("--entity-type", "--entity_type", dest="entity_type", help="Entity type hint")
     add_time_range_args(entity_parser)
     entity_parser.set_defaults(func=handle_entity_command)
 
@@ -407,7 +407,7 @@ def handle_entity_command(args, chronicle):
 def setup_iocs_command(subparsers):
     """Set up the IOCs command parser."""
     iocs_parser = subparsers.add_parser("iocs", help="List IoCs")
-    iocs_parser.add_argument("--max-matches", type=int, default=100, 
+    iocs_parser.add_argument("--max-matches", "--max_matches", dest="max_matches", type=int, default=100, 
                            help="Maximum matches to return")
     iocs_parser.add_argument("--mandiant", action="store_true", 
                            help="Include Mandiant attributes")
@@ -445,7 +445,7 @@ def setup_log_command(subparsers):
     ingest_parser.add_argument("--type", required=True, help="Log type")
     ingest_parser.add_argument("--file", help="File containing log data")
     ingest_parser.add_argument("--message", help="Log message (alternative to file)")
-    ingest_parser.add_argument("--forwarder-id", help="Custom forwarder ID")
+    ingest_parser.add_argument("--forwarder-id", "--forwarder_id", dest="forwarder_id", help="Custom forwarder ID")
     ingest_parser.add_argument("--force", action="store_true", 
                              help="Force unknown log type")
     ingest_parser.set_defaults(func=handle_log_ingest_command)
@@ -641,10 +641,10 @@ def handle_rule_validate_command(args, chronicle):
 def setup_alert_command(subparsers):
     """Set up the alert command parser."""
     alert_parser = subparsers.add_parser("alert", help="Manage alerts")
-    alert_parser.add_argument("--snapshot-query", 
+    alert_parser.add_argument("--snapshot-query", "--snapshot_query", dest="snapshot_query", 
                             help="Query to filter alerts (e.g. feedback_summary.status != \"CLOSED\")")
-    alert_parser.add_argument("--baseline-query", help="Baseline query for alerts")
-    alert_parser.add_argument("--max-alerts", type=int, default=100, 
+    alert_parser.add_argument("--baseline-query", "--baseline_query", dest="baseline_query", help="Baseline query for alerts")
+    alert_parser.add_argument("--max-alerts", "--max_alerts", dest="max_alerts", type=int, default=100, 
                             help="Maximum alerts to return")
     add_time_range_args(alert_parser)
     alert_parser.set_defaults(func=handle_alert_command)
@@ -704,16 +704,16 @@ def setup_export_command(subparsers):
     log_types_parser = export_subparsers.add_parser("log-types", 
                                                  help="List available log types for export")
     add_time_range_args(log_types_parser)
-    log_types_parser.add_argument("--page-size", type=int, default=100, 
+    log_types_parser.add_argument("--page-size", "--page_size", dest="page_size", type=int, default=100, 
                                 help="Page size for results")
     log_types_parser.set_defaults(func=handle_export_log_types_command)
     
     # Create export command
     create_parser = export_subparsers.add_parser("create", help="Create a data export")
-    create_parser.add_argument("--gcs-bucket", required=True, 
+    create_parser.add_argument("--gcs-bucket", "--gcs_bucket", dest="gcs_bucket", required=True, 
                              help="GCS bucket in format 'projects/PROJECT_ID/buckets/BUCKET_NAME'")
-    create_parser.add_argument("--log-type", help="Log type to export")
-    create_parser.add_argument("--all-logs", action="store_true", help="Export all log types")
+    create_parser.add_argument("--log-type", "--log_type", dest="log_type", help="Log type to export")
+    create_parser.add_argument("--all-logs", "--all_logs", dest="all_logs", action="store_true", help="Export all log types")
     add_time_range_args(create_parser)
     create_parser.set_defaults(func=handle_export_create_command)
     
@@ -812,10 +812,10 @@ def setup_gemini_command(subparsers):
     """Set up the Gemini command parser."""
     gemini_parser = subparsers.add_parser("gemini", help="Interact with Gemini AI")
     gemini_parser.add_argument("--query", required=True, help="Query for Gemini")
-    gemini_parser.add_argument("--conversation-id", help="Continue an existing conversation")
+    gemini_parser.add_argument("--conversation-id", "--conversation_id", dest="conversation_id", help="Continue an existing conversation")
     gemini_parser.add_argument("--raw", action="store_true", 
                              help="Output raw API response")
-    gemini_parser.add_argument("--opt-in", action="store_true", 
+    gemini_parser.add_argument("--opt-in", "--opt_in", dest="opt_in", action="store_true", 
                              help="Explicitly opt-in to Gemini")
     gemini_parser.set_defaults(func=handle_gemini_command)
 

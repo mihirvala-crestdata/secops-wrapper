@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2025-04-15
+
+### Added
+- Enhanced CLI configuration functionality with support for time-related parameters
+- Added ability to store default `--start-time`, `--end-time`, and `--time-window` in CLI configuration
+- Improved CLI flag flexibility with support for both kebab-case and snake_case formats
+- CLI now accepts both `--flag-name` and `--flag_name` formats for all command line arguments
+- Support for both space-separated (`--flag value`) and equals syntax (`--flag=value`) for all CLI arguments
+- Comprehensive CLI documentation covering all available commands and options
+- Added examples for all CLI commands in documentation
+
 ## [0.1.8] - 2025-04-15
 
 ### Added
