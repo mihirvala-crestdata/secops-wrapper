@@ -148,10 +148,33 @@ def create_data_export(
     
     # Add log_type if provided
     if log_type:
+        # Check if we need to prefix with logTypes
         if '/' not in log_type:
-            # Format log_type as required by the API
-            formatted_log_type = f"{client.instance_id}/logTypes/{log_type}"
-            payload["log_type"] = formatted_log_type
+            # First check if log type exists
+            try:
+                # Try to fetch available log types to validate
+                available_logs = fetch_available_log_types(
+                    client,
+                    start_time=start_time,
+                    end_time=end_time
+                )
+                found = False
+                for lt in available_logs.get("available_log_types", []):
+                    if lt.log_type.endswith("/" + log_type) or lt.log_type.endswith("/logTypes/" + log_type):
+                        # If we found the log type in the list, use its exact format
+                        payload["log_type"] = lt.log_type
+                        found = True
+                        break
+                        
+                if not found:
+                    # If log type isn't in the list, try the standard format
+                    # Format log_type as required by the API - the complete format
+                    formatted_log_type = f"projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}/logTypes/{log_type}"
+                    payload["log_type"] = formatted_log_type
+            except Exception:
+                # If we can't validate, just use the standard format
+                formatted_log_type = f"projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}/logTypes/{log_type}"
+                payload["log_type"] = formatted_log_type
         else:
             # Log type is already formatted
             payload["log_type"] = log_type

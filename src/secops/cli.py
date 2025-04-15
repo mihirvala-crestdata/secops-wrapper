@@ -793,6 +793,37 @@ def handle_export_create_command(args, chronicle):
     start_time, end_time = get_time_range(args)
     
     try:
+        # First, try to fetch available log types to see if there are any
+        available_logs = chronicle.fetch_available_log_types(
+            start_time=start_time,
+            end_time=end_time
+        )
+        
+        if not available_logs.get("available_log_types") and not args.log_type:
+            print("Warning: No log types are available for export in the specified time range.", file=sys.stderr)
+            print("You may need to adjust your time range or check your Chronicle instance configuration.", file=sys.stderr)
+            if args.all_logs:
+                print("Creating export with --all-logs flag anyway...", file=sys.stderr)
+            else:
+                print("Error: Cannot create export without specifying a log type when no log types are available.", file=sys.stderr)
+                sys.exit(1)
+        
+        # If log_type is specified, check if it exists in available log types
+        if args.log_type and available_logs.get("available_log_types"):
+            log_type_found = False
+            for lt in available_logs.get("available_log_types", []):
+                if lt.log_type.endswith("/" + args.log_type) or lt.log_type.endswith("/logTypes/" + args.log_type):
+                    log_type_found = True
+                    break
+            
+            if not log_type_found:
+                print(f"Warning: Log type '{args.log_type}' not found in available log types.", file=sys.stderr)
+                print("Available log types:", file=sys.stderr)
+                for lt in available_logs.get("available_log_types", [])[:5]:  # Show first 5
+                    print(f"  {lt.log_type.split('/')[-1]}", file=sys.stderr)
+                print("Attempting to create export anyway...", file=sys.stderr)
+        
+        # Proceed with export creation
         if args.all_logs:
             result = chronicle.create_data_export(
                 gcs_bucket=args.gcs_bucket,
@@ -813,7 +844,21 @@ def handle_export_create_command(args, chronicle):
         
         output_formatter(result, args.output)
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        error_msg = str(e)
+        print(f"Error: {error_msg}", file=sys.stderr)
+        
+        # Provide helpful advice based on common errors
+        if "unrecognized log type" in error_msg.lower():
+            print("\nPossible solutions:", file=sys.stderr)
+            print("1. Verify the log type exists in your Chronicle instance", file=sys.stderr)
+            print("2. Try using 'secops export log-types' to see available log types", file=sys.stderr)
+            print("3. Check if your time range contains data for this log type", file=sys.stderr)
+            print("4. Make sure your GCS bucket is properly formatted as 'projects/PROJECT_ID/buckets/BUCKET_NAME'", file=sys.stderr)
+        elif "permission" in error_msg.lower() or "unauthorized" in error_msg.lower():
+            print("\nPossible authentication or permission issues:", file=sys.stderr)
+            print("1. Verify your credentials have access to Chronicle and the specified GCS bucket", file=sys.stderr)
+            print("2. Check if your service account has the required IAM roles", file=sys.stderr)
+        
         sys.exit(1)
 
 

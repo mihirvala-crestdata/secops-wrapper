@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved error handling for unsupported entity types
 - Enhanced handling of prevalence data in entity summaries
 - Fixed serialization issues in CLI output formatting
+- Improved data export log type handling with better validation
+- Enhanced error messages for data export commands with troubleshooting guidance
+- Added more robust log type formatting in Chronicle API client
+- Updated CSV export examples to use correct snake_case UDM field names
 
 ## [0.1.8] - 2025-04-15
 
