@@ -36,7 +36,7 @@ secops config set --customer-id "your-instance-id" --project-id "your-project-id
 You can also save your service account path:
 
 ```bash
-secops config set --service-account "/path/to/service-account.json"
+secops config set --service-account "/path/to/service-account.json" --customer-id "your-instance-id" --project-id "your-project-id" --region "us"
 ```
 
 The configuration is stored in `~/.secops/config.json`.
