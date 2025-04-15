@@ -9,6 +9,27 @@ This wraps the API for common use cases, including UDM searches, entity lookups,
 pip install secops
 ```
 
+## Command Line Interface
+
+The SDK also provides a comprehensive command-line interface (CLI) that makes it easy to interact with Google Security Operations products from your terminal:
+
+```bash
+# Example: Search for network connections
+secops search --query "metadata.event_type = \"NETWORK_CONNECTION\"" --max-events 10
+```
+
+The CLI supports credential persistence, allowing you to save your Chronicle settings for reuse across commands:
+
+```bash
+# Save your credentials
+secops config set --customer-id "your-instance-id" --project-id "your-project-id" --region "us"
+
+# Now use commands without specifying credentials each time
+secops search --query "metadata.event_type = \"NETWORK_CONNECTION\""
+```
+
+For detailed CLI documentation and examples, see the [CLI Documentation](CLI.md).
+
 ## Authentication
 
 The SDK supports two main authentication methods:
