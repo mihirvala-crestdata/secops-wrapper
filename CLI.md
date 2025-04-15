@@ -19,9 +19,6 @@ The CLI supports the same authentication methods as the SDK:
 ```bash
 # Set up ADC with gcloud
 gcloud auth application-default login
-
-# Then use the CLI without explicit credentials
-secops search --query "metadata.event_type = \"NETWORK_CONNECTION\""
 ```
 
 ### Using a Service Account JSON file
