@@ -223,6 +223,8 @@ def ingest_log(
     log_message: Union[str, List[str]],
     log_entry_time: Optional[datetime] = None,
     collection_time: Optional[datetime] = None,
+    asset_namespace: Optional[str] = None,
+    ingestion_labels: Optional[Dict[str, str]] = None,
     forwarder_id: Optional[str] = None,
     force_log_type: bool = False
 ) -> Dict[str, Any]:
@@ -234,6 +236,8 @@ def ingest_log(
         log_message: Either a single log message string or a list of log message strings
         log_entry_time: The time the log entry was created (defaults to current time)
         collection_time: The time the log was collected (defaults to current time)
+        asset_namespace: The user-configured environment namespace to identify the data domain the logs originated from. This namespace will be used as a tag to identify the appropriate data domain for indexing and enrichment functionality.
+        ingestion_labels: The user-configured custom metadata labels.
         forwarder_id: ID of the forwarder to use (creates or uses default if None)
         force_log_type: Whether to force using the log type even if not in the valid list
         
@@ -293,12 +297,19 @@ def ingest_log(
         # Generate a unique ID for this log entry
         log_id = str(uuid.uuid4())
         
-        logs.append({
+        log_data = {
             "name": f"{client.instance_id}/logTypes/{log_type}/logs/{log_id}",
             "data": log_data,
             "log_entry_time": log_entry_time_str,
-            "collection_time": collection_time_str
-        })
+            "collection_time": collection_time_str,
+        }
+
+        if asset_namespace:
+            log_data["asset_namespace"] = asset_namespace
+        if ingestion_labels:
+            log_data["labels"] = {key: value for key, value in ingestion_labels.items()}
+
+        logs.append(log_data)
     
     # Construct the request payload
     payload = {
