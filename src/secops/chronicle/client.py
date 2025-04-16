@@ -1149,7 +1149,9 @@ class ChronicleClient:
         log_entry_time: Optional[datetime] = None,
         collection_time: Optional[datetime] = None,
         forwarder_id: Optional[str] = None,
-        force_log_type: bool = False
+        force_log_type: bool = False,
+        namespace: Optional[str] = None,
+        labels: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Ingest a log into Chronicle.
         
@@ -1175,7 +1177,9 @@ class ChronicleClient:
             log_entry_time=log_entry_time,
             collection_time=collection_time,
             forwarder_id=forwarder_id,
-            force_log_type=force_log_type
+            force_log_type=force_log_type,
+            namespace=namespace,
+            labels=labels,
         )
 
     def get_or_create_forwarder(

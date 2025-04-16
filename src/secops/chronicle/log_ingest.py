@@ -223,8 +223,8 @@ def ingest_log(
     log_message: Union[str, List[str]],
     log_entry_time: Optional[datetime] = None,
     collection_time: Optional[datetime] = None,
-    asset_namespace: Optional[str] = None,
-    ingestion_labels: Optional[Dict[str, str]] = None,
+    namespace: Optional[str] = None,
+    labels: Optional[Dict[str, str]] = None,
     forwarder_id: Optional[str] = None,
     force_log_type: bool = False
 ) -> Dict[str, Any]:
@@ -294,20 +294,16 @@ def ingest_log(
         # Encode log message in base64
         log_data = base64.b64encode(msg.encode('utf-8')).decode('utf-8')
         
-        # Generate a unique ID for this log entry
-        log_id = str(uuid.uuid4())
-        
         log_data = {
-            "name": f"{client.instance_id}/logTypes/{log_type}/logs/{log_id}",
             "data": log_data,
             "log_entry_time": log_entry_time_str,
             "collection_time": collection_time_str,
         }
 
-        if asset_namespace:
-            log_data["asset_namespace"] = asset_namespace
-        if ingestion_labels:
-            log_data["labels"] = {key: value for key, value in ingestion_labels.items()}
+        if namespace:
+            log_data["asset_namespace"] = namespace
+        if labels:
+            log_data["labels"] = {key: value for key, value in labels.items()}
 
         logs.append(log_data)
     
