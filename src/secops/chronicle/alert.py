@@ -114,7 +114,7 @@ def get_alerts(
     # Initialize for polling
     complete = False
     attempts = 0
-    final_result = None
+    final_result = {}
     
     # Poll until we get a complete response or hit max attempts
     while not complete and attempts < max_attempts:
