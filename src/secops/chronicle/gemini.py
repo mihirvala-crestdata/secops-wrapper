@@ -134,7 +134,7 @@ class GeminiResponse:
         self.suggested_actions = suggested_actions or []
         self.references = references or []
         self.groundings = groundings or []
-        self.raw_response = raw_response
+        self.raw_response = raw_response or {}
     
     def __repr__(self) -> str:
         """Return string representation of the Gemini response.

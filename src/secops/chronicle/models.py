@@ -170,8 +170,8 @@ class Case:
         stage: str,
         priority: str,
         status: str,
-        soar_platform_info: SoarPlatformInfo = None,
-        alert_ids: list[str] = None
+        soar_platform_info: Optional[SoarPlatformInfo] = None,
+        alert_ids: Optional[list[str]] = None
     ):
         self.id = id
         self.display_name = display_name

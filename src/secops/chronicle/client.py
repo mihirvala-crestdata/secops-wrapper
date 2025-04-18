@@ -501,7 +501,7 @@ class ChronicleClient:
         start_time: datetime,
         end_time: datetime,
         snapshot_query: str = "feedback_summary.status != \"CLOSED\"",
-        baseline_query: str = None,
+        baseline_query: Optional[str] = None,
         max_alerts: int = 1000,
         enable_cache: bool = True,
         max_attempts: int = 30,
@@ -619,8 +619,8 @@ class ChronicleClient:
         Returns:
             Tuple of (field_path, value_type)
         """
-        from secops.chronicle.entity import _detect_value_type
-        return _detect_value_type(value, value_type)
+        from secops.chronicle.entity import _detect_value_type_for_query
+        return _detect_value_type_for_query(value)
 
     # Rule Management methods
     
