@@ -24,6 +24,7 @@ from secops.exceptions import APIError
 from secops.chronicle.models import EntitySummary
 import json
 import re
+import time
 
 @pytest.mark.integration
 def test_chronicle_search():
@@ -553,6 +554,9 @@ def test_chronicle_nl_search():
         assert "total_events" in results
         
         print(f"\nFound {results.get('total_events', 0)} events")
+        
+        # Sleep for 10 seconds between nl_search calls
+        time.sleep(10)
         
         # Try a query that might not have results but should translate properly
         more_specific = chronicle.nl_search(
