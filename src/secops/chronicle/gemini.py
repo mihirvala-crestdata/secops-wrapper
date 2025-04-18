@@ -134,7 +134,7 @@ class GeminiResponse:
         self.suggested_actions = suggested_actions or []
         self.references = references or []
         self.groundings = groundings or []
-        self.raw_response = raw_response or {}
+        self.raw_response = raw_response
     
     def __repr__(self) -> str:
         """Return string representation of the Gemini response.
@@ -282,9 +282,9 @@ class GeminiResponse:
         advanced use cases or debugging.
         
         Returns:
-            The raw API response dictionary
+            The raw API response dictionary or an empty dictionary if None
         """
-        return self.raw_response
+        return self.raw_response or {}
 
 def create_conversation(client, display_name: str = "New chat") -> str:
     """Create a new conversation in Chronicle Gemini.
