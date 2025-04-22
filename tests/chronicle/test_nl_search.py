@@ -16,10 +16,12 @@
 
 import pytest
 import json
+import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 from secops.chronicle.nl_search import translate_nl_to_udm, nl_search
 from secops.exceptions import APIError
+import unittest.mock
 
 @pytest.fixture
 def mock_client():
@@ -152,4 +154,104 @@ def test_chronicle_client_integration():
     
     # Additional check from the module import
     assert hasattr(ChronicleClient, "translate_nl_to_udm")
-    assert hasattr(ChronicleClient, "nl_search") 
+    assert hasattr(ChronicleClient, "nl_search")
+
+@patch('time.sleep')  # Patch sleep to avoid waiting in tests
+def test_translate_nl_to_udm_retry_429(mock_sleep, mock_client):
+    """Test retry logic for 429 errors in translation."""
+    # Set up mock responses - first with 429, then success
+    error_response = MagicMock()
+    error_response.status_code = 429
+    error_response.text = "Resource exhausted, too many requests"
+    
+    success_response = MagicMock()
+    success_response.status_code = 200
+    success_response.json.return_value = {"query": "ip != \"\""}
+    
+    # Configure the mock to return error first, then success
+    mock_client.session.post.side_effect = [error_response, success_response]
+    
+    # Call the function
+    result = translate_nl_to_udm(mock_client, "show me ip addresses")
+    
+    # Verify the function was called twice (first attempt + retry)
+    assert mock_client.session.post.call_count == 2
+    
+    # Verify sleep was called between retries
+    mock_sleep.assert_called_once_with(5)
+    
+    # Check result from successful retry
+    assert result == "ip != \"\""
+
+@patch('secops.chronicle.nl_search.translate_nl_to_udm')
+@patch('time.sleep')  # Patch sleep to avoid waiting in tests
+def test_nl_search_retry_429(mock_sleep, mock_translate, mock_client):
+    """Test retry logic for 429 errors in nl_search."""
+    # Set up mock for translation
+    mock_translate.return_value = "ip != \"\""
+    
+    # Set up search_udm to fail with 429 first, then succeed
+    mock_client.search_udm.side_effect = [
+        APIError("Error executing search: Status 429, Response: { \"error\": { \"code\": 429 } }"),
+        {"events": [], "total_events": 0}
+    ]
+    
+    # Define test parameters
+    start_time = datetime.now(timezone.utc) - timedelta(hours=24)
+    end_time = datetime.now(timezone.utc)
+    
+    # Call the function
+    result = nl_search(
+        mock_client, 
+        "show me ip addresses", 
+        start_time, 
+        end_time
+    )
+    
+    # Verify translate_nl_to_udm was called at least once with correct arguments
+    # We expect it to be called on each retry attempt
+    assert mock_translate.call_count >= 1
+    mock_translate.assert_has_calls([
+        unittest.mock.call(mock_client, "show me ip addresses")
+    ])
+    
+    # Verify search_udm was called twice (first attempt + retry)
+    assert mock_client.search_udm.call_count == 2
+    
+    # Verify sleep was called between retries
+    mock_sleep.assert_called_once_with(5)
+    
+    # Check result from successful retry
+    assert result == {"events": [], "total_events": 0}
+
+@patch('secops.chronicle.nl_search.translate_nl_to_udm')
+@patch('time.sleep')  # Patch sleep to avoid waiting in tests
+def test_nl_search_max_retries_exceeded(mock_sleep, mock_translate, mock_client):
+    """Test that max retries are respected for 429 errors."""
+    # Set up mock for translation
+    mock_translate.return_value = "ip != \"\""
+    
+    # Create a 429 error
+    error_429 = APIError("Error executing search: Status 429, Response: { \"error\": { \"code\": 429 } }")
+    
+    # Set up search_udm to always fail with 429
+    mock_client.search_udm.side_effect = [error_429] * 6  # Original + 5 retries
+    
+    # Define test parameters
+    start_time = datetime.now(timezone.utc) - timedelta(hours=24)
+    end_time = datetime.now(timezone.utc)
+    
+    # Test that we still get an error after max retries
+    with pytest.raises(APIError):
+        nl_search(
+            mock_client, 
+            "show me ip addresses", 
+            start_time, 
+            end_time
+        )
+    
+    # Verify search_udm was called 6 times (initial + 5 retries)
+    assert mock_client.search_udm.call_count == 6
+    
+    # Verify sleep was called 5 times
+    assert mock_sleep.call_count == 5 
