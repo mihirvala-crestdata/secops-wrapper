@@ -14,6 +14,7 @@
 #
 """Natural language search functionality for Chronicle."""
 
+import time
 from datetime import datetime
 from typing import Dict, Any, Optional
 from secops.exceptions import APIError
@@ -32,25 +33,53 @@ def translate_nl_to_udm(
         UDM search query string
         
     Raises:
-        APIError: If the API request fails or no valid query can be generated
+        APIError: If the API request fails or no valid query can be generated after retries
     """
+    max_retries = 5
+    retry_count = 0
+    wait_time = 5  # seconds
+    
     url = f"https://{client.region}-chronicle.googleapis.com/v1alpha/projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}:translateUdmQuery"
     
     payload = {
         "text": text
     }
     
-    response = client.session.post(url, json=payload)
+    while retry_count <= max_retries:
+        try:
+            response = client.session.post(url, json=payload)
+            
+            if response.status_code != 200:
+                # If it's a 429 error, handle it specially
+                if response.status_code == 429 or "RESOURCE_EXHAUSTED" in response.text:
+                    if retry_count < max_retries:
+                        retry_count += 1
+                        print(f"Received 429 error in translation, retrying ({retry_count}/{max_retries}) after {wait_time} seconds")
+                        time.sleep(wait_time)
+                        continue
+                # For non-429 errors or if we've exhausted retries
+                raise APIError(f"Chronicle API request failed: {response.text}")
+            
+            result = response.json()
+            
+            if "message" in result:
+                raise APIError(result["message"])
+            
+            return result.get("query", "")
+            
+        except APIError as e:
+            # Only retry for 429 errors
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                if retry_count < max_retries:
+                    retry_count += 1
+                    print(f"Received 429 error, retrying ({retry_count}/{max_retries}) after {wait_time} seconds")
+                    time.sleep(wait_time)
+                    continue
+            # For other errors or if we've exhausted retries, raise the error
+            raise e
     
-    if response.status_code != 200:
-        raise APIError(f"Chronicle API request failed: {response.text}")
-    
-    result = response.json()
-    
-    if "message" in result:
-        raise APIError(result["message"])
-    
-    return result.get("query", "")
+    # This should not happen, but just in case
+    raise APIError("Failed to translate query after retries")
 
 def nl_search(
     client,
@@ -76,17 +105,44 @@ def nl_search(
         Dict containing the search results with events
         
     Raises:
-        APIError: If the API request fails
+        APIError: If the API request fails after retries
     """
-    # First translate the natural language to UDM query
-    udm_query = translate_nl_to_udm(client, text)
+    max_retries = 5
+    retry_count = 0
+    wait_time = 5  # seconds
     
-    # Then perform the UDM search
-    return client.search_udm(
-        query=udm_query,
-        start_time=start_time,
-        end_time=end_time,
-        max_events=max_events,
-        case_insensitive=case_insensitive,
-        max_attempts=max_attempts
-    ) 
+    last_error = None
+    
+    while retry_count <= max_retries:
+        try:
+            # First translate the natural language to UDM query
+            udm_query = translate_nl_to_udm(client, text)
+            
+            # Then perform the UDM search
+            return client.search_udm(
+                query=udm_query,
+                start_time=start_time,
+                end_time=end_time,
+                max_events=max_events,
+                case_insensitive=case_insensitive,
+                max_attempts=max_attempts
+            )
+        except APIError as e:
+            last_error = e
+            # Check if it's a 429 error (too many requests)
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                if retry_count < max_retries:
+                    retry_count += 1
+                    # Log retry attempt
+                    print(f"Received 429 error, retrying ({retry_count}/{max_retries}) after {wait_time} seconds")
+                    time.sleep(wait_time)
+                    continue
+            # For other errors or if we've exhausted retries, raise the error
+            raise e
+        
+    # If we've reached here, we've exhausted retries
+    if last_error:
+        raise last_error
+    
+    # This should not happen, but just in case
+    raise APIError("Failed to perform search after retries") 

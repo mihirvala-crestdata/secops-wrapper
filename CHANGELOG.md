@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13] - 2024-05-10
+### Fixed
+- Added retry mechanism for 429 (rate limit) errors in natural language search
+- Implemented 5-second backoff with up to 5 retry attempts for both translation and search
+- Enhanced error detection to handle both HTTP 429 codes and "RESOURCE_EXHAUSTED" error messages
+- Improved resilience against intermittent rate limiting in Chronicle API calls
+
 ## [0.1.12] - 2024-04-18
 ### Added
 - Support for ingest labels

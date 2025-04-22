@@ -556,7 +556,7 @@ def test_chronicle_nl_search():
         print(f"\nFound {results.get('total_events', 0)} events")
         
         # Sleep for 10 seconds between nl_search calls
-        time.sleep(10)
+        #time.sleep(10) #fixed with 429 handler
         
         # Try a query that might not have results but should translate properly
         more_specific = chronicle.nl_search(
