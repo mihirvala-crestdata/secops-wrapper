@@ -581,6 +581,11 @@ def setup_rule_command(subparsers):
     validate_parser.add_argument("--file", required=True, help="File containing rule text")
     validate_parser.set_defaults(func=handle_rule_validate_command)
 
+    # Search rules command
+    search_parser = rule_subparsers.add_parser("search", help="Search rules")
+    search_parser.set_defaults(func=handle_rule_search_command)
+    search_parser.add_argument("--query", required=True, help="Rule query string in regex")
+
 
 def handle_rule_list_command(args, chronicle):
     """Handle rule list command."""
@@ -662,6 +667,16 @@ def handle_rule_validate_command(args, chronicle):
             print(f"Rule is invalid: {result.message}")
             if result.position:
                 print(f"Error at line {result.position['startLine']}, column {result.position['startColumn']}")
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_rule_search_command(args, chronicle):
+    """Handle rule search command."""
+    try:
+        result = chronicle.search_rules(args.query)
+        output_formatter(result, args.output)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
