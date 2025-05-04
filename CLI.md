@@ -222,6 +222,13 @@ Validate a rule:
 secops rule validate --file "/path/to/rule.yaral"
 ```
 
+Search for rules using regex patterns:
+
+```bash
+secops rule search --query "suspicious process"
+secops rule search --query "MITRE.*T1055"
+```
+
 ### Alert Management
 
 Get alerts:
