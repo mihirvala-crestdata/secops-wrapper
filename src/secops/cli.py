@@ -497,6 +497,8 @@ def setup_log_command(subparsers):
     ingest_parser.add_argument("--forwarder-id", "--forwarder_id", dest="forwarder_id", help="Custom forwarder ID")
     ingest_parser.add_argument("--force", action="store_true", 
                              help="Force unknown log type")
+    ingest_parser.add_argument("--labels", 
+                             help="JSON string or comma-separated key=value pairs for custom labels")
     ingest_parser.set_defaults(func=handle_log_ingest_command)
     
     # Ingest UDM command
@@ -517,12 +519,32 @@ def handle_log_ingest_command(args, chronicle):
         if args.file:
             with open(args.file, 'r') as f:
                 log_message = f.read()
+                
+        # Process labels if provided
+        labels = None
+        if args.labels:
+            # Try parsing as JSON first
+            try:
+                labels = json.loads(args.labels)
+            except json.JSONDecodeError:
+                # If not valid JSON, try parsing as comma-separated key=value pairs
+                labels = {}
+                for pair in args.labels.split(','):
+                    if '=' in pair:
+                        key, value = pair.split('=', 1)
+                        labels[key.strip()] = value.strip()
+                    else:
+                        print(f"Warning: Ignoring invalid label format: {pair}", file=sys.stderr)
+                
+                if not labels:
+                    print("Warning: No valid labels found. Labels should be in JSON format or comma-separated key=value pairs.", file=sys.stderr)
         
         result = chronicle.ingest_log(
             log_type=args.type,
             log_message=log_message,
             forwarder_id=args.forwarder_id,
-            force_log_type=args.force
+            force_log_type=args.force,
+            labels=labels
         )
         output_formatter(result, args.output)
     except Exception as e:

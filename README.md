@@ -185,6 +185,13 @@ batch_result = chronicle.ingest_log(
 )
 
 print(f"Batch operation: {batch_result.get('operation')}")
+
+# Add custom labels to your logs
+labeled_result = chronicle.ingest_log(
+    log_type="OKTA",
+    log_message=json.dumps(okta_log),
+    labels={"environment": "production", "app": "web-portal", "team": "security"}
+)
 ```
 The SDK also supports non-JSON log formats. Here's an example with XML for Windows Event logs:
 
