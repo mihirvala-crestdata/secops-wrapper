@@ -804,6 +804,22 @@ deployment = chronicle.enable_rule(rule_id, enabled=False) # Disable
 chronicle.delete_rule(rule_id)
 ```
 
+### Searching Rules
+
+Search for rules using regular expressions:
+
+```python
+# Search for rules containing specific patterns
+results = chronicle.search_rules("suspicious process")
+for rule in results.get("rules", []):
+    rule_id = rule.get("name", "").split("/")[-1]
+    print(f"Rule ID: {rule_id}, contains: 'suspicious process'")
+    
+# Find rules mentioning a specific MITRE technique
+mitre_rules = chronicle.search_rules("T1055")
+print(f"Found {len(mitre_rules.get('rules', []))} rules mentioning T1055 technique")
+```
+
 ### Retrohunts
 
 Run rules against historical data to find past matches:

@@ -180,12 +180,32 @@ def setup_client(args: argparse.Namespace) -> Tuple[SecOpsClient, Any]:
             if hasattr(args, 'region') and args.region:
                 chronicle_kwargs["region"] = args.region
             
+            # Check if required args for Chronicle client are present
+            missing_args = []
+            if not chronicle_kwargs.get("customer_id"):
+                missing_args.append("customer_id")
+            if not chronicle_kwargs.get("project_id"):
+                missing_args.append("project_id")
+            
+            if missing_args:
+                print("Error: Missing required configuration parameters:", ", ".join(missing_args), file=sys.stderr)
+                print("\nPlease run the config command to set up your configuration:", file=sys.stderr)
+                print("  secops config set --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID", file=sys.stderr)
+                print("\nOr provide them as command-line options:", file=sys.stderr)
+                print("  secops --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID [command]", file=sys.stderr)
+                print("\nFor help finding these values, run:", file=sys.stderr)
+                print("  secops help --topic customer-id", file=sys.stderr)
+                print("  secops help --topic project-id", file=sys.stderr)
+                sys.exit(1)
+            
             chronicle = client.chronicle(**chronicle_kwargs)
             return client, chronicle
         
         return client, None
     except (AuthenticationError, SecOpsError) as e:
         print(f"Authentication error: {e}", file=sys.stderr)
+        print("\nFor configuration help, run:", file=sys.stderr)
+        print("  secops help --topic config", file=sys.stderr)
         sys.exit(1)
 
 
@@ -948,6 +968,44 @@ def handle_gemini_command(args, chronicle):
         sys.exit(1)
 
 
+def setup_help_command(subparsers):
+    """Set up the help command parser.
+    
+    Args:
+        subparsers: Subparsers object to add to
+    """
+    help_parser = subparsers.add_parser("help", help="Get help with configuration and usage")
+    help_parser.add_argument("--topic", choices=["config", "customer-id", "project-id"], 
+                           default="config", help="Help topic")
+    help_parser.set_defaults(func=handle_help_command)
+
+
+def handle_help_command(args, chronicle=None):
+    """Handle help command.
+    
+    Args:
+        args: Command line arguments
+        chronicle: Not used for this command
+    """
+    if args.topic == "config":
+        print("Configuration Help:")
+        print("------------------")
+        print("To use the SecOps CLI with Chronicle, you need to configure:")
+        print("  1. Chronicle Customer ID (your Chronicle instance ID)")
+        print("  2. GCP Project ID (the Google Cloud project associated with your Chronicle instance)")
+        print("  3. Region (e.g., 'us', 'europe', 'asia-northeast1')")
+        print("  4. Optional: Service Account credentials")
+        print()
+        print("Configuration commands:")
+        print("  secops config set --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID --region YOUR_REGION")
+        print("  secops config view")
+        print("  secops config clear")
+        print()
+        print("For help finding your Customer ID or Project ID, run:")
+        print("  secops help --topic customer-id")
+        print("  secops help --topic project-id")
+   
+
 def main() -> None:
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(description="Google SecOps CLI")
@@ -971,6 +1029,7 @@ def main() -> None:
     setup_export_command(subparsers)
     setup_gemini_command(subparsers)
     setup_config_command(subparsers)  # Add the config command
+    setup_help_command(subparsers)  # Add the help command
     
     # Parse arguments
     args = parser.parse_args()
@@ -980,19 +1039,50 @@ def main() -> None:
         sys.exit(1)
     
     # Handle config commands directly without setting up Chronicle client
-    if args.command == "config":
+    if args.command == "config" or args.command == "help":
         args.func(args)
         return
+    
+    # Check if this is a Chronicle-related command that requires configuration
+    chronicle_commands = ["search", "stats", "entity", "iocs", "rule", "alert", "case", "export", "gemini"]
+    requires_chronicle = any(cmd in args.command for cmd in chronicle_commands)
+    
+    if requires_chronicle:
+        # Check for required configuration before attempting to create the client
+        config = load_config()
+        customer_id = args.customer_id or config.get("customer_id")
+        project_id = args.project_id or config.get("project_id")
+        
+        if not customer_id or not project_id:
+            missing = []
+            if not customer_id:
+                missing.append("customer_id")
+            if not project_id:
+                missing.append("project_id")
+                
+            print(f"Error: Missing required configuration: {', '.join(missing)}", file=sys.stderr)
+            print("\nPlease set up your configuration first:", file=sys.stderr)
+            print("  secops config set --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID --region YOUR_REGION", file=sys.stderr)
+            print("\nOr provide them directly on the command line:", file=sys.stderr)
+            print(f"  secops --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID --region YOUR_REGION {args.command}", file=sys.stderr)
+            print("\nNeed help finding these values?", file=sys.stderr)
+            print("  secops help --topic customer-id", file=sys.stderr)
+            print("  secops help --topic project-id", file=sys.stderr)
+            print("\nFor general configuration help:", file=sys.stderr)
+            print("  secops help --topic config", file=sys.stderr)
+            sys.exit(1)
         
     # Set up client
     client, chronicle = setup_client(args)
     
     # Execute command
-    if args.command != "config" and hasattr(args, 'func'):
-        if chronicle is not None or not any(cmd in args.command for cmd in ["search", "stats", "entity", "iocs", "rule", "alert", "case", "export", "gemini"]):
+    if hasattr(args, 'func'):
+        if not requires_chronicle or chronicle is not None:
             args.func(args, chronicle)
         else:
             print("Error: Chronicle client required for this command", file=sys.stderr)
+            print("\nFor help with configuration:", file=sys.stderr)
+            print("  secops help --topic config", file=sys.stderr)
             sys.exit(1)
 
 

@@ -122,7 +122,7 @@ def test_cli_rule_search(cli_env, common_args):
     cmd = [
         "secops",
     ] + common_args + [
-        "rule", "search", "--query .*"
+        "rule", "search", "--query", ".*"
     ]
     
     result = subprocess.run(
