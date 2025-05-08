@@ -83,7 +83,12 @@ ADC will automatically try these authentication methods in order:
 
 ### 2. Service Account Authentication
 
-For more explicit control, you can authenticate using a service account. This can be done in two ways:
+For more explicit control, you can authenticate using a service account that is created in the Google Cloud project associated with Google SecOps.
+
+**Important Note on Permissions:**
+* This service account needs to be granted the appropriate Identity and Access Management (IAM) role to interact with the Google Secops (Chronicle) API. The recommended predefined role is **Chronicle API Admin** (`roles/chronicle.admin`). Alternatively, if your security policies require more granular control, you can create a custom IAM role with the specific permissions needed for the operations you intend to use (e.g., `chronicle.instances.get`, `chronicle.events.create`, `chronicle.rules.list`, etc.). 
+
+Once the service account is properly permissioned, you can authenticate using it in two ways: 
 
 #### a. Using a Service Account JSON File
 
@@ -95,6 +100,8 @@ client = SecOpsClient(service_account_path="/path/to/service-account.json")
 ```
 
 #### b. Using Service Account Info Dictionary
+
+If you prefer to manage credentials programmatically without a file, you can create a dictionary containing the service account key's contents.
 
 ```python
 from secops import SecOpsClient
