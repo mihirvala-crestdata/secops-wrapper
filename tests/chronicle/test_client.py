@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 """Tests for Chronicle API client."""
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import pytest
 from unittest.mock import Mock, patch, call
 from secops.chronicle.client import ChronicleClient
@@ -538,8 +538,15 @@ def test_get_alerts_parameters(chronicle_client):
     mock_response.iter_lines.return_value = [b'{"progress": 1, "complete": true}']
     
     with patch('time.sleep'), patch.object(chronicle_client.session, 'get', return_value=mock_response) as mock_get:
-        start_time = datetime(2025, 3, 8, tzinfo=timezone.utc)
-        end_time = datetime(2025, 3, 9, tzinfo=timezone.utc)
+        # Test with a non-UTC timezone (Eastern Time)
+        eastern = timezone(timedelta(hours=-5))
+        start_time = datetime(2025, 3, 8, 10, 30, 45, tzinfo=eastern)  # 10:30:45 ET
+        end_time = datetime(2025, 3, 9, 15, 45, 30, tzinfo=eastern)    # 15:45:30 ET
+        
+        # Expected UTC timestamps after conversion
+        expected_start = "2025-03-08T15:30:45Z"  # 10:30:45 ET = 15:30:45 UTC
+        expected_end = "2025-03-09T20:45:30Z"    # 15:45:30 ET = 20:45:30 UTC
+        
         snapshot_query = 'feedback_summary.status = "OPEN"'
         baseline_query = 'detection.rule_id = "rule-123"'
         max_alerts = 50
@@ -559,14 +566,100 @@ def test_get_alerts_parameters(chronicle_client):
         mock_get.assert_called_once()
         args, kwargs = mock_get.call_args
         
-        # Check URL and parameters
+        # Check URL and parameters using explicit string comparison
         params = kwargs.get('params', {})
-        assert params.get('timeRange.startTime') == start_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-        assert params.get('timeRange.endTime') == end_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        assert params.get('timeRange.startTime') == expected_start
+        assert params.get('timeRange.endTime') == expected_end
         assert params.get('snapshotQuery') == snapshot_query
         assert params.get('baselineQuery') == baseline_query
         assert params.get('alertListOptions.maxReturnedAlerts') == max_alerts
         assert params.get('enableCache') == "ALERTS_FEATURE_PREFERENCE_DISABLED"
+        
+        # Reset mock to test another timezone scenario
+        mock_get.reset_mock()
+        
+        # Test with another timezone (Pacific Time)
+        pacific = timezone(timedelta(hours=-8))
+        start_time = datetime(2025, 3, 8, 7, 15, 30, tzinfo=pacific)  # 7:15:30 PT
+        end_time = datetime(2025, 3, 9, 19, 45, 0, tzinfo=pacific)    # 19:45:00 PT
+        
+        # Expected UTC timestamps after conversion
+        expected_start = "2025-03-08T15:15:30Z"  # 7:15:30 PT = 15:15:30 UTC
+        expected_end = "2025-03-10T03:45:00Z"    # 19:45:00 PT = 03:45:00 UTC (next day)
+        
+        chronicle_client.get_alerts(
+            start_time=start_time,
+            end_time=end_time,
+            snapshot_query=snapshot_query,
+            baseline_query=baseline_query,
+            max_alerts=max_alerts,
+            enable_cache=enable_cache,
+            max_attempts=1
+        )
+        
+        # Verify again with the second timezone
+        mock_get.assert_called_once()
+        args, kwargs = mock_get.call_args
+        params = kwargs.get('params', {})
+        assert params.get('timeRange.startTime') == expected_start
+        assert params.get('timeRange.endTime') == expected_end
+        
+        # Reset mock for one more test with microseconds
+        mock_get.reset_mock()
+        
+        # Test with microseconds that should be stripped
+        indian = timezone(timedelta(hours=5, minutes=30))  # Indian Standard Time UTC+5:30
+        start_time = datetime(2025, 3, 8, 12, 30, 45, 123456, tzinfo=indian)  # With microseconds
+        end_time = datetime(2025, 3, 9, 18, 15, 30, 987654, tzinfo=indian)    # With microseconds
+        
+        # Expected UTC timestamps after conversion (microseconds removed)
+        expected_start = "2025-03-08T07:00:45Z"  # 12:30:45 IST = 07:00:45 UTC (no microseconds)
+        expected_end = "2025-03-09T12:45:30Z"    # 18:15:30 IST = 12:45:30 UTC (no microseconds)
+        
+        chronicle_client.get_alerts(
+            start_time=start_time,
+            end_time=end_time,
+            snapshot_query=snapshot_query,
+            baseline_query=baseline_query,
+            max_alerts=max_alerts,
+            enable_cache=enable_cache,
+            max_attempts=1
+        )
+        
+        # Verify microseconds handling
+        mock_get.assert_called_once()
+        args, kwargs = mock_get.call_args
+        params = kwargs.get('params', {})
+        assert params.get('timeRange.startTime') == expected_start
+        assert params.get('timeRange.endTime') == expected_end
+        
+        # Reset mock for one more test with naive datetime objects (no timezone)
+        mock_get.reset_mock()
+        
+        # Test with naive datetime objects (no timezone) which should be interpreted as UTC
+        naive_start_time = datetime(2025, 3, 8, 9, 30, 45)  # No timezone info
+        naive_end_time = datetime(2025, 3, 9, 14, 15, 30)   # No timezone info
+        
+        # Expected UTC timestamps
+        expected_start = "2025-03-08T09:30:45Z"  # Should be treated as UTC
+        expected_end = "2025-03-09T14:15:30Z"    # Should be treated as UTC
+        
+        chronicle_client.get_alerts(
+            start_time=naive_start_time,
+            end_time=naive_end_time,
+            snapshot_query=snapshot_query,
+            baseline_query=baseline_query,
+            max_alerts=max_alerts,
+            enable_cache=enable_cache,
+            max_attempts=1
+        )
+        
+        # Verify handling of naive datetime objects
+        mock_get.assert_called_once()
+        args, kwargs = mock_get.call_args
+        params = kwargs.get('params', {})
+        assert params.get('timeRange.startTime') == expected_start
+        assert params.get('timeRange.endTime') == expected_end
 
 def test_get_alerts_json_processing(chronicle_client):
     """Test processing of streaming JSON response with complex structure."""
