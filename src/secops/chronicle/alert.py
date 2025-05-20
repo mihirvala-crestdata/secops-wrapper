@@ -16,7 +16,7 @@
 
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from secops.exceptions import APIError
 import re
@@ -95,9 +95,13 @@ def get_alerts(
     url = f"{client.base_url}/{client.instance_id}/legacy:legacyFetchAlertsView"
     
     # Build the request parameters
+    # Ensure timezone awareness and convert to UTC
+    start_time_utc = start_time if start_time.tzinfo else start_time.replace(tzinfo=timezone.utc)
+    end_time_utc = end_time if end_time.tzinfo else end_time.replace(tzinfo=timezone.utc)
+    
     params = {
-        "timeRange.startTime": start_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-        "timeRange.endTime": end_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        "timeRange.startTime": start_time_utc.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        "timeRange.endTime": end_time_utc.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
         "snapshotQuery": snapshot_query,
     }
     
