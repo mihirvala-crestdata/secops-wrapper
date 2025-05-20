@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.16] - 2024-05-24
 ### Fixed
-- Fixed timestamp format in `get_alerts` to include 'Z' suffix and remove microseconds, resolving API compatibility issues
+- Fixed timestamp format in `get_alerts` to handle timezone conversion, include 'Z' suffix, and remove microseconds, resolving API compatibility issues
 
 ## [0.1.15] - 2024-05-04
 ### Added

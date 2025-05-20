@@ -561,8 +561,8 @@ def test_get_alerts_parameters(chronicle_client):
         
         # Check URL and parameters
         params = kwargs.get('params', {})
-        assert params.get('timeRange.startTime') == start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
-        assert params.get('timeRange.endTime') == end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+        assert params.get('timeRange.startTime') == start_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        assert params.get('timeRange.endTime') == end_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
         assert params.get('snapshotQuery') == snapshot_query
         assert params.get('baselineQuery') == baseline_query
         assert params.get('alertListOptions.maxReturnedAlerts') == max_alerts

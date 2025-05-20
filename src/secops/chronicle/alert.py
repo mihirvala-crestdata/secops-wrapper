@@ -16,7 +16,7 @@
 
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from secops.exceptions import APIError
 import re
@@ -96,8 +96,8 @@ def get_alerts(
     
     # Build the request parameters
     params = {
-        "timeRange.startTime": start_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-        "timeRange.endTime": end_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        "timeRange.startTime": start_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        "timeRange.endTime": end_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
         "snapshotQuery": snapshot_query,
     }
     
