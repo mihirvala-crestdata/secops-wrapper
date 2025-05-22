@@ -178,10 +178,19 @@ class ChronicleClient:
         self.region = region
         
         # Format the instance ID to match the expected format
-        self.instance_id = f"projects/{project_id}/locations/{region}/instances/{customer_id}"
-        
-        # Set up the base URL
-        self.base_url = f"https://{self.region}-chronicle.googleapis.com/v1alpha"
+        if region in ["dev", "staging"]:
+            # For dev and staging environments, use a different instance ID format
+            self.instance_id = f"projects/{project_id}/locations/us/instances/{customer_id}"
+            # Set up the base URL for dev/staging
+            if region == "dev":
+                self.base_url = f"https://dev-chronicle.sandbox.googleapis.com/v1alpha"
+            else:  # staging
+                self.base_url = f"https://staging-chronicle.sandbox.googleapis.com/v1alpha"
+        else:
+            # Standard production regions use the normal format
+            self.instance_id = f"projects/{project_id}/locations/{region}/instances/{customer_id}"
+            # Set up the base URL
+            self.base_url = f"https://{self.region}-chronicle.googleapis.com/v1alpha"
         
         # Create a session with authentication
         if session:

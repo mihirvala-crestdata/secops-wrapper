@@ -20,6 +20,17 @@ When initializing the Chronicle client, you need to specify the `region` paramet
 | `me_central1` | Doha |
 | `southamerica_east1` | Sao Paulo |
 | `europe_west9` | Paris |
+| `dev` | Development environment (sandbox) |
+| `staging` | Staging environment (sandbox) |
+
+## Special Environments
+
+The `dev` and `staging` regions are special environments used for testing and development purposes:
+
+- `dev`: Development environment using the URL `https://dev-chronicle.sandbox.googleapis.com`
+- `staging`: Staging environment using the URL `https://staging-chronicle.sandbox.googleapis.com`
+
+Note that these environments use a slightly different instance ID format internally.
 
 ## Usage Example
 
@@ -29,6 +40,13 @@ chronicle = client.chronicle(
     customer_id="your-chronicle-instance-id",
     project_id="your-project-id",
     region="us"  # Use lowercase region code from the table above
+)
+
+# For staging environment
+staging_chronicle = client.chronicle(
+    customer_id="ebdc4bb9-878b-11e7-8455-10604b7cb5c1", 
+    project_id="malachite-catfood-byop-staging",
+    region="staging"
 )
 ```
 
