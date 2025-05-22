@@ -20,16 +20,8 @@ When initializing the Chronicle client, you need to specify the `region` paramet
 | `me_central1` | Doha |
 | `southamerica_east1` | Sao Paulo |
 | `europe_west9` | Paris |
+| `dev` | Development environment (sandbox) |
+| `staging` | Staging environment (sandbox) |
 
-## Usage Example
-
-```python
-# Initialize Chronicle client with the appropriate region
-chronicle = client.chronicle(
-    customer_id="your-chronicle-instance-id",
-    project_id="your-project-id",
-    region="us"  # Use lowercase region code from the table above
-)
-```
 
 Always use the lowercase version of the region code when configuring your Chronicle client. 
