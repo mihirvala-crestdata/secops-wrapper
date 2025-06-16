@@ -1,6 +1,16 @@
 """Reference list management functionality for Chronicle."""
-from enum import StrEnum
+import sys
+from enum import Enum
 from typing import Any, Dict, List, Optional
+
+# Use built-in StrEnum if Python 3.11+, otherwise create a compatible version
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    class StrEnum(str, Enum):
+        """String enum implementation for Python versions before 3.11."""
+        def __str__(self) -> str:
+            return self.value
 
 from secops.exceptions import APIError, SecOpsError
 from secops.chronicle.data_table import validate_cidr_entries, REF_LIST_DATA_TABLE_ID_REGEX
