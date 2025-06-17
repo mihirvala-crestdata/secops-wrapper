@@ -185,6 +185,73 @@ secops log types
 secops log types --search "windows"
 ```
 
+> **Note:** Chronicle uses parsers to process and normalize raw log data into UDM format. If you're ingesting logs for a custom format, you may need to create or configure parsers. See the [Parser Management](#parser-management) section for details on managing parsers.
+
+### Parser Management
+
+Parsers in Chronicle are used to process and normalize raw log data into UDM (Unified Data Model) format. The CLI provides comprehensive parser management capabilities.
+
+#### List parsers:
+
+```bash
+# List all parsers
+secops parser list
+
+# List parsers for a specific log type
+secops parser list --log-type "WINDOWS"
+
+# List with pagination and filtering
+secops parser list --log-type "OKTA" --page-size 50 --filter "state=ACTIVE"
+```
+
+#### Get parser details:
+
+```bash
+secops parser get --log-type "WINDOWS" --id "pa_12345"
+```
+
+#### Create a new parser:
+
+```bash
+# Create from parser code string
+secops parser create --log-type "CUSTOM_LOG" --parser-code "filter { mutate { add_field => { \"test\" => \"value\" } } }"
+
+# Create from parser code file
+secops parser create --log-type "CUSTOM_LOG" --parser-code-file "/path/to/parser.conf" --validated-on-empty-logs
+```
+
+#### Copy a prebuilt parser:
+
+```bash
+secops parser copy --log-type "WINDOWS" --id "pa_prebuilt_123"
+```
+
+#### Activate a parser:
+
+```bash
+# Activate a custom parser
+secops parser activate --log-type "WINDOWS" --id "pa_12345"
+
+# Activate a release candidate parser
+secops parser activate-rc --log-type "WINDOWS" --id "pa_67890"
+```
+
+#### Deactivate a parser:
+
+```bash
+secops parser deactivate --log-type "WINDOWS" --id "pa_12345"
+```
+
+#### Delete a parser:
+
+```bash
+# Delete an inactive parser
+secops parser delete --log-type "WINDOWS" --id "pa_12345"
+
+# Force delete an active parser
+secops parser delete --log-type "WINDOWS" --id "pa_12345" --force
+```
+
 ### Rule Management
 
 List detection rules:
@@ -422,8 +489,6 @@ secops reference-list update \
   --entries-file "/path/to/updated_domains.txt"
 ```
 
-<!-- Note: Reference list deletion is not currently supported by the API -->
-
 ## Examples
 
 ### Search for Recent Network Connections
@@ -505,6 +570,32 @@ secops reference-list create \
   --description "Internal trusted domains" \
   --entries "internal.example.com,trusted.example.org,secure.example.net" \
   --syntax-type "STRING"
+```
+
+### Parser Management Workflow
+
+```bash
+# List all parsers to see what's available
+secops parser list
+
+# Get details of a specific parser
+secops parser get --log-type "WINDOWS" --id "pa_12345"
+
+# Create a custom parser for a new log format
+secops parser create \
+  --log-type "CUSTOM_APPLICATION" \
+  --parser-code-file "/path/to/custom_parser.conf" \
+  --validated-on-empty-logs
+
+# Copy an existing parser as a starting point
+secops parser copy --log-type "OKTA" --id "pa_okta_base"
+
+# Activate your custom parser
+secops parser activate --log-type "CUSTOM_APPLICATION" --id "pa_new_custom"
+
+# If needed, deactivate and delete old parser
+secops parser deactivate --log-type "CUSTOM_APPLICATION" --id "pa_old_custom"
+secops parser delete --log-type "CUSTOM_APPLICATION" --id "pa_old_custom"
 ```
 
 ## Conclusion

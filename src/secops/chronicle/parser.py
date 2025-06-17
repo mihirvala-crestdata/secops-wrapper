@@ -15,7 +15,7 @@
 """Parser management functionality for Chronicle."""
 
 from typing import Dict, Any, List
-from ..exceptions import APIError, SecOpsError
+from secops.exceptions import APIError, SecOpsError
 import base64
 
 
@@ -193,7 +193,7 @@ def delete_parser(
     response = client.session.delete(url, params=params)
 
     if response.status_code != 200:
-        raise APIError(f"Failed to deactivate parser: {response.text}")
+        raise APIError(f"Failed to delete parser: {response.text}")
 
     return response.json()
 
@@ -236,12 +236,13 @@ def list_parsers(
     
     Args:
         client: ChronicleClient instance
-        log_type: Log type to filter by.
-        page_size: The maximum number of parsers to return.
-        page_token: A page token, received from a previous `ListParsers` call.
+        log_type: Log type to filter by
+        page_size: The maximum number of parsers to return
+        page_token: A page token, received from a previous ListParsers call
+        filter: Optional filter expression
 
     Returns:
-        Dictionary containing information about rules
+        List of parser dictionaries
         
     Raises:
         APIError: If the API request fails

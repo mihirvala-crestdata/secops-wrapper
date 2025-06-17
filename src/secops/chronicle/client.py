@@ -1035,6 +1035,10 @@ class ChronicleClient:
 
     def activate_parser(self, log_type: str, id: str) -> Dict[str, Any]:
         """Activate a custom parser.
+        
+        Args:
+            log_type: Log type of the parser
+            id: Parser ID
 
         Returns:
             Empty JSON object
@@ -1045,7 +1049,11 @@ class ChronicleClient:
         return _activate_parser(self, log_type=log_type, id=id)
 
     def activate_release_candidate_parser(self, log_type: str, id: str) -> Dict[str, Any]:
-        """Activate a release candidate parser.
+        """Activate the release candidate parser making it live for that customer.
+        
+        Args:
+            log_type: Log type of the parser
+            id: Parser ID
 
         Returns:
             Empty JSON object
@@ -1059,12 +1067,11 @@ class ChronicleClient:
         """Makes a copy of a prebuilt parser.
 
         Args:
-            client: ChronicleClient instance
             log_type: Log type of the parser
             id: Parser ID
 
         Returns:
-            Newly copied Parser
+            Dictionary containing the newly copied parser
 
         Raises:
             APIError: If the API request fails
@@ -1072,10 +1079,15 @@ class ChronicleClient:
         return _copy_parser(client=self, log_type=log_type, id=id)
 
     def create_parser(self, log_type: str, parser_code: str, validated_on_empty_logs: bool) -> Dict[str, Any]:
-        """Create a custom parser.
+        """Creates a new parser.
+
+        Args:
+            log_type: Log type of the parser
+            parser_code: Content of the new parser, used to evaluate logs
+            validated_on_empty_logs: Whether the parser is validated on empty logs
 
         Returns:
-            Dictionary containing information about newly created parser
+            Dictionary containing the created parser information
 
         Raises:
             APIError: If the API request fails
@@ -1086,7 +1098,6 @@ class ChronicleClient:
         """Deactivate a custom parser.
 
         Args:
-            self: ChronicleClient instance
             log_type: Log type of the parser
             id: Parser ID
 
@@ -1096,16 +1107,15 @@ class ChronicleClient:
         Raises:
             APIError: If the API request fails
         """
-        return _delete_parser(client=self, log_type=log_type, id=id)
+        return _deactivate_parser(client=self, log_type=log_type, id=id)
 
     def delete_parser(self, log_type: str, id: str, force: bool = False) -> Dict[str, Any]:
         """Delete a parser.
 
         Args:
-            self: ChronicleClient instance
             log_type: Log type of the parser
             id: Parser ID
-            force: Flag to forcibly delete an ACTIVE parser.
+            force: Flag to forcibly delete an ACTIVE parser
 
         Returns:
             Empty JSON object
@@ -1116,10 +1126,14 @@ class ChronicleClient:
         return _delete_parser(client=self, log_type=log_type, id=id, force=force)
 
     def get_parser(self, log_type: str, id: str) -> Dict[str, Any]:
-        """Gets a parser by ID.
+        """Get a parser by ID.
+        
+        Args:
+            log_type: Log type of the parser
+            id: Parser ID
 
         Returns:
-            Dictionary containing information about rules
+            Dictionary containing the parser information
 
         Raises:
             APIError: If the API request fails
@@ -1127,10 +1141,16 @@ class ChronicleClient:
         return _get_parser(self, log_type=log_type, id=id)
 
     def list_parsers(self, log_type: str = "-", page_size: int = 100, page_token: str = None, filter: str = None) -> List[Any]:
-        """Gets a list of parsers.
+        """List parsers.
+        
+        Args:
+            log_type: Log type to filter by
+            page_size: The maximum number of parsers to return
+            page_token: A page token, received from a previous ListParsers call
+            filter: Optional filter expression
 
         Returns:
-            Dictionary containing information about rules
+            List of parser dictionaries
 
         Raises:
             APIError: If the API request fails

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-06-17
+### Added
+- Comprehensive Parser Management functionality for Chronicle log processing
+  - Support for creating, retrieving, listing, copying, and deleting parsers
+  - Parser activation and deactivation capabilities for managing live parsers
+  - Release candidate parser activation for testing new parser versions
+  - Force deletion option for removing active parsers when necessary
+  - Full integration with Chronicle's Unified Data Model (UDM) transformation pipeline
+- Complete CLI support for parser management operations
+  - All parser commands available through `secops parser` subcommands
+  - Support for parser lifecycle management from command line
+  - Integration with existing CLI configuration and authentication
+- Enhanced documentation with parser management examples and workflows
+  - Updated README.md with comprehensive parser usage examples
+  - Added parser management section to CLI.md with practical workflows
+  - Clear explanation of parser role in log processing and UDM transformation
+  - Connection between parser management and log ingestion processes
+
 ## [0.3.0] - 2025-06-16
 ### Added
 - New Data Table functionality for managing structured data in Secops

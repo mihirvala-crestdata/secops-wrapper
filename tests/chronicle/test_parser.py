@@ -250,9 +250,7 @@ def test_delete_parser_error(chronicle_client, mock_error_response):
     with patch.object(chronicle_client.session, 'delete', return_value=mock_error_response):
         with pytest.raises(APIError) as exc_info:
             delete_parser(chronicle_client, log_type, parser_id)
-        # Note: The original code's error message for delete_parser is "Failed to deactivate parser",
-        # which seems like a typo. I'll assert against that, rather than "Failed to delete parser".
-        assert "Failed to deactivate parser: Error message" in str(exc_info.value)
+        assert "Failed to delete parser: Error message" in str(exc_info.value)
 
 
 # --- get_parser Tests ---

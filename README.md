@@ -761,7 +761,9 @@ case = cases.get_case("case-id-1")
 
 ## Parser Management
 
-The SDK provides comprehensive support for managing Chronicle Parsers:
+Chronicle parsers are used to process and normalize raw log data into Chronicle's Unified Data Model (UDM) format. Parsers transform various log formats (JSON, XML, CEF, etc.) into a standardized structure that enables consistent querying and analysis across different data sources.
+
+The SDK provides comprehensive support for managing Chronicle parsers:
 
 ### Creating Parsers
 
@@ -799,8 +801,12 @@ filter {
 
 log_type = "WINDOWS_AD"
 
-# Create the rule
-parser = chronicle.create_parser(log_type=log_type, parser_code=parser_text)
+# Create the parser
+parser = chronicle.create_parser(
+    log_type=log_type, 
+    parser_code=parser_text,
+    validated_on_empty_logs=True  # Whether to validate parser on empty logs
+)
 parser_id = parser.get("name", "").split("/")[-1]
 print(f"Parser ID: {parser_id}")
 ```
@@ -820,32 +826,27 @@ for parser in parsers:
 log_type = "WINDOWS_AD"
     
 # Get specific parser
-rule = chronicle.get_parser(log_type=log_type, id=parser_id)
+parser = chronicle.get_parser(log_type=log_type, id=parser_id)
 print(f"Parser content: {parser.get('text')}")
 
-# Activate/Deactivate rule
+# Activate/Deactivate parser
 chronicle.activate_parser(log_type=log_type, id=parser_id)
 chronicle.deactivate_parser(log_type=log_type, id=parser_id)
 
+# Copy an existing parser as a starting point
+copied_parser = chronicle.copy_parser(log_type=log_type, id="pa_existing_parser")
+
 # Delete parser
-chronicle.delete_parser(rule_id)
+chronicle.delete_parser(log_type=log_type, id=parser_id)
+
+# Force delete an active parser
+chronicle.delete_parser(log_type=log_type, id=parser_id, force=True)
+
+# Activate a release candidate parser
+chronicle.activate_release_candidate_parser(log_type=log_type, id="pa_release_candidate")
 ```
 
-### Searching Rules
-
-Search for rules using regular expressions:
-
-```python
-# Search for rules containing specific patterns
-results = chronicle.search_rules("suspicious process")
-for rule in results.get("rules", []):
-    rule_id = rule.get("name", "").split("/")[-1]
-    print(f"Rule ID: {rule_id}, contains: 'suspicious process'")
-    
-# Find rules mentioning a specific MITRE technique
-mitre_rules = chronicle.search_rules("T1055")
-print(f"Found {len(mitre_rules.get('rules', []))} rules mentioning T1055 technique")
-```
+> **Note:** Parsers work in conjunction with log ingestion. When you ingest logs using `chronicle.ingest_log()`, Chronicle automatically applies the appropriate parser based on the log type to transform your raw logs into UDM format. If you're working with custom log formats, you may need to create or configure custom parsers first.
 
 ## Rule Management
 
