@@ -1116,8 +1116,6 @@ chronicle.update_reference_list(
     description="Updated administrative user accounts list"
 )
 
-# Delete a reference list
-chronicle.delete_reference_list("admin_accounts")
 ```
 
 ### Using in YARA-L Rules
