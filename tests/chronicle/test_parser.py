@@ -14,6 +14,7 @@
 #
 """Tests for Chronicle parser functions."""
 
+import base64
 import pytest
 from unittest.mock import Mock, patch
 from secops.chronicle.client import ChronicleClient
@@ -142,7 +143,7 @@ def test_copy_parser_error(chronicle_client, mock_error_response):
 def test_create_parser_success_default_validation(chronicle_client, mock_response):
     """Test create_parser function for success with default validated_on_empty_logs."""
     log_type = "NIX_SYSTEM"
-    parser_code = "parser UDM_Parser:events {}"
+    parser_code = "filter {}"
     expected_parser_info = {"name": "pa_new_parser", "cbn": parser_code, "validated_on_empty_logs": True}
     mock_response.json.return_value = expected_parser_info
 
@@ -152,7 +153,7 @@ def test_create_parser_success_default_validation(chronicle_client, mock_respons
         expected_url = f"{chronicle_client.base_url}/{chronicle_client.instance_id}/logTypes/{log_type}/parsers"
         mock_post.assert_called_once_with(
             expected_url,
-            json={"cbn": parser_code, "validated_on_empty_logs": True}
+            json={"cbn": base64.b64encode(parser_code.encode("utf-8")).decode('utf-8'), "validated_on_empty_logs": True}
         )
         assert result == expected_parser_info
 
@@ -160,7 +161,7 @@ def test_create_parser_success_default_validation(chronicle_client, mock_respons
 def test_create_parser_success_with_validation_false(chronicle_client, mock_response):
     """Test create_parser function for success with validated_on_empty_logs=False."""
     log_type = "NIX_SYSTEM"
-    parser_code = "parser CustomParser:events {}"
+    parser_code = "filter {}"
     expected_parser_info = {"name": "pa_new_parser_no_val", "cbn": parser_code, "validated_on_empty_logs": False}
     mock_response.json.return_value = expected_parser_info
 
@@ -170,7 +171,7 @@ def test_create_parser_success_with_validation_false(chronicle_client, mock_resp
         expected_url = f"{chronicle_client.base_url}/{chronicle_client.instance_id}/logTypes/{log_type}/parsers"
         mock_post.assert_called_once_with(
             expected_url,
-            json={"cbn": parser_code, "validated_on_empty_logs": False}
+            json={"cbn": base64.b64encode(parser_code.encode("utf-8")).decode('utf-8'), "validated_on_empty_logs": False}
         )
         assert result == expected_parser_info
 
