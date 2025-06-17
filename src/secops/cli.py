@@ -1264,10 +1264,7 @@ def setup_reference_list_command(subparsers):
                                help="Path to file containing entries (one per line)")
     update_parser.set_defaults(func=handle_rl_update_command)
     
-    # Delete reference list command
-    delete_parser = rl_subparsers.add_parser("delete", help="Delete a reference list")
-    delete_parser.add_argument("--name", required=True, help="Reference list name")
-    delete_parser.set_defaults(func=handle_rl_delete_command)
+    # Note: Reference List deletion is currently not supported by the API
 
 
 def handle_dt_list_command(args, chronicle):
@@ -1452,16 +1449,6 @@ def handle_rl_update_command(args, chronicle):
             description=args.description,
             entries=entries
         )
-        output_formatter(result, args.output)
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-
-def handle_rl_delete_command(args, chronicle):
-    """Handle reference list delete command."""
-    try:
-        result = chronicle.delete_reference_list(args.name)
         output_formatter(result, args.output)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

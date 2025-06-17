@@ -182,13 +182,8 @@ def main():
     except (APIError, SecOpsError) as e:
         print(f"Error in reference list example: {e}")
     finally:
-        # Clean up
-        try:
-            print(f"Cleaning up - deleting reference list: {rl_name}")
-            chronicle.delete_reference_list(rl_name)
-            print("Reference list deleted")
-        except Exception as cleanup_error:
-            print(f"Error during cleanup: {cleanup_error}")
+        # Note: Reference list deletion is not supported by the API
+        print(f"Note: Reference list {rl_name} will remain since deletion is not supported by the API")
     
     # Example 2: Create a reference list with CIDR entries
     rl_cidr_name = f"example_rl_cidr_{timestamp}"
@@ -218,13 +213,8 @@ def main():
     except (APIError, SecOpsError) as e:
         print(f"Error in CIDR reference list example: {e}")
     finally:
-        # Clean up
-        try:
-            print(f"Cleaning up - deleting CIDR reference list: {rl_cidr_name}")
-            chronicle.delete_reference_list(rl_cidr_name)
-            print("CIDR reference list deleted")
-        except Exception as cleanup_error:
-            print(f"Error during cleanup: {cleanup_error}")
+        # Note: Reference list deletion is not supported by the API
+        print(f"Note: CIDR reference list {rl_cidr_name} will remain since deletion is not supported by the API")
 
 
 if __name__ == "__main__":
