@@ -1127,7 +1127,7 @@ class ChronicleClient:
         """
         return _get_parser(self, log_type=log_type, id=id)
 
-    def list_parsers(self, log_type: str = "-") -> List[Any]:
+    def list_parsers(self, log_type: str = "-", page_size: int = 100, page_token: str = None, filter: str = None) -> List[Any]:
         """Gets a list of parsers.
 
         Returns:
@@ -1136,7 +1136,7 @@ class ChronicleClient:
         Raises:
             APIError: If the API request fails
         """
-        return _list_parsers(self, log_type=log_type)
+        return _list_parsers(self, log_type=log_type, page_size=page_size, page_token=page_token, filter=filter)
 
     # Rule Set methods
     

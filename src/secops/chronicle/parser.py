@@ -16,7 +16,7 @@
 
 from typing import Dict, Any, List
 from ..exceptions import APIError, SecOpsError
-import re
+import base64
 
 
 def activate_parser(
@@ -126,7 +126,7 @@ def create_parser(
     url = f"{client.base_url}/{client.instance_id}/logTypes/{log_type}/parsers"
     
     body = {
-        "cbn": parser_code,
+        "cbn": base64.b64encode(parser_code.encode("utf-8")).decode('utf-8'),
         "validated_on_empty_logs": validated_on_empty_logs
     }
     
