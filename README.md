@@ -759,6 +759,95 @@ open_cases = cases.filter_by_status("STATUS_OPEN")
 case = cases.get_case("case-id-1")
 ```
 
+## Parser Management
+
+Chronicle parsers are used to process and normalize raw log data into Chronicle's Unified Data Model (UDM) format. Parsers transform various log formats (JSON, XML, CEF, etc.) into a standardized structure that enables consistent querying and analysis across different data sources.
+
+The SDK provides comprehensive support for managing Chronicle parsers:
+
+### Creating Parsers
+
+Create new parser:
+
+```python
+parser_text = """
+filter {
+    mutate {
+      replace => {
+        "event1.idm.read_only_udm.metadata.event_type" => "GENERIC_EVENT"
+        "event1.idm.read_only_udm.metadata.vendor_name" =>  "ACME Labs"
+      }
+    }
+    grok {
+      match => {
+        "message" => ["^(?P<_firstWord>[^\s]+)\s.*$"]
+      }
+      on_error => "_grok_message_failed"
+    }
+    if ![_grok_message_failed] {
+      mutate {
+        replace => {
+          "event1.idm.read_only_udm.metadata.description" => "%{_firstWord}"
+        }
+      }
+    }
+    mutate {
+      merge => {
+        "@output" => "event1"
+      }
+    }
+}
+"""
+
+log_type = "WINDOWS_AD"
+
+# Create the parser
+parser = chronicle.create_parser(
+    log_type=log_type, 
+    parser_code=parser_text,
+    validated_on_empty_logs=True  # Whether to validate parser on empty logs
+)
+parser_id = parser.get("name", "").split("/")[-1]
+print(f"Parser ID: {parser_id}")
+```
+
+### Managing Parsers
+
+Retrieve, list, copy, activate/deactivate, and delete parsers:
+
+```python
+# List all parsers
+parsers = chronicle.list_parsers()
+for parser in parsers:
+    parser_id = parser.get("name", "").split("/")[-1]
+    state = parser.get("state")
+    print(f"Parser ID: {parser_id}, State: {state}")
+
+log_type = "WINDOWS_AD"
+    
+# Get specific parser
+parser = chronicle.get_parser(log_type=log_type, id=parser_id)
+print(f"Parser content: {parser.get('text')}")
+
+# Activate/Deactivate parser
+chronicle.activate_parser(log_type=log_type, id=parser_id)
+chronicle.deactivate_parser(log_type=log_type, id=parser_id)
+
+# Copy an existing parser as a starting point
+copied_parser = chronicle.copy_parser(log_type=log_type, id="pa_existing_parser")
+
+# Delete parser
+chronicle.delete_parser(log_type=log_type, id=parser_id)
+
+# Force delete an active parser
+chronicle.delete_parser(log_type=log_type, id=parser_id, force=True)
+
+# Activate a release candidate parser
+chronicle.activate_release_candidate_parser(log_type=log_type, id="pa_release_candidate")
+```
+
+> **Note:** Parsers work in conjunction with log ingestion. When you ingest logs using `chronicle.ingest_log()`, Chronicle automatically applies the appropriate parser based on the log type to transform your raw logs into UDM format. If you're working with custom log formats, you may need to create or configure custom parsers first.
+
 ## Rule Management
 
 The SDK provides comprehensive support for managing Chronicle detection rules:
