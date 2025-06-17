@@ -99,7 +99,7 @@ def test_cli_parser_lifecycle(cli_env, common_args):
     """Test the parser command lifecycle (create, get, list, activate, deactivate, delete)."""
     test_log_type = "RESERVED_LOG_TYPE_1"
 
-    parser_code_content = """
+    parser_code_content = r"""
     filter {
         mutate {
           replace => {
