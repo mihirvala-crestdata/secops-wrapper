@@ -232,33 +232,4 @@ def update_reference_list(
     return response.json()
 
 
-def delete_reference_list(
-    client: "Any",
-    name: str,
-) -> Dict[str, Any]:
-    """Delete a reference list.
-    
-    Args:
-        client: ChronicleClient instance
-        name: The name of the reference list to delete
-        
-    Returns:
-        Dictionary containing the deleted reference list or empty dict
-        
-    Raises:
-        APIError: If the API request fails
-    """
-    response = client.session.delete(
-        f"{client.base_url}/{client.instance_id}/referenceLists/{name}"
-    )
-    
-    # Successful delete returns 200 OK with body or 204 No Content
-    if response.status_code == 200 or response.status_code == 204:
-        if response.text:
-            try:
-                return response.json()
-            except Exception:
-                return {"status": "success", "statusCode": response.status_code}
-        return {}
-    
-    raise APIError(f"Failed to delete reference list '{name}': {response.status_code} {response.text}") 
+# Note: Reference List deletion is currently not supported by the API

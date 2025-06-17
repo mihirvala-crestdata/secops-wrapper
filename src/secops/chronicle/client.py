@@ -107,8 +107,7 @@ from secops.chronicle.reference_list import (
     create_reference_list as _create_reference_list,
     get_reference_list as _get_reference_list,
     list_reference_lists as _list_reference_lists,
-    update_reference_list as _update_reference_list,
-    delete_reference_list as _delete_reference_list
+    update_reference_list as _update_reference_list
 )
 
 class ValueType(Enum):
@@ -1671,16 +1670,3 @@ class ChronicleClient:
         """
         return _update_reference_list(self, name, description, entries)
     
-    def delete_reference_list(self, name: str) -> Dict[str, Any]:
-        """Delete a reference list.
-        
-        Args:
-            name: The name of the reference list to delete
-            
-        Returns:
-            Dictionary containing the deleted reference list or empty dict
-            
-        Raises:
-            APIError: If the API request fails
-        """
-        return _delete_reference_list(self, name) 

@@ -422,11 +422,7 @@ secops reference-list update \
   --entries-file "/path/to/updated_domains.txt"
 ```
 
-#### Delete a reference list:
-
-```bash
-secops reference-list delete --name "malicious_domains"
-```
+<!-- Note: Reference list deletion is not currently supported by the API -->
 
 ## Examples
 

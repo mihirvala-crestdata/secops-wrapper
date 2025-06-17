@@ -1206,9 +1206,8 @@ def test_chronicle_reference_lists():
         print(f"Error during reference list test: {e}")
         raise
     finally:
-        # Note: The example code doesn't include a delete_reference_list function
-        # If it existed, we would clean up here
-        print(f"Note: Reference list {rl_name} remains since delete_reference_list is not implemented")
+        # Note: Reference list deletion is not supported by the API
+        print(f"Note: Reference list {rl_name} remains since reference list deletion is not supported by the API")
 
 
 @pytest.mark.integration
@@ -1255,5 +1254,5 @@ def test_chronicle_reference_lists_cidr():
         print(f"Error during CIDR reference list test: {e}")
         raise
     finally:
-        # Note: The example code doesn't include a delete_reference_list function
-        print(f"Note: CIDR reference list {rl_name} remains since delete_reference_list is not implemented")
+        # Note: Reference list deletion is not supported by the API
+        print(f"Note: CIDR reference list {rl_name} remains since reference list deletion is not supported by the API")
