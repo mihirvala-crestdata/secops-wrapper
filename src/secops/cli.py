@@ -1307,9 +1307,6 @@ def handle_rl_update_command(args, chronicle):
         sys.exit(1)
 
 
-# Note: Reference List deletion handler removed as it's not supported by the API
-
-
 def main() -> None:
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(description="Google SecOps CLI")
