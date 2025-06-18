@@ -61,6 +61,7 @@ from .parser import (
     delete_parser as _delete_parser,
     get_parser as _get_parser,
     list_parsers as _list_parsers,
+    run_parser as _run_parser
 )
 
 # Import rule functions
@@ -1199,6 +1200,35 @@ class ChronicleClient:
             page_token=page_token,
             filter=filter,
         )
+
+    def run_parser(self, 
+                   log_type: str, 
+                   parser_code: str, 
+                   parser_extension_code: str, 
+                   logs: list, 
+                   statedump_allowed: bool = False):
+        """Run parser against sample logs.
+
+        Args:
+            client: ChronicleClient instance
+            log_type: Log type of the parser
+            parser_code: Content of the new parser, used to evaluate logs.
+            parser_extension_code: Content of the parser extension
+            logs: list of logs to test parser against
+            statedump_allowed: Statedump filter is enabled or not for a config
+    
+        Returns:
+            Dictionary containing the parser result
+    
+        Raises:
+            APIError: If the API request fails
+        """
+        return _run_parser(self, 
+                           log_type = log_type, 
+                           parser_code = parser_code, 
+                           parser_extension_code = parser_extension_code, 
+                           logs = logs, 
+                           statedump_allowed = statedump_allowed)
 
     # Rule Set methods
 

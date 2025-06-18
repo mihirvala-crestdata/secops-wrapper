@@ -848,6 +848,53 @@ chronicle.activate_release_candidate_parser(log_type=log_type, id="pa_release_ca
 
 > **Note:** Parsers work in conjunction with log ingestion. When you ingest logs using `chronicle.ingest_log()`, Chronicle automatically applies the appropriate parser based on the log type to transform your raw logs into UDM format. If you're working with custom log formats, you may need to create or configure custom parsers first.
 
+### Run Parser against sample logs
+
+Run the parser on one or more sample logs:
+
+```python
+parser_text = """
+filter {
+    mutate {
+      replace => {
+        "event1.idm.read_only_udm.metadata.event_type" => "GENERIC_EVENT"
+        "event1.idm.read_only_udm.metadata.vendor_name" =>  "ACME Labs"
+      }
+    }
+    grok {
+      match => {
+        "message" => ["^(?P<_firstWord>[^\s]+)\s.*$"]
+      }
+      on_error => "_grok_message_failed"
+    }
+    if ![_grok_message_failed] {
+      mutate {
+        replace => {
+          "event1.idm.read_only_udm.metadata.description" => "%{_firstWord}"
+        }
+      }
+    }
+    mutate {
+      merge => {
+        "@output" => "event1"
+      }
+    }
+}
+"""
+
+log_type = "WINDOWS_AD"
+
+sample_log='{"appDisplayName":"Azure Active Directory PowerShell","appId":"1b730912-1644-4b74-9bfd-dac224a7b894","appliedConditionalAccessPolicies":[],"clientAppUsed":"Mobile Apps and Desktop clients","conditionalAccessStatus":"success","correlationId":"8bdadb11-5851-4ff2-ad57-799c0149f606","createdDateTime":"2025-06-15T04:31:56Z","deviceDetail":{"browser":"Rich Client 5.2.8.0","deviceId":"","displayName":"","isCompliant":false,"isManaged":false,"operatingSystem":"Windows 8","trustType":""},"id":"ba6e48d0-85e9-45b0-9ce4-83eb83432200","ipAddress":"79.116.213.193","isInteractive":true,"location":{"city":"Madrid","countryOrRegion":"ES","geoCoordinates":{"altitude":null,"latitude":40.416,"longitude":-3.703},"state":"Madrid"},"resourceDisplayName":"Windows Azure Active Directory","resourceId":"00000001-0000-0000-d000-000000000000","riskDetail":"none","riskEventTypes":[],"riskEventTypes_v2":[],"riskLevelAggregated":"none","riskLevelDuringSignIn":"none","riskState":"none","status":{"additionalDetails":null,"errorCode":0,"failureReason":"Other."},"userDisplayName":"Admin Read Only","userId":"6838ec00-f384-40d8-b288-989103aed42b","userPrincipalName":"reports@example.onmicrosoft.com"}'
+
+# Create the parser
+result = chronicle.run_parser(
+    log_type=log_type, 
+    parser_code=parser_text,
+    logs=[sample_log]
+)
+print(f"Parser result: {result['runParserResults']}")
+```
+
 ## Rule Management
 
 The SDK provides comprehensive support for managing Chronicle detection rules:

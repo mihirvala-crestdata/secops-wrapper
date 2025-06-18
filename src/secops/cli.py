@@ -837,6 +837,55 @@ def setup_parser_command(subparsers):
     )
     list_parsers_sub.set_defaults(func=handle_parser_list_command)
 
+    # --- Run Parser Command ---
+    run_parser_sub = parser_subparsers.add_parser(
+        "run",
+        help="Run parser against sample logs for evaluation."
+    )
+    run_parser_sub.add_argument(
+        "--log-type",
+        type=str,
+        help="Log type of the parser for evaluation."
+    )
+    run_parser_code_group = run_parser_sub.add_mutually_exclusive_group(required=True)
+    run_parser_code_group.add_argument(
+        "--parser-code",
+        type=str,
+        help="Content of the main parser (CBN code) to evaluate."
+    )
+    run_parser_code_group.add_argument(
+        "--parser-code-file",
+        type=str,
+        help="Path to a file containing the main parser code (CBN code)."
+    )
+    run_parser_ext_group = run_parser_sub.add_mutually_exclusive_group(required=False)
+    run_parser_ext_group.add_argument(
+        "--parser-extension-code",
+        type=str,
+        help="Content of the parser extension (CBN snippet)."
+    )
+    run_parser_ext_group.add_argument(
+        "--parser-extension-code-file",
+        type=str,
+        help="Path to a file containing the parser extension code (CBN snippet)."
+    )
+    run_parser_logs_group = run_parser_sub.add_mutually_exclusive_group(required=True)
+    run_parser_logs_group.add_argument(
+        "--log", # Changed from --logs to --log to imply single log per argument
+        action="append", # This collects multiple instances of --log into a list
+        help="Provide a raw log string to test. Can be specified multiple times for multiple logs."
+    )
+    run_parser_logs_group.add_argument(
+        "--logs-file",
+        type=str,
+        help="Path to a file containing raw logs (one log per line)."
+    )
+    run_parser_sub.add_argument(
+        "--statedump-allowed",
+        action="store_true",
+        help="Enable statedump filter for the parser configuration."
+    )
+    run_parser_sub.set_defaults(func=handle_parser_run_command)
 
 def handle_parser_activate_command(args, chronicle):
     """Handle parser activate command."""
@@ -934,6 +983,61 @@ def handle_parser_list_command(args, chronicle):
         output_formatter(result, args.output)
     except Exception as e:
         print(f"Error listing parsers: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_parser_run_command(args, chronicle):
+    """Handle parser run (evaluation) command."""
+    try:
+        parser_code = ""
+        if args.parser_code_file:
+            try:
+                with open(args.parser_code_file, 'r') as f:
+                    parser_code = f.read()
+            except IOError as e:
+                print(f"Error reading parser code file: {e}", file=sys.stderr)
+                sys.exit(1)
+        elif args.parser_code:
+            parser_code = args.parser_code
+        else:
+            raise SecOpsError("Either --parser-code or --parser-code-file must be provided for the main parser.")
+
+        parser_extension_code = ""
+        if args.parser_extension_code_file:
+            try:
+                with open(args.parser_extension_code_file, 'r') as f:
+                    parser_extension_code = f.read()
+            except IOError as e:
+                print(f"Error reading parser extension code file: {e}", file=sys.stderr)
+                sys.exit(1)
+        elif args.parser_extension_code:
+            parser_extension_code = args.parser_extension_code
+
+        logs = []
+        if args.logs_file:
+            try:
+                with open(args.logs_file, 'r') as f:
+                    logs = [line.strip() for line in f if line.strip()]
+            except IOError as e:
+                print(f"Error reading logs file: {e}", file=sys.stderr)
+                sys.exit(1)
+        elif args.log: # Use args.log (singular) which is now a list from action='append'
+            logs = args.log # args.log will already be a list of strings
+
+        if not logs:
+            raise SecOpsError("Logs must be provided either via --log (multiple times) or --logs-file.")
+
+
+        result = chronicle.run_parser(
+            args.log_type,
+            parser_code,
+            parser_extension_code,
+            logs,
+            args.statedump_allowed
+        )
+        output_formatter(result, args.output)
+    except Exception as e:
+        print(f"Error running parser: {e}", file=sys.stderr)
         sys.exit(1)
 
 

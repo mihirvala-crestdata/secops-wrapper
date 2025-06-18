@@ -245,3 +245,52 @@ def list_parsers(
             more = False
 
     return parsers
+
+
+def run_parser(
+        client,
+        log_type: str,
+        parser_code: str,
+        parser_extension_code: str,
+        logs: list,
+        statedump_allowed: bool = False
+) -> Dict[str, Any]:
+    """Run parser against sample logs.
+
+    Args:
+        client: ChronicleClient instance
+        log_type: Log type of the parser
+        parser_code: Content of the new parser, used to evaluate logs.
+        parser_extension_code: Content of the parser extension
+        logs: list of logs to test parser against
+        statedump_allowed: Statedump filter is enabled or not for a config
+
+    Returns:
+        Dictionary containing the parser result
+
+    Raises:
+        APIError: If the API request fails
+    """
+    url = f"{client.base_url}/{client.instance_id}/logTypes/{log_type}:runParser"
+
+    parser = {
+        "cbn": base64.b64encode(parser_code.encode("utf8")).decode('utf-8')
+    }
+    
+    parser_extension = {
+        "cbn_snippet": base64.b64encode(parser_extension_code.encode("utf8")).decode('utf-8')
+    } if parser_extension_code else None
+
+    body = {
+        "parser": parser,
+        "parser_extension": parser_extension,
+        "log": [base64.b64encode(log.encode("utf8")).decode('utf-8') for log in logs],
+        "statedump_allowed": statedump_allowed
+    }
+
+    response = client.session.post(url, json=body)
+
+    if response.status_code != 200:
+        raise APIError(f"Error during parser evaluation: {response.text}")
+
+    return response.json()

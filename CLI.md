@@ -252,6 +252,13 @@ secops parser delete --log-type "WINDOWS" --id "pa_12345"
 secops parser delete --log-type "WINDOWS" --id "pa_12345" --force
 ```
 
+#### Run a parser against sample logs:
+
+```bash
+# Run a parser against sample logs
+secops parser run --log-type=AZURE_AD --logs-file="./log.txt" --parser-code-file="./parser.conf"
+```
+
 ### Rule Management
 
 List detection rules:
