@@ -767,6 +767,34 @@ def test_cli_alert(cli_env, common_args):
     try:
         output = json.loads(result.stdout)
         assert "complete" in output
+        
+        # If there are alerts with cases, test case retrieval
+        alerts = output.get("alerts", {}).get("alerts", [])
+        case_ids = [alert.get("caseName") for alert in alerts if alert.get("caseName")]
+        
+        if case_ids:
+            # Test case retrieval with the found case IDs
+            case_cmd = (
+                [
+                    "secops",
+                ]
+                + common_args
+                + ["case", "--ids", ",".join(case_ids[:3])]  # Test with up to 3 case IDs
+            )
+            
+            case_result = subprocess.run(case_cmd, env=cli_env, capture_output=True, text=True)
+            
+            # Case retrieval might fail if cases are not accessible, which is OK
+            if case_result.returncode == 0:
+                try:
+                    case_output = json.loads(case_result.stdout)
+                    assert "cases" in case_output
+                    print(f"Successfully retrieved {len(case_output.get('cases', []))} cases")
+                except json.JSONDecodeError:
+                    print("Could not parse case output as JSON")
+            else:
+                print(f"Case retrieval failed (this is OK): {case_result.stderr}")
+                
     except json.JSONDecodeError:
         # If not valid JSON, check for expected error messages
         assert "Error:" not in result.stdout

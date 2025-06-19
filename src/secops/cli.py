@@ -1161,7 +1161,23 @@ def handle_case_command(args, chronicle):
             result = chronicle.get_cases(case_ids)
 
             # Convert CaseList to dictionary for output
-            cases_dict = {"cases": [case._asdict() for case in result.cases]}
+            cases_dict = {
+                "cases": [
+                    {
+                        "id": case.id,
+                        "display_name": case.display_name,
+                        "stage": case.stage,
+                        "priority": case.priority,
+                        "status": case.status,
+                        "soar_platform_info": {
+                            "case_id": case.soar_platform_info.case_id,
+                            "platform_type": case.soar_platform_info.platform_type
+                        } if case.soar_platform_info else None,
+                        "alert_ids": case.alert_ids
+                    }
+                    for case in result.cases
+                ]
+            }
             output_formatter(cases_dict, args.output)
         else:
             print("Error: No case IDs provided", file=sys.stderr)

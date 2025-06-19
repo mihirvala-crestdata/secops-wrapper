@@ -541,14 +541,18 @@ class ChronicleClient:
     def get_cases(self, case_ids: list[str]) -> CaseList:
         """Get case information for the specified case IDs.
 
+        Uses the legacy:legacyBatchGetCases endpoint to retrieve multiple cases
+        in a single API request.
+
         Args:
-            case_ids: List of case IDs to retrieve
+            case_ids: List of case IDs to retrieve (maximum 1000)
 
         Returns:
             A CaseList object containing the requested cases
 
         Raises:
             APIError: If the API request fails
+            ValueError: If more than 1000 case IDs are provided
         """
         return get_cases_from_list(self, case_ids)
 
