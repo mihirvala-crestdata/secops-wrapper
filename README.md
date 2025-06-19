@@ -717,7 +717,7 @@ alert_list = alerts.get('alerts', {}).get('alerts', [])
 # Extract case IDs from alerts
 case_ids = {alert.get('caseName') for alert in alert_list if alert.get('caseName')}
 
-# Get case details
+# Get case details using the batch API
 if case_ids:
     cases = chronicle.get_cases(list(case_ids))
     
@@ -726,6 +726,12 @@ if case_ids:
         print(f"Case: {case.display_name}")
         print(f"Priority: {case.priority}")
         print(f"Status: {case.status}")
+        print(f"Stage: {case.stage}")
+        
+        # Access SOAR platform information if available
+        if case.soar_platform_info:
+            print(f"SOAR Case ID: {case.soar_platform_info.case_id}")
+            print(f"SOAR Platform: {case.soar_platform_info.platform_type}")
 ```
 
 The alerts response includes:
@@ -746,7 +752,7 @@ You can filter alerts using the snapshot query parameter with fields like:
 The `CaseList` class provides helper methods for working with cases:
 
 ```python
-# Get details for specific cases
+# Get details for specific cases (uses the batch API)
 cases = chronicle.get_cases(["case-id-1", "case-id-2"])
 
 # Filter cases by priority
@@ -758,6 +764,8 @@ open_cases = cases.filter_by_status("STATUS_OPEN")
 # Look up a specific case
 case = cases.get_case("case-id-1")
 ```
+
+> **Note**: The case management API uses the `legacy:legacyBatchGetCases` endpoint to retrieve multiple cases in a single request. You can retrieve up to 1000 cases in a single batch.
 
 ## Parser Management
 

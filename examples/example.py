@@ -249,7 +249,7 @@ def example_alerts_and_cases(chronicle):
             start_time=start_time,
             end_time=end_time,
             snapshot_query='feedback_summary.status != "CLOSED"',
-            max_alerts=10,
+            max_alerts=1000,
         )
 
         alert_list = alerts.get("alerts", {}).get("alerts", [])
@@ -257,10 +257,12 @@ def example_alerts_and_cases(chronicle):
 
         # Debug: Print all alerts with cases
         print("\nDebug - Alerts with cases:")
+        alerts_with_cases = 0
         for i, alert in enumerate(alert_list):
             case_name = alert.get("caseName")
             if case_name:
-                print(f"\nAlert {i+1}:")
+                alerts_with_cases += 1
+                print(f"\nAlert {alerts_with_cases}:")
                 print(f"Case ID: {case_name}")
                 print(f"Alert ID: {alert.get('id')}")
                 print(f"Rule Name: {alert.get('detection', [{}])[0].get('ruleName')}")
@@ -273,30 +275,40 @@ def example_alerts_and_cases(chronicle):
 
         if case_ids:
             print(f"\nFound {len(case_ids)} unique case IDs:")
-            print(list(case_ids))
+            for case_id in list(case_ids)[:5]:  # Show first 5 case IDs
+                print(f"  - {case_id}")
 
-            cases = chronicle.get_cases(list(case_ids))
-            print(f"\nRetrieved {len(cases.cases)} cases:")
-            for case in cases.cases:
-                print(f"\nCase: {case.display_name}")
-                print(f"ID: {case.id}")  # Add case ID for comparison
-                print(f"Priority: {case.priority}")
-                print(f"Stage: {case.stage}")
-                print(f"Status: {case.status}")
+            try:
+                cases = chronicle.get_cases(list(case_ids))
+                print(f"\nRetrieved {len(cases.cases)} cases:")
+                for case in cases.cases[:5]:  # Show first 5 cases
+                    print(f"\nCase: {case.display_name}")
+                    print(f"ID: {case.id}")
+                    print(f"Priority: {case.priority}")
+                    print(f"Stage: {case.stage}")
+                    print(f"Status: {case.status}")
 
-                # Debug: Print all alerts for this case
-                case_alerts = [
-                    alert for alert in alert_list if alert.get("caseName") == case.id
-                ]
-                print(f"Total Alerts for Case: {len(case_alerts)}")
+                    # Show SOAR platform info if available
+                    if case.soar_platform_info:
+                        print(f"SOAR Case ID: {case.soar_platform_info.case_id}")
+                        print(f"SOAR Platform: {case.soar_platform_info.platform_type}")
 
-                high_sev_alerts = [
-                    alert
-                    for alert in case_alerts
-                    if alert.get("feedbackSummary", {}).get("severityDisplay") == "HIGH"
-                ]
-                if high_sev_alerts:
-                    print(f"High Severity Alerts: {len(high_sev_alerts)}")
+                    # Count alerts for this case
+                    case_alerts = [
+                        alert for alert in alert_list if alert.get("caseName") == case.id
+                    ]
+                    print(f"Total Alerts for Case: {len(case_alerts)}")
+
+                    high_sev_alerts = [
+                        alert
+                        for alert in case_alerts
+                        if alert.get("feedbackSummary", {}).get("severityDisplay") == "HIGH"
+                    ]
+                    if high_sev_alerts:
+                        print(f"High Severity Alerts: {len(high_sev_alerts)}")
+            except APIError as e:
+                print(f"\nError retrieving case details: {str(e)}")
+                print("This might happen if the case IDs are not accessible or the API has changed.")
         else:
             print("\nNo cases found in alerts")
     except APIError as e:

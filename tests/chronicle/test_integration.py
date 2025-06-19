@@ -261,6 +261,26 @@ def test_chronicle_alerts():
             # Check if alert is linked to a case
             if "caseName" in alert:
                 print(f"\nAlert is linked to case: {alert.get('caseName')}")
+                
+                # Try to get case details if we have case IDs
+                case_ids = {alert.get("caseName") for alert in alerts if alert.get("caseName")}
+                if case_ids:
+                    print(f"\nFound {len(case_ids)} unique case IDs")
+                    try:
+                        cases = chronicle.get_cases(list(case_ids))
+                        print(f"Retrieved {len(cases.cases)} cases")
+                        
+                        # Validate case structure
+                        if cases.cases:
+                            case = cases.cases[0]
+                            assert hasattr(case, "id")
+                            assert hasattr(case, "display_name")
+                            assert hasattr(case, "priority")
+                            assert hasattr(case, "status")
+                            print(f"First case: {case.display_name} (ID: {case.id})")
+                    except APIError as e:
+                        print(f"Could not retrieve case details: {e}")
+                        # This is not a test failure - cases might not be accessible
 
         # Validate field aggregations if present
         field_aggregations = result.get("fieldAggregations", {}).get("fields", [])

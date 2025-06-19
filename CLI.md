@@ -324,11 +324,24 @@ secops alert --baseline-query "detection.rule_name = \"My Rule\"" --time-window 
 
 ### Case Management
 
-Get case details:
+Get case details for specific case IDs:
 
 ```bash
 secops case --ids "case-123,case-456"
 ```
+
+Get case details from alert results:
+
+```bash
+# First get alerts
+secops alert --time-window 24 --max-alerts 50 > alerts.json
+
+# Extract case IDs and retrieve case details
+# Example: if alerts contain case IDs case-123 and case-456
+secops case --ids "case-123,case-456"
+```
+
+> **Note**: The case management uses a batch API that can retrieve multiple cases in a single request. You can provide up to 1000 case IDs separated by commas.
 
 ### Data Export
 

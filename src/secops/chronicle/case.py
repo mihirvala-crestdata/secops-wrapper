@@ -107,9 +107,9 @@ def get_cases_from_list(client, case_ids: List[str]) -> CaseList:
     if len(case_ids) > 1000:
         raise ValueError("Maximum of 1000 cases can be retrieved in a batch")
 
-    url = f"{client.base_url}/{client.instance_id}/cases:batchGet"
+    url = f"{client.base_url}/{client.instance_id}/legacy:legacyBatchGetCases"
 
-    params = {"case_id": case_ids}
+    params = {"names": case_ids}
 
     response = client.session.get(url, params=params)
 
