@@ -419,14 +419,16 @@ def test_get_cases(chronicle_client):
         ]
     }
 
-    with patch.object(chronicle_client.session, "get", return_value=mock_response) as mock_get:
+    with patch.object(
+        chronicle_client.session, "get", return_value=mock_response
+    ) as mock_get:
         result = chronicle_client.get_cases(["case-123"])
 
         # Verify the correct endpoint was called
         mock_get.assert_called_once()
         call_args = mock_get.call_args
         assert "legacy:legacyBatchGetCases" in call_args[0][0]
-        
+
         # Verify the correct parameter name was used
         assert call_args[1]["params"] == {"names": ["case-123"]}
 

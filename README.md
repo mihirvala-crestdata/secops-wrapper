@@ -961,43 +961,11 @@ parser_code = base64.b64decode(parser_details["cbn"]).decode('utf-8')
 
 # Step 2: Run the parser against a sample log
 okta_log = {
-    "actor": {
-        "alternateId": "mark.taylor@cymbal-investments.org",
-        "displayName": "Mark Taylor",
-        "id": "00u4j7xcb5N6zfiRP5d8",
-        "type": "User"
-    },
-    "client": {
-        "userAgent": {
-            "rawUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
-            "os": "Windows 10",
-            "browser": "CHROME"
-        },
-        "ipAddress": "96.6.127.53",
-        "geographicalContext": {
-            "city": "New York",
-            "state": "New York",
-            "country": "United States",
-            "postalCode": "10118",
-            "geolocation": {"lat": 40.7123, "lon": -74.0068}
-        }
-    },
-    "displayMessage": "Max sign in attempts exceeded",
+    "actor": {"alternateId": "user@example.com", "displayName": "Test User"},
     "eventType": "user.account.lock",
     "outcome": {"result": "FAILURE", "reason": "LOCKED_OUT"},
-    "published": "2025-06-19T21:51:50.116Z",
-    "securityContext": {
-        "asNumber": 20940,
-        "asOrg": "akamai technologies inc.",
-        "isp": "akamai international b.v.",
-        "domain": "akamaitechnologies.com",
-        "isProxy": false
-    },
-    "severity": "DEBUG",
-    "legacyEventType": "core.user_auth.account_locked",
-    "uuid": "5b90a94a-d7ba-11ea-834a-85c24a1b2121",
-    "version": "0"
-    # ... additional OKTA log fields may be included
+    "published": "2025-06-19T21:51:50.116Z"
+    # ... other OKTA log fields
 }
 
 result = chronicle.run_parser(

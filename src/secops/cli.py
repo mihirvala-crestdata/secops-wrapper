@@ -855,53 +855,54 @@ def setup_parser_command(subparsers):
             "  secops parser run --log-type CUSTOM --parser-code-file parser.conf \\\n"
             "    --parser-extension-code-file extension.conf --logs-file logs.txt"
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     run_parser_sub.add_argument(
         "--log-type",
         type=str,
         required=True,
-        help="Log type of the parser for evaluation (e.g., OKTA, WINDOWS_AD)"
+        help="Log type of the parser for evaluation (e.g., OKTA, WINDOWS_AD)",
     )
     run_parser_code_group = run_parser_sub.add_mutually_exclusive_group(required=True)
     run_parser_code_group.add_argument(
         "--parser-code",
         type=str,
-        help="Content of the main parser (CBN code) to evaluate"
+        help="Content of the main parser (CBN code) to evaluate",
     )
     run_parser_code_group.add_argument(
         "--parser-code-file",
         type=str,
-        help="Path to a file containing the main parser code (CBN code)"
+        help="Path to a file containing the main parser code (CBN code)",
     )
     run_parser_ext_group = run_parser_sub.add_mutually_exclusive_group(required=False)
     run_parser_ext_group.add_argument(
         "--parser-extension-code",
         type=str,
-        help="Content of the parser extension (CBN snippet)"
+        help="Content of the parser extension (CBN snippet)",
     )
     run_parser_ext_group.add_argument(
         "--parser-extension-code-file",
         type=str,
-        help="Path to a file containing the parser extension code (CBN snippet)"
+        help="Path to a file containing the parser extension code (CBN snippet)",
     )
     run_parser_logs_group = run_parser_sub.add_mutually_exclusive_group(required=True)
     run_parser_logs_group.add_argument(
         "--log",
         action="append",
-        help="Provide a raw log string to test. Can be specified multiple times for multiple logs"
+        help="Provide a raw log string to test. Can be specified multiple times for multiple logs",
     )
     run_parser_logs_group.add_argument(
         "--logs-file",
         type=str,
-        help="Path to a file containing raw logs (one log per line)"
+        help="Path to a file containing raw logs (one log per line)",
     )
     run_parser_sub.add_argument(
         "--statedump-allowed",
         action="store_true",
-        help="Enable statedump filter for the parser configuration"
+        help="Enable statedump filter for the parser configuration",
     )
     run_parser_sub.set_defaults(func=handle_parser_run_command)
+
 
 def handle_parser_activate_command(args, chronicle):
     """Handle parser activate command."""
@@ -1009,7 +1010,7 @@ def handle_parser_run_command(args, chronicle):
         parser_code = ""
         if args.parser_code_file:
             try:
-                with open(args.parser_code_file, 'r') as f:
+                with open(args.parser_code_file, "r") as f:
                     parser_code = f.read()
             except IOError as e:
                 print(f"Error reading parser code file: {e}", file=sys.stderr)
@@ -1017,13 +1018,15 @@ def handle_parser_run_command(args, chronicle):
         elif args.parser_code:
             parser_code = args.parser_code
         else:
-            raise SecOpsError("Either --parser-code or --parser-code-file must be provided for the main parser.")
+            raise SecOpsError(
+                "Either --parser-code or --parser-code-file must be provided for the main parser."
+            )
 
         # Read parser extension code (optional)
         parser_extension_code = ""
         if args.parser_extension_code_file:
             try:
-                with open(args.parser_extension_code_file, 'r') as f:
+                with open(args.parser_extension_code_file, "r") as f:
                     parser_extension_code = f.read()
             except IOError as e:
                 print(f"Error reading parser extension code file: {e}", file=sys.stderr)
@@ -1035,7 +1038,7 @@ def handle_parser_run_command(args, chronicle):
         logs = []
         if args.logs_file:
             try:
-                with open(args.logs_file, 'r') as f:
+                with open(args.logs_file, "r") as f:
                     logs = [line.strip() for line in f if line.strip()]
             except IOError as e:
                 print(f"Error reading logs file: {e}", file=sys.stderr)
@@ -1044,7 +1047,10 @@ def handle_parser_run_command(args, chronicle):
             logs = args.log
 
         if not logs:
-            print("Error: No logs provided. Use --log or --logs-file to provide log entries.", file=sys.stderr)
+            print(
+                "Error: No logs provided. Use --log or --logs-file to provide log entries.",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
         # Call the API
@@ -1053,11 +1059,11 @@ def handle_parser_run_command(args, chronicle):
             parser_code,
             parser_extension_code,
             logs,
-            args.statedump_allowed
+            args.statedump_allowed,
         )
-        
+
         output_formatter(result, args.output)
-        
+
     except ValueError as e:
         print(f"Validation error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -1301,11 +1307,15 @@ def handle_case_command(args, chronicle):
                         "stage": case.stage,
                         "priority": case.priority,
                         "status": case.status,
-                        "soar_platform_info": {
-                            "case_id": case.soar_platform_info.case_id,
-                            "platform_type": case.soar_platform_info.platform_type
-                        } if case.soar_platform_info else None,
-                        "alert_ids": case.alert_ids
+                        "soar_platform_info": (
+                            {
+                                "case_id": case.soar_platform_info.case_id,
+                                "platform_type": case.soar_platform_info.platform_type,
+                            }
+                            if case.soar_platform_info
+                            else None
+                        ),
+                        "alert_ids": case.alert_ids,
                     }
                     for case in result.cases
                 ]
