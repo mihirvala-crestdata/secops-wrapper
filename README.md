@@ -1087,20 +1087,17 @@ start_time = end_time - timedelta(days=7)  # Test against last 7 days
 
 # Rule to test
 rule_text = """
-rule ssh_brute_force {
-  meta:
-    description = "Detect potential SSH brute force attempts"
-    severity = "High"
-    author = "Security Team"
-  events:
-    $ssh.metadata.event_type = "USER_LOGIN"
-    $ssh.network.application_protocol = "SSH"
-    $ssh.security_result.action = "BLOCK"
-    $ssh.principal.ip = $ip
-  match:
-    $ip over 1m
-  condition:
-    #ssh > 5
+rule test_rule {
+    meta:
+        description = "Test rule for validation"
+        author = "Test Author"
+        severity = "Low"
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
 }
 """
 
