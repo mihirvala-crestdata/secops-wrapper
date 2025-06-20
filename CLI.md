@@ -626,29 +626,26 @@ secops export create --gcs-bucket "projects/my-project/buckets/my-export-bucket"
 
 ```bash
 # Create a rule file
-cat > ssh_brute_force.yaral << 'EOF'
-rule ssh_brute_force {
-  meta:
-    description = "Detect potential SSH brute force attempts"
-    severity = "High"
-    author = "Security Team"
-  events:
-    $ssh.metadata.event_type = "USER_LOGIN"
-    $ssh.network.application_protocol = "SSH"
-    $ssh.security_result.action = "BLOCK"
-    $ssh.principal.ip = $ip
-  match:
-    $ip over 1m
-  condition:
-    #ssh > 5
+cat > test.yaral << 'EOF'
+rule test_rule {
+    meta:
+        description = "Test rule for validation"
+        author = "Test Author"
+        severity = "Low"
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
 }
 EOF
 
 # Test the rule against the last 24 hours of data
-secops rule test --file ssh_brute_force.yaral --time-window 24
+secops rule test --file test.yaral --time-window 24
 
 # Test the rule with a larger result set from a specific time range
-secops rule test --file ssh_brute_force.yaral --start-time "2023-08-01T00:00:00Z" --end-time "2023-08-08T00:00:00Z" --max-results 500
+secops rule test --file test.yaral --start-time "2023-08-01T00:00:00Z" --end-time "2023-08-08T00:00:00Z" --max-results 500
 ```
 
 ### Ask Gemini About a Security Threat
