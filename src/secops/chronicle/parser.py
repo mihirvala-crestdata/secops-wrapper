@@ -14,9 +14,15 @@
 #
 """Parser management functionality for Chronicle."""
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from secops.exceptions import APIError, SecOpsError
 import base64
+
+
+# Constants for size limits
+MAX_LOG_SIZE = 10 * 1024 * 1024  # 10MB per log
+MAX_LOGS = 1000  # Maximum number of logs to process
+MAX_TOTAL_SIZE = 50 * 1024 * 1024  # 50MB total
 
 
 def activate_parser(client, log_type: str, id: str) -> Dict[str, Any]:
@@ -248,49 +254,125 @@ def list_parsers(
 
 
 def run_parser(
-        client,
+        client: "ChronicleClient",
         log_type: str,
         parser_code: str,
-        parser_extension_code: str,
-        logs: list,
+        parser_extension_code: Optional[str],
+        logs: List[str],
         statedump_allowed: bool = False
 ) -> Dict[str, Any]:
     """Run parser against sample logs.
 
     Args:
         client: ChronicleClient instance
-        log_type: Log type of the parser
-        parser_code: Content of the new parser, used to evaluate logs.
-        parser_extension_code: Content of the parser extension
-        logs: list of logs to test parser against
-        statedump_allowed: Statedump filter is enabled or not for a config
+        log_type: Log type of the parser (e.g., "WINDOWS_AD", "OKTA")
+        parser_code: Content of the parser code to evaluate logs
+        parser_extension_code: Optional content of the parser extension
+        logs: List of log strings to test parser against
+        statedump_allowed: Whether statedump filter is enabled for the config
 
     Returns:
-        Dictionary containing the parser result
+        Dictionary containing the parser evaluation results with structure:
+        {
+            "runParserResults": [
+                {
+                    "parsedEvents": [...],
+                    "errors": [...]
+                }
+            ]
+        }
 
     Raises:
-        APIError: If the API request fails
+        ValueError: If input parameters are invalid
+        APIError: If the API request fails or returns an error
     """
+    # Input validation
+    if not log_type:
+        raise ValueError("log_type cannot be empty")
+    
+    if not parser_code:
+        raise ValueError("parser_code cannot be empty")
+    
+    if not isinstance(logs, list):
+        raise TypeError(f"logs must be a list, got {type(logs).__name__}")
+    
+    if not logs:
+        raise ValueError("At least one log must be provided")
+    
+    # Validate log entries
+    total_size = 0
+    for i, log in enumerate(logs):
+        if not isinstance(log, str):
+            raise TypeError(f"All logs must be strings, but log at index {i} is {type(log).__name__}")
+        
+        log_size = len(log.encode('utf-8'))
+        if log_size > MAX_LOG_SIZE:
+            raise ValueError(
+                f"Log at index {i} exceeds maximum size of {MAX_LOG_SIZE} bytes "
+                f"(actual size: {log_size} bytes)"
+            )
+        total_size += log_size
+    
+    # Check total size
+    if total_size > MAX_TOTAL_SIZE:
+        raise ValueError(
+            f"Total size of all logs ({total_size} bytes) exceeds maximum of "
+            f"{MAX_TOTAL_SIZE} bytes"
+        )
+    
+    # Check number of logs
+    if len(logs) > MAX_LOGS:
+        raise ValueError(
+            f"Number of logs ({len(logs)}) exceeds maximum of {MAX_LOGS}"
+        )
+    
+    # Validate parser_extension_code type if provided
+    if parser_extension_code is not None and not isinstance(parser_extension_code, str):
+        raise TypeError(
+            f"parser_extension_code must be a string or None, got {type(parser_extension_code).__name__}"
+        )
+    
+    # Build request
     url = f"{client.base_url}/{client.instance_id}/logTypes/{log_type}:runParser"
 
     parser = {
-        "cbn": base64.b64encode(parser_code.encode("utf8")).decode('utf-8')
+        "cbn": base64.b64encode(parser_code.encode("utf-8")).decode('utf-8')
     }
     
-    parser_extension = {
-        "cbn_snippet": base64.b64encode(parser_extension_code.encode("utf8")).decode('utf-8')
-    } if parser_extension_code else None
+    parser_extension = None
+    if parser_extension_code:
+        parser_extension = {
+            "cbn_snippet": base64.b64encode(parser_extension_code.encode("utf-8")).decode('utf-8')
+        }
 
     body = {
         "parser": parser,
         "parser_extension": parser_extension,
-        "log": [base64.b64encode(log.encode("utf8")).decode('utf-8') for log in logs],
+        "log": [base64.b64encode(log.encode("utf-8")).decode('utf-8') for log in logs],
         "statedump_allowed": statedump_allowed
     }
 
     response = client.session.post(url, json=body)
 
     if response.status_code != 200:
-        raise APIError(f"Error during parser evaluation: {response.text}")
+        # Provide detailed error messages based on status code
+        error_detail = f"Failed to evaluate parser for log type '{log_type}'"
+        
+        if response.status_code == 400:
+            error_detail += f" - Bad request: {response.text}"
+            if "Invalid log type" in response.text:
+                error_detail += f". Log type '{log_type}' may not be valid."
+            elif "Invalid parser" in response.text:
+                error_detail += ". Parser code may contain syntax errors."
+        elif response.status_code == 404:
+            error_detail += f" - Log type '{log_type}' not found"
+        elif response.status_code == 413:
+            error_detail += " - Request too large. Try reducing the number or size of logs."
+        elif response.status_code == 500:
+            error_detail += f" - Internal server error: {response.text}"
+        else:
+            error_detail += f" - HTTP {response.status_code}: {response.text}"
+        
+        raise APIError(error_detail)
 
     return response.json()

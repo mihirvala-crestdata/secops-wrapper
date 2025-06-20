@@ -840,50 +840,66 @@ def setup_parser_command(subparsers):
     # --- Run Parser Command ---
     run_parser_sub = parser_subparsers.add_parser(
         "run",
-        help="Run parser against sample logs for evaluation."
+        help="Run parser against sample logs for evaluation.",
+        description=(
+            "Evaluate a parser by running it against sample log entries. "
+            "This helps test parser logic before deploying it."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  # Run parser with inline code and logs:\n"
+            "  secops parser run --log-type OKTA --parser-code 'filter {}' --log 'log1' --log 'log2'\n\n"
+            "  # Run parser using files:\n"
+            "  secops parser run --log-type WINDOWS --parser-code-file parser.conf --logs-file logs.txt\n\n"
+            "  # Run parser with extension:\n"
+            "  secops parser run --log-type CUSTOM --parser-code-file parser.conf \\\n"
+            "    --parser-extension-code-file extension.conf --logs-file logs.txt"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     run_parser_sub.add_argument(
         "--log-type",
         type=str,
-        help="Log type of the parser for evaluation."
+        required=True,
+        help="Log type of the parser for evaluation (e.g., OKTA, WINDOWS_AD)"
     )
     run_parser_code_group = run_parser_sub.add_mutually_exclusive_group(required=True)
     run_parser_code_group.add_argument(
         "--parser-code",
         type=str,
-        help="Content of the main parser (CBN code) to evaluate."
+        help="Content of the main parser (CBN code) to evaluate"
     )
     run_parser_code_group.add_argument(
         "--parser-code-file",
         type=str,
-        help="Path to a file containing the main parser code (CBN code)."
+        help="Path to a file containing the main parser code (CBN code)"
     )
     run_parser_ext_group = run_parser_sub.add_mutually_exclusive_group(required=False)
     run_parser_ext_group.add_argument(
         "--parser-extension-code",
         type=str,
-        help="Content of the parser extension (CBN snippet)."
+        help="Content of the parser extension (CBN snippet)"
     )
     run_parser_ext_group.add_argument(
         "--parser-extension-code-file",
         type=str,
-        help="Path to a file containing the parser extension code (CBN snippet)."
+        help="Path to a file containing the parser extension code (CBN snippet)"
     )
     run_parser_logs_group = run_parser_sub.add_mutually_exclusive_group(required=True)
     run_parser_logs_group.add_argument(
-        "--log", # Changed from --logs to --log to imply single log per argument
-        action="append", # This collects multiple instances of --log into a list
-        help="Provide a raw log string to test. Can be specified multiple times for multiple logs."
+        "--log",
+        action="append",
+        help="Provide a raw log string to test. Can be specified multiple times for multiple logs"
     )
     run_parser_logs_group.add_argument(
         "--logs-file",
         type=str,
-        help="Path to a file containing raw logs (one log per line)."
+        help="Path to a file containing raw logs (one log per line)"
     )
     run_parser_sub.add_argument(
         "--statedump-allowed",
         action="store_true",
-        help="Enable statedump filter for the parser configuration."
+        help="Enable statedump filter for the parser configuration"
     )
     run_parser_sub.set_defaults(func=handle_parser_run_command)
 
@@ -989,6 +1005,7 @@ def handle_parser_list_command(args, chronicle):
 def handle_parser_run_command(args, chronicle):
     """Handle parser run (evaluation) command."""
     try:
+        # Read parser code
         parser_code = ""
         if args.parser_code_file:
             try:
@@ -1002,6 +1019,7 @@ def handle_parser_run_command(args, chronicle):
         else:
             raise SecOpsError("Either --parser-code or --parser-code-file must be provided for the main parser.")
 
+        # Read parser extension code (optional)
         parser_extension_code = ""
         if args.parser_extension_code_file:
             try:
@@ -1013,6 +1031,7 @@ def handle_parser_run_command(args, chronicle):
         elif args.parser_extension_code:
             parser_extension_code = args.parser_extension_code
 
+        # Read logs
         logs = []
         if args.logs_file:
             try:
@@ -1021,13 +1040,14 @@ def handle_parser_run_command(args, chronicle):
             except IOError as e:
                 print(f"Error reading logs file: {e}", file=sys.stderr)
                 sys.exit(1)
-        elif args.log: # Use args.log (singular) which is now a list from action='append'
-            logs = args.log # args.log will already be a list of strings
+        elif args.log:
+            logs = args.log
 
         if not logs:
-            raise SecOpsError("Logs must be provided either via --log (multiple times) or --logs-file.")
+            print("Error: No logs provided. Use --log or --logs-file to provide log entries.", file=sys.stderr)
+            sys.exit(1)
 
-
+        # Call the API
         result = chronicle.run_parser(
             args.log_type,
             parser_code,
@@ -1035,7 +1055,15 @@ def handle_parser_run_command(args, chronicle):
             logs,
             args.statedump_allowed
         )
+        
         output_formatter(result, args.output)
+        
+    except ValueError as e:
+        print(f"Validation error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
         print(f"Error running parser: {e}", file=sys.stderr)
         sys.exit(1)

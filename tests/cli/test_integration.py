@@ -383,7 +383,7 @@ def test_cli_parser_run_evaluation(cli_env, common_args):
     test_log_type = f"RESERVED_LOG_TYPE_1"
 
     # Sample YARA-L parser code
-    sample_parser_code = """
+    sample_parser_code = r"""
     filter {
         mutate {
           replace => {
@@ -465,6 +465,222 @@ def test_cli_parser_run_evaluation(cli_env, common_args):
         if logs_file_path and os.path.exists(logs_file_path):
             os.unlink(logs_file_path)
             print(f"Cleaned up {logs_file_path}")
+
+
+@pytest.mark.integration
+def test_cli_parser_run_with_multiple_logs(cli_env, common_args):
+    """Test the 'parser run' command with multiple --log arguments."""
+    test_log_type = "RESERVED_LOG_TYPE_1"
+    
+    parser_code = r"""
+    filter {
+        mutate {
+          replace => {
+            "event1.idm.read_only_udm.metadata.event_type" => "GENERIC_EVENT"
+          }
+        }
+    }
+    """
+    
+    # Test logs
+    log1 = '{"event": "test1", "timestamp": "2025-01-01T00:00:00Z"}'
+    log2 = '{"event": "test2", "timestamp": "2025-01-01T00:01:00Z"}'
+    log3 = '{"event": "test3", "timestamp": "2025-01-01T00:02:00Z"}'
+    
+    parser_code_file_path = None
+    
+    try:
+        # Create temporary parser code file
+        with tempfile.NamedTemporaryFile(suffix=".conf", mode="w+", delete=False) as temp_file:
+            temp_file.write(parser_code)
+            parser_code_file_path = temp_file.name
+        
+        # Test with multiple --log arguments
+        run_cmd = [
+            "secops",
+        ] + common_args + [
+            "parser", "run",
+            "--log-type", test_log_type,
+            "--parser-code-file", parser_code_file_path,
+            "--log", log1,
+            "--log", log2,
+            "--log", log3
+        ]
+        
+        run_result = subprocess.run(
+            run_cmd,
+            env=cli_env,
+            capture_output=True,
+            text=True
+        )
+        
+        assert run_result.returncode == 0, \
+            f"Parser run with multiple logs failed: {run_result.stderr}\n{run_result.stdout}"
+        
+        # Parse and verify output
+        output = json.loads(run_result.stdout)
+        assert "runParserResults" in output
+        # Should have processed 3 logs
+        assert len(output["runParserResults"]) >= 1
+        
+    finally:
+        if parser_code_file_path and os.path.exists(parser_code_file_path):
+            os.unlink(parser_code_file_path)
+
+
+@pytest.mark.integration
+def test_cli_parser_run_with_extension(cli_env, common_args):
+    """Test the 'parser run' command with parser extension."""
+    test_log_type = "RESERVED_LOG_TYPE_1"
+    
+    parser_code = r"""
+    filter {
+        mutate {
+          replace => {
+            "event1.idm.read_only_udm.metadata.event_type" => "GENERIC_EVENT"
+          }
+        }
+    }
+    """
+    
+    parser_extension = r"""
+    filter {
+        mutate {
+          add_field => {
+            "event1.idm.read_only_udm.metadata.product_name" => "Extended Product"
+          }
+        }
+    }
+    """
+    
+    test_log = '{"message": "Test log with extension"}'
+    
+    parser_code_file_path = None
+    extension_file_path = None
+    
+    try:
+        # Create temporary files
+        with tempfile.NamedTemporaryFile(suffix=".conf", mode="w+", delete=False) as temp_file:
+            temp_file.write(parser_code)
+            parser_code_file_path = temp_file.name
+            
+        with tempfile.NamedTemporaryFile(suffix=".conf", mode="w+", delete=False) as temp_file:
+            temp_file.write(parser_extension)
+            extension_file_path = temp_file.name
+        
+        # Test with parser extension
+        run_cmd = [
+            "secops",
+        ] + common_args + [
+            "parser", "run",
+            "--log-type", test_log_type,
+            "--parser-code-file", parser_code_file_path,
+            "--parser-extension-code-file", extension_file_path,
+            "--log", test_log
+        ]
+        
+        run_result = subprocess.run(
+            run_cmd,
+            env=cli_env,
+            capture_output=True,
+            text=True
+        )
+        
+        assert run_result.returncode == 0, \
+            f"Parser run with extension failed: {run_result.stderr}\n{run_result.stdout}"
+        
+        # Verify output
+        output = json.loads(run_result.stdout)
+        assert "runParserResults" in output
+        
+    finally:
+        if parser_code_file_path and os.path.exists(parser_code_file_path):
+            os.unlink(parser_code_file_path)
+        if extension_file_path and os.path.exists(extension_file_path):
+            os.unlink(extension_file_path)
+
+
+@pytest.mark.integration
+def test_cli_parser_run_error_cases(cli_env, common_args):
+    """Test error handling for the 'parser run' command."""
+    test_log_type = "RESERVED_LOG_TYPE_1"
+    
+    # Test 1: Missing required arguments
+    run_cmd = [
+        "secops",
+    ] + common_args + [
+        "parser", "run",
+        "--log-type", test_log_type,
+        # Missing parser code and logs
+    ]
+    
+    run_result = subprocess.run(
+        run_cmd,
+        env=cli_env,
+        capture_output=True,
+        text=True
+    )
+    
+    assert run_result.returncode != 0, "Should fail with missing required arguments"
+    
+    # Test 2: Invalid file path
+    run_cmd = [
+        "secops",
+    ] + common_args + [
+        "parser", "run",
+        "--log-type", test_log_type,
+        "--parser-code-file", "/non/existent/file.conf",
+        "--logs-file", "/non/existent/logs.txt"
+    ]
+    
+    run_result = subprocess.run(
+        run_cmd,
+        env=cli_env,
+        capture_output=True,
+        text=True
+    )
+    
+    assert run_result.returncode != 0, "Should fail with invalid file paths"
+    assert "Error reading" in run_result.stderr
+    
+    # Test 3: Empty logs file
+    empty_logs_file = None
+    parser_file = None
+    
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".log", mode="w+", delete=False) as temp_file:
+            # Write nothing to create empty file
+            empty_logs_file = temp_file.name
+            
+        with tempfile.NamedTemporaryFile(suffix=".conf", mode="w+", delete=False) as temp_file:
+            temp_file.write("filter {}")
+            parser_file = temp_file.name
+        
+        run_cmd = [
+            "secops",
+        ] + common_args + [
+            "parser", "run",
+            "--log-type", test_log_type,
+            "--parser-code-file", parser_file,
+            "--logs-file", empty_logs_file
+        ]
+        
+        run_result = subprocess.run(
+            run_cmd,
+            env=cli_env,
+            capture_output=True,
+            text=True
+        )
+        
+        # Empty logs should fail with current implementation
+        assert run_result.returncode != 0
+        assert "No logs provided" in run_result.stderr
+        
+    finally:
+        if empty_logs_file and os.path.exists(empty_logs_file):
+            os.unlink(empty_logs_file)
+        if parser_file and os.path.exists(parser_file):
+            os.unlink(parser_file)
 
 
 @pytest.mark.integration

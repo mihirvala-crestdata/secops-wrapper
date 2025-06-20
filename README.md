@@ -152,22 +152,42 @@ import json
 current_time = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 okta_log = {
     "actor": {
-        "displayName": "Joe Doe",
-        "alternateId": "jdoe@example.com"
+        "alternateId": "mark.taylor@cymbal-investments.org",
+        "displayName": "Mark Taylor",
+        "id": "00u4j7xcb5N6zfiRP5d8",
+        "type": "User"
     },
     "client": {
-        "ipAddress": "192.168.1.100",
         "userAgent": {
-            "os": "Mac OS X",
-            "browser": "SAFARI"
+            "rawUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+            "os": "Windows 10",
+            "browser": "CHROME"
+        },
+        "ipAddress": "96.6.127.53",
+        "geographicalContext": {
+            "city": "New York",
+            "state": "New York",
+            "country": "United States",
+            "postalCode": "10118",
+            "geolocation": {"lat": 40.7123, "lon": -74.0068}
         }
     },
-    "displayMessage": "User login to Okta",
-    "eventType": "user.session.start",
-    "outcome": {
-        "result": "SUCCESS"
+    "displayMessage": "Max sign in attempts exceeded",
+    "eventType": "user.account.lock",
+    "outcome": {"result": "FAILURE", "reason": "LOCKED_OUT"},
+    "published": "2025-06-19T21:51:50.116Z",
+    "securityContext": {
+        "asNumber": 20940,
+        "asOrg": "akamai technologies inc.",
+        "isp": "akamai international b.v.",
+        "domain": "akamaitechnologies.com",
+        "isProxy": false
     },
-    "published": current_time  # Current time in ISO format
+    "severity": "DEBUG",
+    "legacyEventType": "core.user_auth.account_locked",
+    "uuid": "5b90a94a-d7ba-11ea-834a-85c24a1b2121",
+    "version": "0"
+    # ... additional OKTA log fields may be included
 }
 
 # Ingest a single log using the default forwarder
@@ -861,6 +881,7 @@ chronicle.activate_release_candidate_parser(log_type=log_type, id="pa_release_ca
 Run the parser on one or more sample logs:
 
 ```python
+# Sample parser code that extracts fields from logs
 parser_text = """
 filter {
     mutate {
@@ -892,16 +913,123 @@ filter {
 
 log_type = "WINDOWS_AD"
 
-sample_log='{"appDisplayName":"Azure Active Directory PowerShell","appId":"1b730912-1644-4b74-9bfd-dac224a7b894","appliedConditionalAccessPolicies":[],"clientAppUsed":"Mobile Apps and Desktop clients","conditionalAccessStatus":"success","correlationId":"8bdadb11-5851-4ff2-ad57-799c0149f606","createdDateTime":"2025-06-15T04:31:56Z","deviceDetail":{"browser":"Rich Client 5.2.8.0","deviceId":"","displayName":"","isCompliant":false,"isManaged":false,"operatingSystem":"Windows 8","trustType":""},"id":"ba6e48d0-85e9-45b0-9ce4-83eb83432200","ipAddress":"79.116.213.193","isInteractive":true,"location":{"city":"Madrid","countryOrRegion":"ES","geoCoordinates":{"altitude":null,"latitude":40.416,"longitude":-3.703},"state":"Madrid"},"resourceDisplayName":"Windows Azure Active Directory","resourceId":"00000001-0000-0000-d000-000000000000","riskDetail":"none","riskEventTypes":[],"riskEventTypes_v2":[],"riskLevelAggregated":"none","riskLevelDuringSignIn":"none","riskState":"none","status":{"additionalDetails":null,"errorCode":0,"failureReason":"Other."},"userDisplayName":"Admin Read Only","userId":"6838ec00-f384-40d8-b288-989103aed42b","userPrincipalName":"reports@example.onmicrosoft.com"}'
+# Sample log entries to test
+sample_logs = [
+    '{"message": "ERROR: Failed authentication attempt"}',
+    '{"message": "WARNING: Suspicious activity detected"}',
+    '{"message": "INFO: User logged in successfully"}'
+]
 
-# Create the parser
+# Run parser evaluation
 result = chronicle.run_parser(
     log_type=log_type, 
     parser_code=parser_text,
-    logs=[sample_log]
+    parser_extension_code=None,  # Optional parser extension
+    logs=sample_logs,
+    statedump_allowed=False  # Enable if using statedump filters
 )
-print(f"Parser result: {result['runParserResults']}")
+
+# Check the results
+if "runParserResults" in result:
+    for i, parser_result in enumerate(result["runParserResults"]):
+        print(f"\nLog {i+1} parsing result:")
+        if "parsedEvents" in parser_result:
+            print(f"  Parsed events: {parser_result['parsedEvents']}")
+        if "errors" in parser_result:
+            print(f"  Errors: {parser_result['errors']}")
 ```
+
+The `run_parser` function includes comprehensive validation:
+- Validates log type and parser code are provided
+- Ensures logs are provided as a list of strings
+- Enforces size limits (10MB per log, 50MB total, max 1000 logs)
+- Provides detailed error messages for different failure scenarios
+
+### Complete Parser Workflow Example
+
+Here's a complete example that demonstrates retrieving a parser, running it against a log, and ingesting the parsed UDM event:
+
+```python
+# Step 1: List and retrieve an OKTA parser
+parsers = chronicle.list_parsers(log_type="OKTA")
+parser_id = parsers[0]["name"].split("/")[-1]
+parser_details = chronicle.get_parser(log_type="OKTA", id=parser_id)
+
+# Extract and decode parser code
+import base64
+parser_code = base64.b64decode(parser_details["cbn"]).decode('utf-8')
+
+# Step 2: Run the parser against a sample log
+okta_log = {
+    "actor": {
+        "alternateId": "mark.taylor@cymbal-investments.org",
+        "displayName": "Mark Taylor",
+        "id": "00u4j7xcb5N6zfiRP5d8",
+        "type": "User"
+    },
+    "client": {
+        "userAgent": {
+            "rawUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+            "os": "Windows 10",
+            "browser": "CHROME"
+        },
+        "ipAddress": "96.6.127.53",
+        "geographicalContext": {
+            "city": "New York",
+            "state": "New York",
+            "country": "United States",
+            "postalCode": "10118",
+            "geolocation": {"lat": 40.7123, "lon": -74.0068}
+        }
+    },
+    "displayMessage": "Max sign in attempts exceeded",
+    "eventType": "user.account.lock",
+    "outcome": {"result": "FAILURE", "reason": "LOCKED_OUT"},
+    "published": "2025-06-19T21:51:50.116Z",
+    "securityContext": {
+        "asNumber": 20940,
+        "asOrg": "akamai technologies inc.",
+        "isp": "akamai international b.v.",
+        "domain": "akamaitechnologies.com",
+        "isProxy": false
+    },
+    "severity": "DEBUG",
+    "legacyEventType": "core.user_auth.account_locked",
+    "uuid": "5b90a94a-d7ba-11ea-834a-85c24a1b2121",
+    "version": "0"
+    # ... additional OKTA log fields may be included
+}
+
+result = chronicle.run_parser(
+    log_type="OKTA",
+    parser_code=parser_code,
+    parser_extension_code=None,
+    logs=[json.dumps(okta_log)]
+)
+
+# Step 3: Extract and ingest the parsed UDM event
+if result["runParserResults"][0]["parsedEvents"]:
+    # parsedEvents is a dict with 'events' key containing the actual events list
+    parsed_events_data = result["runParserResults"][0]["parsedEvents"]
+    if isinstance(parsed_events_data, dict) and "events" in parsed_events_data:
+        events = parsed_events_data["events"]
+        if events and len(events) > 0:
+            # Extract the first event
+            if "event" in events[0]:
+                udm_event = events[0]["event"]
+            else:
+                udm_event = events[0]
+            
+            # Ingest the parsed UDM event back into Chronicle
+            ingest_result = chronicle.ingest_udm(udm_events=udm_event)
+            print(f"UDM event ingested: {ingest_result}")
+```
+
+This workflow is useful for:
+- Testing parsers before deployment
+- Understanding how logs are transformed to UDM format
+- Re-processing logs with updated parsers
+- Debugging parsing issues
 
 ## Rule Management
 
