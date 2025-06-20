@@ -18,7 +18,7 @@ import json
 import ipaddress
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, Any, List, Tuple, Union, Literal
+from typing import Optional, Dict, Any, List, Tuple, Union, Literal, Iterator
 
 from google.auth.transport import requests as google_auth_requests
 from secops.auth import SecOpsAuth
@@ -73,6 +73,7 @@ from secops.chronicle.rule import (
     delete_rule as _delete_rule,
     enable_rule as _enable_rule,
     search_rules as _search_rules,
+    test_rule,
 )
 from secops.chronicle.rule_alert import (
     get_alert as _get_alert,
@@ -780,7 +781,6 @@ class ChronicleClient:
         """Search for rules.
 
         Args:
-            client: ChronicleClient instance
             query: Search query string that supports regex
 
         Returns:
@@ -790,6 +790,39 @@ class ChronicleClient:
             APIError: If the API request fails
         """
         return _search_rules(self, query)
+
+    def test_rule(
+        self,
+        rule_text: str,
+        start_time: datetime,
+        end_time: datetime,
+        max_results: int = 100,
+        timeout: int = 300,
+    ) -> Iterator[Dict[str, Any]]:
+        """Tests a rule against historical data and returns matches.
+
+        This function connects to the legacy:legacyRunTestRule streaming API endpoint
+        and processes the response which contains progress updates and detection results.
+
+        Args:
+            rule_text: Content of the detection rule to test
+            start_time: Start time for the test range
+            end_time: End time for the test range
+            max_results: Maximum number of results to return (default 100, max 10000)
+            timeout: Request timeout in seconds (default 300)
+
+        Yields:
+            Dictionaries containing detection results, progress updates or error information,
+            depending on the response type.
+
+        Raises:
+            APIError: If the API request fails
+            SecOpsError: If the input parameters are invalid
+            ValueError: If max_results is outside valid range
+        """
+        return test_rule(
+            self, rule_text, start_time, end_time, max_results, timeout
+        )
 
     # Rule Alert methods
 

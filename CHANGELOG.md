@@ -5,11 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2025-06-20
+### Added
+- Added run test rule method and CLI command to execute a test rule.
+
 ## [0.5.0] - 2025-06-19
 ### Added
 - Added run parser method and CLI Command
-
-
 
 ## [0.4.1] - 2025-06-19
 ### Fixed

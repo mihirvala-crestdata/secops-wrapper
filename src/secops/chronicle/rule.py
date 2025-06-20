@@ -14,7 +14,10 @@
 #
 """Rule management functionality for Chronicle."""
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Iterator, Union
+from datetime import datetime, timezone
+import json
+import time
 from secops.exceptions import APIError, SecOpsError
 import re
 
@@ -227,3 +230,97 @@ def search_rules(client, query: str) -> Dict[str, Any]:
             results["rules"].append(rule)
 
     return results
+
+
+def test_rule(
+    client,
+    rule_text: str,
+    start_time: datetime,
+    end_time: datetime,
+    max_results: int = 100,
+    timeout: int = 300,
+) -> Iterator[Dict[str, Any]]:
+    """Tests a rule against historical data and returns matches.
+
+    This function connects to the legacy:legacyRunTestRule streaming API endpoint
+    and processes the response which contains progress updates and detection results.
+
+    Args:
+        client: ChronicleClient instance
+        rule_text: Content of the detection rule to test
+        start_time: Start time for the test range
+        end_time: End time for the test range
+        max_results: Maximum number of results to return (default 100, max 10000)
+        timeout: Request timeout in seconds (default 300)
+
+    Yields:
+        Dictionaries containing detection results, progress updates or error information,
+        depending on the response type.
+
+    Raises:
+        APIError: If the API request fails
+        SecOpsError: If the input parameters are invalid
+        ValueError: If max_results is outside valid range
+    """
+    # Validate input parameters
+    if max_results < 1 or max_results > 10000:
+        raise ValueError("max_results must be between 1 and 10000")
+
+    # Convert datetime objects to ISO format strings required by the API
+    # API expects timestamps in RFC3339 format with UTC timezone
+    if not start_time.tzinfo:
+        start_time = start_time.replace(tzinfo=timezone.utc)
+    if not end_time.tzinfo:
+        end_time = end_time.replace(tzinfo=timezone.utc)
+        
+    # Format as RFC3339 with Z suffix
+    start_time_str = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+    end_time_str = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    # Fix: Use the full path for the legacy API endpoint
+    url = f"{client.base_url}/projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}/legacy:legacyRunTestRule"
+
+    body = {
+        "ruleText": rule_text,
+        "timeRange": {
+            "startTime": start_time_str,
+            "endTime": end_time_str,
+        },
+        "maxResults": max_results,
+        "scope": ""  # Empty scope parameter
+    }
+
+    # Make the request and get the complete response
+    try:
+        response = client.session.post(url, json=body, timeout=timeout)
+        
+        if response.status_code != 200:
+            raise APIError(f"Failed to test rule: {response.text}")
+        
+        # Parse the response as a JSON array
+        try:
+            json_array = json.loads(response.text)
+            
+            # Yield each item in the array
+            for item in json_array:
+                # Transform the response items to match the expected format
+                if "detection" in item:
+                    # Return the detection with proper type
+                    yield {"type": "detection", "detection": item["detection"]}
+                elif "progressPercent" in item:
+                    yield {"type": "progress", "percentDone": item["progressPercent"]}
+                elif "ruleCompilationError" in item:
+                    yield {"type": "error", "message": item["ruleCompilationError"], "isCompilationError": True}
+                elif "ruleError" in item:
+                    yield {"type": "error", "message": item["ruleError"]}
+                elif "tooManyDetections" in item and item["tooManyDetections"]:
+                    yield {"type": "info", "message": "Too many detections found, results may be incomplete"}
+                else:
+                    # Unknown item type, yield as-is
+                    yield item
+                    
+        except json.JSONDecodeError as e:
+            raise APIError(f"Failed to parse rule test response: {str(e)}")
+    
+    except Exception as e:
+        raise APIError(f"Error testing rule: {str(e)}")

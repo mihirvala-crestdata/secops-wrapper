@@ -1276,6 +1276,121 @@ def example_parser_workflow(chronicle):
         print(f"\nUnexpected error: {e}")
 
 
+def example_rule_test(chronicle):
+    """Example 13: Test a detection rule against historical data."""
+    print("\n=== Example 13: Test a Detection Rule Against Historical Data ===")
+
+    # Define time range for testing - use a recent time period (last 7 days)
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - timedelta(days=7)  # Test against last 7 days
+
+    # Create a simple rule that should find network connection events
+    test_rule = """
+rule test_network_connections {
+  meta:
+    description = "Test rule for finding network connection events"
+    author = "SecOps SDK Example"
+    severity = "Informational" 
+    yara_version = "YL2.0"
+    rule_version = "1.0"
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+  condition:
+    $e
+}
+"""
+    print(f"Testing rule against data from {start_time} to {end_time}")
+    print("Rule text:")
+    print(test_rule)
+    print("\n1. Processing streaming results with progress updates:")
+
+    # Method 1: Process streaming results with progress updates
+    results = []
+    detection_count = 0
+    event_count = 0
+    last_progress = 0
+    
+    for result in chronicle.test_rule(test_rule, start_time, end_time, max_results=5):
+        result_type = result.get("type")
+        
+        if result_type == "progress":
+            percent_done = result.get("percentDone", 0)
+            if percent_done > last_progress or percent_done == 100:
+                print(f"  Progress: {percent_done}%")
+                last_progress = percent_done
+        
+        elif result_type == "detection":
+            detection_count += 1
+            detection = result.get("detection", {})
+            
+            # Extract UDM events from the detection
+            result_events = detection.get("resultEvents", {})
+            
+            # Process all variables in resultEvents
+            for var_name, var_data in result_events.items():
+                event_samples = var_data.get("eventSamples", [])
+                for sample in event_samples:
+                    event = sample.get("event")
+                    if event:
+                        event_count += 1
+                        results.append(event)
+                        
+                        if len(results) <= 3:  # Show details for first 3 events only
+                            print(f"\n  Event {len(results)} details:")
+                            metadata = event.get("metadata", {})
+                            event_type = metadata.get("eventType", "N/A")
+                            event_timestamp = metadata.get("eventTimestamp", "N/A")
+                            vendor = metadata.get("vendorName", "N/A")
+                            product = metadata.get("productName", "N/A")
+                            
+                            print(f"    Type: {event_type}")
+                            print(f"    Timestamp: {event_timestamp}")
+                            print(f"    Vendor/Product: {vendor}/{product}")
+                            
+                            # Show source and destination if available
+                            principal_ip = event.get("principal", {}).get("ip", ["N/A"])[0]
+                            target_ip = event.get("target", {}).get("ip", ["N/A"])[0]
+                            print(f"    Source IP: {principal_ip}")
+                            print(f"    Target IP: {target_ip}")
+    
+    # Print summary
+    print(f"\nSummary: Found {detection_count} detections with {event_count} total events")
+    
+    print("\n2. Extracting only UDM events for further processing:")
+    
+    # Method 2: Extract just the UDM events for further processing
+    print("  Collecting UDM events...")
+    udm_events = []
+    
+    # Reset time range to avoid duplicates
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - timedelta(days=7)
+    
+    for result in chronicle.test_rule(test_rule, start_time, end_time, max_results=5):
+        if result.get("type") == "detection":
+            detection = result.get("detection", {})
+            result_events = detection.get("resultEvents", {})
+            
+            for var_name, var_data in result_events.items():
+                event_samples = var_data.get("eventSamples", [])
+                for sample in event_samples:
+                    event = sample.get("event")
+                    if event:
+                        udm_events.append(event)
+    
+    print(f"  Collected {len(udm_events)} UDM events")
+    print("  These events can be processed programmatically or output as JSON:")
+    print("  Example (first event metadata):")
+    if udm_events:
+        first_event = udm_events[0]
+        metadata = first_event.get("metadata", {})
+        print(f"    Event type: {metadata.get('eventType')}")
+        print(f"    Event timestamp: {metadata.get('eventTimestamp')}")
+        print(f"    Event ID: {metadata.get('id')}")
+    
+    return "Rule testing complete"
+
+
 # Map of example functions
 EXAMPLES = {
     "1": example_udm_search,
@@ -1290,6 +1405,7 @@ EXAMPLES = {
     "10": example_udm_ingestion,
     "11": example_gemini,
     "12": example_parser_workflow,
+    "13": example_rule_test,
 }
 
 
@@ -1304,7 +1420,7 @@ def main():
     parser.add_argument(
         "--example",
         "-e",
-        help="Example number to run (1-12). If not specified, runs all examples.",
+        help="Example number to run (1-13). If not specified, runs all examples.",
     )
 
     args = parser.parse_args()
