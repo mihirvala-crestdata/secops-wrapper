@@ -261,15 +261,17 @@ def test_chronicle_alerts():
             # Check if alert is linked to a case
             if "caseName" in alert:
                 print(f"\nAlert is linked to case: {alert.get('caseName')}")
-                
+
                 # Try to get case details if we have case IDs
-                case_ids = {alert.get("caseName") for alert in alerts if alert.get("caseName")}
+                case_ids = {
+                    alert.get("caseName") for alert in alerts if alert.get("caseName")
+                }
                 if case_ids:
                     print(f"\nFound {len(case_ids)} unique case IDs")
                     try:
                         cases = chronicle.get_cases(list(case_ids))
                         print(f"Retrieved {len(cases.cases)} cases")
-                        
+
                         # Validate case structure
                         if cases.cases:
                             case = cases.cases[0]

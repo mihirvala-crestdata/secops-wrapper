@@ -295,20 +295,25 @@ def example_alerts_and_cases(chronicle):
 
                     # Count alerts for this case
                     case_alerts = [
-                        alert for alert in alert_list if alert.get("caseName") == case.id
+                        alert
+                        for alert in alert_list
+                        if alert.get("caseName") == case.id
                     ]
                     print(f"Total Alerts for Case: {len(case_alerts)}")
 
                     high_sev_alerts = [
                         alert
                         for alert in case_alerts
-                        if alert.get("feedbackSummary", {}).get("severityDisplay") == "HIGH"
+                        if alert.get("feedbackSummary", {}).get("severityDisplay")
+                        == "HIGH"
                     ]
                     if high_sev_alerts:
                         print(f"High Severity Alerts: {len(high_sev_alerts)}")
             except APIError as e:
                 print(f"\nError retrieving case details: {str(e)}")
-                print("This might happen if the case IDs are not accessible or the API has changed.")
+                print(
+                    "This might happen if the case IDs are not accessible or the API has changed."
+                )
         else:
             print("\nNo cases found in alerts")
     except APIError as e:
@@ -673,10 +678,10 @@ def example_udm_ingestion(chronicle):
         network_event = {
             "metadata": {
                 "id": event_id,
-                "event_timestamp": current_time,
-                "event_type": "NETWORK_CONNECTION",
-                "product_name": "SecOps SDK Example",
-                "vendor_name": "Google",
+                "eventTimestamp": current_time,
+                "eventType": "NETWORK_CONNECTION",
+                "productName": "SecOps SDK Example",
+                "vendorName": "Google",
             },
             "principal": {
                 "hostname": "workstation-1",
@@ -684,12 +689,12 @@ def example_udm_ingestion(chronicle):
                 "port": 52734,
             },
             "target": {"ip": "203.0.113.10", "port": 443},
-            "network": {"application_protocol": "HTTPS", "direction": "OUTBOUND"},
+            "network": {"applicationProtocol": "HTTPS", "direction": "OUTBOUND"},
         }
 
         print(f"Created network connection event with ID: {event_id}")
-        print(f"Event type: {network_event['metadata']['event_type']}")
-        print(f"Timestamp: {network_event['metadata']['event_timestamp']}")
+        print(f"Event type: {network_event['metadata']['eventType']}")
+        print(f"Timestamp: {network_event['metadata']['eventTimestamp']}")
 
         # Ingest the single event
         result = chronicle.ingest_udm(udm_events=network_event)
@@ -703,21 +708,21 @@ def example_udm_ingestion(chronicle):
         process_event = {
             "metadata": {
                 "id": process_id,
-                "event_timestamp": current_time,
-                "event_type": "PROCESS_LAUNCH",
-                "product_name": "SecOps SDK Example",
-                "vendor_name": "Google",
+                "eventTimestamp": current_time,
+                "eventType": "PROCESS_LAUNCH",
+                "productName": "SecOps SDK Example",
+                "vendorName": "Google",
             },
             "principal": {
                 "hostname": "workstation-1",
                 "process": {
-                    "command_line": "python example.py",
+                    "commandLine": "python example.py",
                     "pid": "12345",
-                    "file": {"full_path": "/usr/bin/python3"},
+                    "file": {"fullPath": "/usr/bin/python3"},
                 },
                 "user": {"userid": "user123"},
             },
-            "target": {"process": {"pid": "0", "command_line": "bash"}},
+            "target": {"process": {"pid": "0", "commandLine": "bash"}},
         }
 
         print(f"Created process launch event with ID: {process_id}")
@@ -732,14 +737,14 @@ def example_udm_ingestion(chronicle):
         # Create an event without an ID
         file_event = {
             "metadata": {
-                "event_timestamp": current_time,
-                "event_type": "FILE_READ",
-                "product_name": "SecOps SDK Example",
-                "vendor_name": "Google",
+                "eventTimestamp": current_time,
+                "eventType": "FILE_READ",
+                "productName": "SecOps SDK Example",
+                "vendorName": "Google",
                 # No ID provided - will be auto-generated
             },
             "principal": {"hostname": "workstation-1", "user": {"userid": "user123"}},
-            "target": {"file": {"full_path": "/etc/passwd", "size": "4096"}},
+            "target": {"file": {"fullPath": "/etc/passwd", "size": "4096"}},
         }
 
         print("Created file read event without ID (will be auto-generated)")
@@ -971,6 +976,306 @@ def example_gemini(chronicle):
         print(f"\nError using Gemini API: {e}")
 
 
+def example_parser_workflow(chronicle):
+    """Example 12: Parser Workflow - Retrieve, Run, and Ingest UDM."""
+    print("\n=== Example 12: Parser Workflow - Retrieve, Run, and Ingest UDM ===")
+
+    # Sample OKTA log for testing
+    okta_log = {
+        "actor": {
+            "alternateId": "mark.taylor@cymbal-investments.org",
+            "detail": None,
+            "displayName": "Mark Taylor",
+            "id": "00u4j7xcb5N6zfiRP5d8",
+            "type": "User",
+        },
+        "client": {
+            "userAgent": {
+                "rawUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+                "os": "Windows 10",
+                "browser": "CHROME",
+            },
+            "zone": "null",
+            "device": "Computer",
+            "id": None,
+            "ipAddress": "96.6.127.53",
+            "geographicalContext": {
+                "city": "New York",
+                "state": "New York",
+                "country": "United States",
+                "postalCode": "10118",
+                "geolocation": {"lat": 40.7123, "lon": -74.0068},
+            },
+        },
+        "device": None,
+        "authenticationContext": {
+            "authenticationProvider": None,
+            "credentialProvider": None,
+            "credentialType": None,
+            "issuer": None,
+            "interface": None,
+            "authenticationStep": 0,
+            "externalSessionId": "unknown",
+        },
+        "displayMessage": "Max sign in attempts exceeded",
+        "eventType": "user.account.lock",
+        "outcome": {"result": "FAILURE", "reason": "LOCKED_OUT"},
+        "published": "2025-06-19T21:51:50.116Z",
+        "securityContext": {
+            "asNumber": 20940,
+            "asOrg": "akamai technologies  inc.",
+            "isp": "akamai international b.v.",
+            "domain": "akamaitechnologies.com",
+            "isProxy": False,
+        },
+        "severity": "DEBUG",
+        "debugContext": {
+            "debugData": {
+                "requestId": "ATQ6Qmlk2BHFAQGVUY1BfBAVDyI",
+                "dtHash": "ab9606c02972cf1f1308deee3ab6f82a18e84d6eef5f6d8de94c90175c087524",
+                "requestUri": "/api/v1/authn",
+                "threatSuspected": "false",
+                "targetEventHookIds": "who3p0a3y5uKucF8I0g7,who3p0a3y5uKucF8I0g8",
+                "url": "/api/v1/authn?",
+            }
+        },
+        "legacyEventType": "core.user_auth.account_locked",
+        "transaction": {
+            "type": "WEB",
+            "id": "ATQ6Qmlk2BHFAQGVUY1BfBAVDyI",
+            "detail": {},
+        },
+        "uuid": "5b90a94a-d7ba-11ea-834a-85c24a1b2121",
+        "version": "0",
+        "request": {
+            "ipChain": [
+                {
+                    "ip": "96.6.127.53",
+                    "geographicalContext": {
+                        "city": "New York",
+                        "state": "New York",
+                        "country": "United States",
+                        "postalCode": "10118",
+                        "geolocation": {"lat": 40.7123, "lon": -74.0068},
+                    },
+                    "version": "V4",
+                    "source": None,
+                }
+            ]
+        },
+        "target": None,
+    }
+
+    try:
+        print("\nStep 1: List OKTA parsers to find the active parser")
+        # List parsers for OKTA log type
+        parsers = chronicle.list_parsers(log_type="OKTA")
+        print(f"Found {len(parsers)} OKTA parsers")
+
+        # Find an active parser (or any parser if no active one)
+        active_parser = None
+        any_parser = None
+
+        for parser in parsers:
+            parser_id = parser.get("name", "").split("/")[-1]
+            state = parser.get("state", "")
+            print(f"  Parser {parser_id}: state={state}")
+
+            if state == "ACTIVE":
+                active_parser = parser
+                break
+            elif not any_parser:
+                any_parser = parser
+
+        # Use active parser if found, otherwise use any parser
+        selected_parser = active_parser or any_parser
+
+        if not selected_parser:
+            print(
+                "\nNo OKTA parsers found. This example requires at least one OKTA parser."
+            )
+            return
+
+        parser_id = selected_parser.get("name", "").split("/")[-1]
+        parser_state = selected_parser.get("state", "")
+        print(f"\nUsing parser {parser_id} (state: {parser_state})")
+
+        print("\nStep 2: Retrieve the parser details")
+        # Get the full parser details
+        parser_details = chronicle.get_parser(log_type="OKTA", id=parser_id)
+
+        # Extract parser code
+        parser_code = parser_details.get("cbn", "")
+        if parser_code:
+            # Decode from base64
+            import base64
+
+            try:
+                parser_code = base64.b64decode(parser_code).decode("utf-8")
+            except:
+                pass  # Already decoded
+
+        print(f"\nParser code (first 500 chars):")
+        print(parser_code[:500] + "..." if len(parser_code) > 500 else parser_code)
+
+        print("\nStep 3: Run the parser against the sample OKTA log")
+        # Convert log to JSON string
+        log_json = json.dumps(okta_log)
+        print(f"\nLog to parse (first 200 chars): {log_json[:200]}...")
+
+        # Run the parser
+        parser_result = chronicle.run_parser(
+            log_type="OKTA",
+            parser_code=parser_code,
+            parser_extension_code=None,
+            logs=[log_json],
+        )
+
+        print("\nStep 4: Examine the parsed output")
+        if "runParserResults" in parser_result:
+            for i, result in enumerate(parser_result["runParserResults"]):
+                print(f"\nResult for log {i+1}:")
+
+                if "errors" in result and result["errors"]:
+                    print(f"  Parsing errors: {result['errors']}")
+
+                if "parsedEvents" in result:
+                    parsed_events_data = result["parsedEvents"]
+
+                    # Handle the structure - parsedEvents is a dict with 'events' key
+                    if (
+                        isinstance(parsed_events_data, dict)
+                        and "events" in parsed_events_data
+                    ):
+                        parsed_events = parsed_events_data["events"]
+                    else:
+                        # In case it's already a list (backward compatibility)
+                        parsed_events = (
+                            parsed_events_data
+                            if isinstance(parsed_events_data, list)
+                            else []
+                        )
+
+                    print(f"  Number of parsed events: {len(parsed_events)}")
+
+                    # Extract UDM events
+                    udm_events = []
+                    for event in parsed_events:
+                        # The parsed event might be the UDM event directly or wrapped in an "event" key
+                        if isinstance(event, dict):
+                            if "event" in event:
+                                udm_event = event["event"]
+                            else:
+                                udm_event = event
+
+                            udm_events.append(udm_event)
+
+                            # Print a summary of the UDM event
+                            print(f"\n  Parsed UDM event summary:")
+                            if "metadata" in udm_event:
+                                metadata = udm_event["metadata"]
+                                print(
+                                    f"    Event Type: {metadata.get('eventType', 'N/A')}"
+                                )
+                                print(
+                                    f"    Product: {metadata.get('productName', 'N/A')}"
+                                )
+                                print(
+                                    f"    Vendor: {metadata.get('vendorName', 'N/A')}"
+                                )
+                                print(
+                                    f"    Event Time: {metadata.get('eventTimestamp', 'N/A')}"
+                                )
+
+                            if "principal" in udm_event:
+                                principal = udm_event["principal"]
+                                if "user" in principal and isinstance(
+                                    principal["user"], dict
+                                ):
+                                    print(
+                                        f"    User: {principal['user'].get('userid', 'N/A')}"
+                                    )
+                                if "ip" in principal:
+                                    ip_value = principal.get("ip", "N/A")
+                                    if isinstance(ip_value, list) and ip_value:
+                                        print(f"    Source IP: {ip_value[0]}")
+                                    elif isinstance(ip_value, str):
+                                        print(f"    Source IP: {ip_value}")
+
+                            if "securityResult" in udm_event:
+                                security_results = udm_event["securityResult"]
+                                if (
+                                    isinstance(security_results, list)
+                                    and security_results
+                                ):
+                                    security = security_results[0]
+                                    print(
+                                        f"    Action: {security.get('action', 'N/A')}"
+                                    )
+                                    print(
+                                        f"    Summary: {security.get('summary', 'N/A')}"
+                                    )
+
+                    if udm_events:
+                        print(f"\nStep 5: Ingest the parsed UDM events")
+                        print(f"Ingesting {len(udm_events)} UDM event(s)...")
+
+                        try:
+                            # Ingest the UDM events
+                            ingest_result = chronicle.ingest_udm(
+                                udm_events=(
+                                    udm_events[0]
+                                    if len(udm_events) == 1
+                                    else udm_events
+                                )
+                            )
+
+                            print("\nUDM ingestion successful!")
+                            print(f"API Response: {ingest_result}")
+
+                            # Print the full UDM event for reference
+                            print("\nFull UDM event that was ingested:")
+                            udm_json = json.dumps(udm_events[0], indent=2)
+                            if len(udm_json) > 1000:
+                                print(udm_json[:1000] + "...")
+                            else:
+                                print(udm_json)
+
+                        except Exception as e:
+                            print(f"\nError ingesting UDM events: {e}")
+                            print(
+                                "This might happen if the parsed event doesn't have required UDM fields."
+                            )
+                    else:
+                        print("\nNo UDM events were extracted from the parser output.")
+                else:
+                    print("  No parsed events in the result.")
+        else:
+            print("\nNo parser results returned.")
+
+        print("\n" + "=" * 80)
+        print("This example demonstrated the complete workflow:")
+        print("1. Retrieved an OKTA parser from Chronicle")
+        print("2. Displayed the parser code")
+        print("3. Ran the parser against a sample OKTA log")
+        print("4. Examined the parsed UDM output")
+        print("5. Ingested the parsed UDM event back into Chronicle")
+        print("\nThis workflow is useful for:")
+        print("- Testing parsers before deployment")
+        print("- Understanding how logs are transformed to UDM")
+        print("- Debugging parsing issues")
+        print("- Re-processing logs with updated parsers")
+
+    except APIError as e:
+        print(f"\nAPI Error: {e}")
+        print("\nTroubleshooting tips:")
+        print("- Ensure OKTA log type has at least one parser")
+        print("- Check if you have permissions to access parsers")
+        print("- Verify the parser is properly configured")
+    except Exception as e:
+        print(f"\nUnexpected error: {e}")
+
+
 # Map of example functions
 EXAMPLES = {
     "1": example_udm_search,
@@ -984,6 +1289,7 @@ EXAMPLES = {
     "9": example_log_ingestion,
     "10": example_udm_ingestion,
     "11": example_gemini,
+    "12": example_parser_workflow,
 }
 
 
@@ -998,7 +1304,7 @@ def main():
     parser.add_argument(
         "--example",
         "-e",
-        help="Example number to run (1-11). If not specified, runs all examples.",
+        help="Example number to run (1-12). If not specified, runs all examples.",
     )
 
     args = parser.parse_args()

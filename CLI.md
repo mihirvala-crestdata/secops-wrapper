@@ -252,6 +252,52 @@ secops parser delete --log-type "WINDOWS" --id "pa_12345"
 secops parser delete --log-type "WINDOWS" --id "pa_12345" --force
 ```
 
+#### Run a parser against sample logs:
+
+The `parser run` command allows you to test a parser against sample log entries before deploying it. This is useful for validating parser logic and ensuring it correctly processes your log data.
+
+```bash
+# Run a parser against sample logs using inline arguments
+secops parser run \
+  --log-type AZURE_AD \
+  --parser-code-file "./parser.conf" \
+  --log '{"message": "Test log 1"}' \
+  --log '{"message": "Test log 2"}' \
+  --log '{"message": "Test log 3"}'
+
+# Run a parser against logs from a file (one log per line)
+secops parser run \
+  --log-type WINDOWS \
+  --parser-code-file "./parser.conf" \
+  --logs-file "./sample_logs.txt"
+
+# Run a parser with an extension
+secops parser run \
+  --log-type CUSTOM_LOG \
+  --parser-code-file "./parser.conf" \
+  --parser-extension-code-file "./extension.conf" \
+  --logs-file "./logs.txt" \
+  --statedump-allowed
+
+# Run with inline parser code
+secops parser run \
+  --log-type OKTA \
+  --parser-code 'filter { mutate { add_field => { "test" => "value" } } }' \
+  --log '{"user": "john.doe", "action": "login"}'
+```
+
+The command validates:
+- Log type and parser code are provided
+- At least one log is provided
+- Log sizes don't exceed limits (10MB per log, 50MB total)
+- Maximum 1000 logs can be processed at once
+
+Error messages are detailed and help identify issues:
+- Invalid log types
+- Parser syntax errors  
+- Size limit violations
+- API-specific errors
+
 ### Rule Management
 
 List detection rules:
@@ -610,6 +656,122 @@ secops parser activate --log-type "CUSTOM_APPLICATION" --id "pa_new_custom"
 secops parser deactivate --log-type "CUSTOM_APPLICATION" --id "pa_old_custom"
 secops parser delete --log-type "CUSTOM_APPLICATION" --id "pa_old_custom"
 ```
+
+### Complete Parser Workflow Example: Retrieve, Run, and Ingest
+
+This example demonstrates the complete workflow of retrieving an OKTA parser, running it against a sample log, and ingesting the parsed UDM event:
+
+```bash
+# Step 1: List OKTA parsers to find an active one
+secops parser list --log-type "OKTA" > okta_parsers.json
+
+# Extract the first parser ID (you can use jq or grep)
+PARSER_ID=$(cat okta_parsers.json | jq -r '.[0].name' | awk -F'/' '{print $NF}')
+echo "Using parser: $PARSER_ID"
+
+# Step 2: Get the parser details and save to a file
+secops parser get --log-type "OKTA" --id "$PARSER_ID" > parser_details.json
+
+# Extract and decode the parser code (base64 encoded in 'cbn' field)
+cat parser_details.json | jq -r '.cbn' | base64 -d > okta_parser.conf
+
+# Step 3: Create a sample OKTA log file
+cat > okta_log.json << 'EOF'
+{
+  "actor": {
+    "alternateId": "mark.taylor@cymbal-investments.org",
+    "displayName": "Mark Taylor",
+    "id": "00u4j7xcb5N6zfiRP5d8",
+    "type": "User"
+  },
+  "client": {
+    "userAgent": {
+      "rawUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+      "os": "Windows 10",
+      "browser": "CHROME"
+    },
+    "ipAddress": "96.6.127.53",
+    "geographicalContext": {
+      "city": "New York",
+      "state": "New York",
+      "country": "United States",
+      "postalCode": "10118",
+      "geolocation": {"lat": 40.7123, "lon": -74.0068}
+    }
+  },
+  "displayMessage": "Max sign in attempts exceeded",
+  "eventType": "user.account.lock",
+  "outcome": {"result": "FAILURE", "reason": "LOCKED_OUT"},
+  "published": "2025-06-19T21:51:50.116Z",
+  "securityContext": {
+    "asNumber": 20940,
+    "asOrg": "akamai technologies inc.",
+    "isp": "akamai international b.v.",
+    "domain": "akamaitechnologies.com",
+    "isProxy": false
+  },
+  "severity": "DEBUG",
+  "legacyEventType": "core.user_auth.account_locked",
+  "uuid": "5b90a94a-d7ba-11ea-834a-85c24a1b2121",
+  "version": "0"
+}
+EOF
+
+# Step 4: Run the parser against the sample log
+secops parser run \
+  --log-type "OKTA" \
+  --parser-code-file "okta_parser.conf" \
+  --log "$(cat okta_log.json)" > parser_result.json
+
+# Display the parser result
+echo "Parser execution result:"
+cat parser_result.json | jq '.'
+
+# Step 5: Extract the parsed UDM event from the result
+# The structure is: runParserResults[0].parsedEvents.events[0].event
+cat parser_result.json | jq '.runParserResults[0].parsedEvents.events[0].event' > udm_event.json
+
+# Verify the UDM event looks correct
+echo "Extracted UDM event:"
+cat udm_event.json | jq '.'
+
+# Step 6: Ingest the parsed UDM event back into Chronicle
+secops log ingest-udm --file "udm_event.json"
+
+echo "UDM event successfully ingested!"
+```
+
+#### Alternative: Using a logs file instead of inline log
+
+If you have multiple logs to test, you can use a logs file:
+
+```bash
+# Create a file with multiple logs (one per line)
+cat > okta_logs.txt << 'EOF'
+{"actor":{"alternateId":"user1@example.com","displayName":"User 1","type":"User"},"eventType":"user.session.start","outcome":{"result":"SUCCESS"},"published":"2025-06-19T21:51:50.116Z"}
+{"actor":{"alternateId":"user2@example.com","displayName":"User 2","type":"User"},"eventType":"user.account.lock","outcome":{"result":"FAILURE","reason":"LOCKED_OUT"},"published":"2025-06-19T21:52:50.116Z"}
+{"actor":{"alternateId":"user3@example.com","displayName":"User 3","type":"User"},"eventType":"user.session.end","outcome":{"result":"SUCCESS"},"published":"2025-06-19T21:53:50.116Z"}
+EOF
+
+# Run parser against all logs in the file
+secops parser run \
+  --log-type "OKTA" \
+  --parser-code-file "okta_parser.conf" \
+  --logs-file "okta_logs.txt" > multi_parser_result.json
+
+# Extract all parsed UDM events
+cat multi_parser_result.json | jq '[.runParserResults[].parsedEvents.events[].event]' > udm_events.json
+
+# Ingest all UDM events
+secops log ingest-udm --file "udm_events.json"
+```
+
+This workflow is useful for:
+- Testing parsers before deployment
+- Understanding how logs are transformed to UDM format
+- Debugging parsing issues
+- Re-processing logs with updated parsers
+- Validating parser changes against real log samples
 
 ## Conclusion
 

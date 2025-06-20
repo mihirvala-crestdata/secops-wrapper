@@ -375,6 +375,359 @@ def test_cli_parser_get(cli_env, common_args):
 
 
 @pytest.mark.integration
+def test_cli_parser_run_evaluation(cli_env, common_args):
+    """
+    Test the 'parser run' command functionality, covering reading parser code
+    and logs from files, and providing logs via multiple --log arguments.
+    """
+    test_log_type = f"RESERVED_LOG_TYPE_1"
+
+    # Sample YARA-L parser code
+    sample_parser_code = r"""
+    filter {
+        mutate {
+          replace => {
+            "event1.idm.read_only_udm.metadata.event_type" => "GENERIC_EVENT"
+            "event1.idm.read_only_udm.metadata.vendor_name" =>  "ACME Labs"
+          }
+        }
+        grok {
+          match => {
+            "message" => ["^(?P<_firstWord>[^\s]+)\s.*$"]
+          }
+          on_error => "_grok_message_failed"
+        }
+        if ![_grok_message_failed] {
+          mutate {
+            replace => {
+              "event1.idm.read_only_udm.metadata.description" => "%{_firstWord}"
+            }
+          }
+        }
+        mutate {
+          merge => {
+            "@output" => "event1"
+          }
+        }
+    }
+    """
+
+    # Sample log data for --logs-file
+    sample_logs_file_content = """
+    {"appDisplayName":"Azure Active Directory PowerShell","appId":"1b730912-1644-4b74-9bfd-dac224a7b894","appliedConditionalAccessPolicies":[],"clientAppUsed":"Mobile Apps and Desktop clients","conditionalAccessStatus":"success","correlationId":"8bdadb11-5851-4ff2-ad57-799c0149f606","createdDateTime":"2025-06-15T04:31:56Z","deviceDetail":{"browser":"Rich Client 5.2.8.0","deviceId":"","displayName":"","isCompliant":false,"isManaged":false,"operatingSystem":"Windows 8","trustType":""},"id":"ba6e48d0-85e9-45b0-9ce4-83eb83432200","ipAddress":"79.116.213.193","isInteractive":true,"location":{"city":"Madrid","countryOrRegion":"ES","geoCoordinates":{"altitude":null,"latitude":40.416,"longitude":-3.703},"state":"Madrid"},"resourceDisplayName":"Windows Azure Active Directory","resourceId":"00000001-0000-0000-d000-000000000000","riskDetail":"none","riskEventTypes":[],"riskEventTypes_v2":[],"riskLevelAggregated":"none","riskLevelDuringSignIn":"none","riskState":"none","status":{"additionalDetails":null,"errorCode":0,"failureReason":"Other."},"userDisplayName":"Admin Read Only","userId":"6838ec00-f384-40d8-b288-989103aed42b","userPrincipalName":"reports@example.onmicrosoft.com"}
+    """
+
+    parser_code_file_path = None
+    logs_file_path = None
+
+    try:
+        # Create temporary parser code file
+        with tempfile.NamedTemporaryFile(
+            suffix=".yara", mode="w+", delete=False
+        ) as temp_file:
+            temp_file.write(sample_parser_code)
+            parser_code_file_path = temp_file.name
+
+        # Create temporary logs file
+        with tempfile.NamedTemporaryFile(
+            suffix=".log", mode="w+", delete=False
+        ) as temp_file:
+            temp_file.write(sample_logs_file_content)
+            logs_file_path = temp_file.name
+
+        # --- Scenario 1: Using --parser-code-file and --logs-file ---
+        run_cmd_file_input = (
+            [
+                "secops",  # Replace with your actual CLI entry point
+            ]
+            + common_args
+            + [
+                "parser",
+                "run",
+                "--log-type",
+                test_log_type,
+                "--parser-code-file",
+                parser_code_file_path,
+                "--logs-file",
+                logs_file_path,
+                "--statedump-allowed",
+            ]
+        )
+
+        run_result_file_input = subprocess.run(
+            run_cmd_file_input, env=cli_env, capture_output=True, text=True
+        )
+
+        # Assert CLI command execution success
+        assert (
+            run_result_file_input.returncode == 0
+        ), f"Parser run with files failed: {run_result_file_input.stderr}\n{run_result_file_input.stdout}"
+
+        # Parse and assert the output
+        run_output_file_input = json.loads(run_result_file_input.stdout)
+        assert "parsedEvents" in run_output_file_input["runParserResults"][0]
+
+    finally:
+        # Clean up temporary files regardless of test outcome
+        if parser_code_file_path and os.path.exists(parser_code_file_path):
+            os.unlink(parser_code_file_path)
+            print(f"Cleaned up {parser_code_file_path}")
+        if logs_file_path and os.path.exists(logs_file_path):
+            os.unlink(logs_file_path)
+            print(f"Cleaned up {logs_file_path}")
+
+
+@pytest.mark.integration
+def test_cli_parser_run_with_multiple_logs(cli_env, common_args):
+    """Test the 'parser run' command with multiple --log arguments."""
+    test_log_type = "RESERVED_LOG_TYPE_1"
+
+    parser_code = r"""
+    filter {
+        mutate {
+          replace => {
+            "event1.idm.read_only_udm.metadata.event_type" => "GENERIC_EVENT"
+          }
+        }
+    }
+    """
+
+    # Test logs
+    log1 = '{"event": "test1", "timestamp": "2025-01-01T00:00:00Z"}'
+    log2 = '{"event": "test2", "timestamp": "2025-01-01T00:01:00Z"}'
+    log3 = '{"event": "test3", "timestamp": "2025-01-01T00:02:00Z"}'
+
+    parser_code_file_path = None
+
+    try:
+        # Create temporary parser code file
+        with tempfile.NamedTemporaryFile(
+            suffix=".conf", mode="w+", delete=False
+        ) as temp_file:
+            temp_file.write(parser_code)
+            parser_code_file_path = temp_file.name
+
+        # Test with multiple --log arguments
+        run_cmd = (
+            [
+                "secops",
+            ]
+            + common_args
+            + [
+                "parser",
+                "run",
+                "--log-type",
+                test_log_type,
+                "--parser-code-file",
+                parser_code_file_path,
+                "--log",
+                log1,
+                "--log",
+                log2,
+                "--log",
+                log3,
+            ]
+        )
+
+        run_result = subprocess.run(
+            run_cmd, env=cli_env, capture_output=True, text=True
+        )
+
+        assert (
+            run_result.returncode == 0
+        ), f"Parser run with multiple logs failed: {run_result.stderr}\n{run_result.stdout}"
+
+        # Parse and verify output
+        output = json.loads(run_result.stdout)
+        assert "runParserResults" in output
+        # Should have processed 3 logs
+        assert len(output["runParserResults"]) >= 1
+
+    finally:
+        if parser_code_file_path and os.path.exists(parser_code_file_path):
+            os.unlink(parser_code_file_path)
+
+
+@pytest.mark.integration
+def test_cli_parser_run_with_extension(cli_env, common_args):
+    """Test the 'parser run' command with parser extension."""
+    test_log_type = "RESERVED_LOG_TYPE_1"
+
+    parser_code = r"""
+    filter {
+        mutate {
+          replace => {
+            "event1.idm.read_only_udm.metadata.event_type" => "GENERIC_EVENT"
+          }
+        }
+    }
+    """
+
+    parser_extension = r"""
+    filter {
+        mutate {
+          add_field => {
+            "event1.idm.read_only_udm.metadata.product_name" => "Extended Product"
+          }
+        }
+    }
+    """
+
+    test_log = '{"message": "Test log with extension"}'
+
+    parser_code_file_path = None
+    extension_file_path = None
+
+    try:
+        # Create temporary files
+        with tempfile.NamedTemporaryFile(
+            suffix=".conf", mode="w+", delete=False
+        ) as temp_file:
+            temp_file.write(parser_code)
+            parser_code_file_path = temp_file.name
+
+        with tempfile.NamedTemporaryFile(
+            suffix=".conf", mode="w+", delete=False
+        ) as temp_file:
+            temp_file.write(parser_extension)
+            extension_file_path = temp_file.name
+
+        # Test with parser extension
+        run_cmd = (
+            [
+                "secops",
+            ]
+            + common_args
+            + [
+                "parser",
+                "run",
+                "--log-type",
+                test_log_type,
+                "--parser-code-file",
+                parser_code_file_path,
+                "--parser-extension-code-file",
+                extension_file_path,
+                "--log",
+                test_log,
+            ]
+        )
+
+        run_result = subprocess.run(
+            run_cmd, env=cli_env, capture_output=True, text=True
+        )
+
+        assert (
+            run_result.returncode == 0
+        ), f"Parser run with extension failed: {run_result.stderr}\n{run_result.stdout}"
+
+        # Verify output
+        output = json.loads(run_result.stdout)
+        assert "runParserResults" in output
+
+    finally:
+        if parser_code_file_path and os.path.exists(parser_code_file_path):
+            os.unlink(parser_code_file_path)
+        if extension_file_path and os.path.exists(extension_file_path):
+            os.unlink(extension_file_path)
+
+
+@pytest.mark.integration
+def test_cli_parser_run_error_cases(cli_env, common_args):
+    """Test error handling for the 'parser run' command."""
+    test_log_type = "RESERVED_LOG_TYPE_1"
+
+    # Test 1: Missing required arguments
+    run_cmd = (
+        [
+            "secops",
+        ]
+        + common_args
+        + [
+            "parser",
+            "run",
+            "--log-type",
+            test_log_type,
+            # Missing parser code and logs
+        ]
+    )
+
+    run_result = subprocess.run(run_cmd, env=cli_env, capture_output=True, text=True)
+
+    assert run_result.returncode != 0, "Should fail with missing required arguments"
+
+    # Test 2: Invalid file path
+    run_cmd = (
+        [
+            "secops",
+        ]
+        + common_args
+        + [
+            "parser",
+            "run",
+            "--log-type",
+            test_log_type,
+            "--parser-code-file",
+            "/non/existent/file.conf",
+            "--logs-file",
+            "/non/existent/logs.txt",
+        ]
+    )
+
+    run_result = subprocess.run(run_cmd, env=cli_env, capture_output=True, text=True)
+
+    assert run_result.returncode != 0, "Should fail with invalid file paths"
+    assert "Error reading" in run_result.stderr
+
+    # Test 3: Empty logs file
+    empty_logs_file = None
+    parser_file = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            suffix=".log", mode="w+", delete=False
+        ) as temp_file:
+            # Write nothing to create empty file
+            empty_logs_file = temp_file.name
+
+        with tempfile.NamedTemporaryFile(
+            suffix=".conf", mode="w+", delete=False
+        ) as temp_file:
+            temp_file.write("filter {}")
+            parser_file = temp_file.name
+
+        run_cmd = (
+            [
+                "secops",
+            ]
+            + common_args
+            + [
+                "parser",
+                "run",
+                "--log-type",
+                test_log_type,
+                "--parser-code-file",
+                parser_file,
+                "--logs-file",
+                empty_logs_file,
+            ]
+        )
+
+        run_result = subprocess.run(
+            run_cmd, env=cli_env, capture_output=True, text=True
+        )
+
+        # Empty logs should fail with current implementation
+        assert run_result.returncode != 0
+        assert "No logs provided" in run_result.stderr
+
+    finally:
+        if empty_logs_file and os.path.exists(empty_logs_file):
+            os.unlink(empty_logs_file)
+        if parser_file and os.path.exists(parser_file):
+            os.unlink(parser_file)
+
+
+@pytest.mark.integration
 def test_cli_rule_list(cli_env, common_args):
     """Test the rule list command."""
     # Execute the CLI command
@@ -767,11 +1120,11 @@ def test_cli_alert(cli_env, common_args):
     try:
         output = json.loads(result.stdout)
         assert "complete" in output
-        
+
         # If there are alerts with cases, test case retrieval
         alerts = output.get("alerts", {}).get("alerts", [])
         case_ids = [alert.get("caseName") for alert in alerts if alert.get("caseName")]
-        
+
         if case_ids:
             # Test case retrieval with the found case IDs
             case_cmd = (
@@ -779,22 +1132,30 @@ def test_cli_alert(cli_env, common_args):
                     "secops",
                 ]
                 + common_args
-                + ["case", "--ids", ",".join(case_ids[:3])]  # Test with up to 3 case IDs
+                + [
+                    "case",
+                    "--ids",
+                    ",".join(case_ids[:3]),
+                ]  # Test with up to 3 case IDs
             )
-            
-            case_result = subprocess.run(case_cmd, env=cli_env, capture_output=True, text=True)
-            
+
+            case_result = subprocess.run(
+                case_cmd, env=cli_env, capture_output=True, text=True
+            )
+
             # Case retrieval might fail if cases are not accessible, which is OK
             if case_result.returncode == 0:
                 try:
                     case_output = json.loads(case_result.stdout)
                     assert "cases" in case_output
-                    print(f"Successfully retrieved {len(case_output.get('cases', []))} cases")
+                    print(
+                        f"Successfully retrieved {len(case_output.get('cases', []))} cases"
+                    )
                 except json.JSONDecodeError:
                     print("Could not parse case output as JSON")
             else:
                 print(f"Case retrieval failed (this is OK): {case_result.stderr}")
-                
+
     except json.JSONDecodeError:
         # If not valid JSON, check for expected error messages
         assert "Error:" not in result.stdout

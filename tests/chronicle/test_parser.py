@@ -27,6 +27,10 @@ from secops.chronicle.parser import (
     delete_parser,
     get_parser,
     list_parsers,
+    run_parser,
+    MAX_LOG_SIZE,
+    MAX_LOGS,
+    MAX_TOTAL_SIZE,
 )
 from secops.exceptions import APIError, SecOpsError
 
@@ -418,3 +422,378 @@ def test_list_parsers_with_optional_params(chronicle_client, mock_response):
             },
         )
         assert result == expected_parsers
+
+
+# --- run_parser Tests ---
+def test_run_parser_success(chronicle_client, mock_response):
+    """Test run_parser function for success."""
+    log_type = "WINDOWS_AD"
+    parser_code = "filter { mutate { add_field => { 'test' => 'value' } } }"
+    parser_extension_code = "snippet { add_field => { 'ext' => 'value' } }"
+    logs = ["log line 1", "log line 2"]
+
+    expected_result = {
+        "runParserResults": [
+            {"parsedEvents": [{"event": {"test": "value", "ext": "value"}}]}
+        ]
+    }
+    mock_response.json.return_value = expected_result
+
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_response
+    ) as mock_post:
+        result = run_parser(
+            chronicle_client,
+            log_type=log_type,
+            parser_code=parser_code,
+            parser_extension_code=parser_extension_code,
+            logs=logs,
+            statedump_allowed=True,
+        )
+
+        expected_url = f"{chronicle_client.base_url}/{chronicle_client.instance_id}/logTypes/{log_type}:runParser"
+
+        # Verify the request body
+        called_args = mock_post.call_args
+        assert called_args[0][0] == expected_url
+
+        request_body = called_args[1]["json"]
+        assert "parser" in request_body
+        assert "parser_extension" in request_body
+        assert "log" in request_body
+        assert request_body["statedump_allowed"] is True
+
+        # Verify base64 encoding
+        assert request_body["parser"]["cbn"] == base64.b64encode(
+            parser_code.encode("utf8")
+        ).decode("utf-8")
+        assert request_body["parser_extension"]["cbn_snippet"] == base64.b64encode(
+            parser_extension_code.encode("utf8")
+        ).decode("utf-8")
+        assert len(request_body["log"]) == 2
+        assert request_body["log"][0] == base64.b64encode(
+            logs[0].encode("utf8")
+        ).decode("utf-8")
+        assert request_body["log"][1] == base64.b64encode(
+            logs[1].encode("utf8")
+        ).decode("utf-8")
+
+        assert result == expected_result
+
+
+def test_run_parser_without_extension(chronicle_client, mock_response):
+    """Test run_parser function without parser extension."""
+    log_type = "OKTA"
+    parser_code = "filter { mutate { add_field => { 'test' => 'value' } } }"
+    logs = ["log line 1"]
+
+    expected_result = {"runParserResults": [{"parsedEvents": []}]}
+    mock_response.json.return_value = expected_result
+
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_response
+    ) as mock_post:
+        result = run_parser(
+            chronicle_client,
+            log_type=log_type,
+            parser_code=parser_code,
+            parser_extension_code="",  # Empty extension
+            logs=logs,
+            statedump_allowed=False,
+        )
+
+        called_args = mock_post.call_args
+        request_body = called_args[1]["json"]
+
+        # Verify parser_extension is None when empty
+        assert request_body["parser_extension"] is None
+        assert request_body["statedump_allowed"] is False
+
+        assert result == expected_result
+
+
+def test_run_parser_empty_logs(chronicle_client):
+    """Test run_parser function with empty logs list."""
+    # Empty logs should now raise a ValueError
+    with pytest.raises(ValueError) as exc_info:
+        run_parser(
+            chronicle_client,
+            log_type="WINDOWS",
+            parser_code="filter {}",
+            parser_extension_code="",
+            logs=[],
+        )
+    assert "At least one log must be provided" in str(exc_info.value)
+
+
+def test_run_parser_unicode_logs(chronicle_client, mock_response):
+    """Test run_parser function with unicode characters in logs."""
+    log_type = "CUSTOM"
+    parser_code = "filter {}"
+    logs = ["日本語ログ", "Ñoño log with émojis 🎉"]
+
+    expected_result = {"runParserResults": [{"parsedEvents": []}]}
+    mock_response.json.return_value = expected_result
+
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_response
+    ) as mock_post:
+        result = run_parser(
+            chronicle_client,
+            log_type=log_type,
+            parser_code=parser_code,
+            parser_extension_code="",
+            logs=logs,
+        )
+
+        called_args = mock_post.call_args
+        request_body = called_args[1]["json"]
+
+        # Verify unicode is properly encoded
+        assert request_body["log"][0] == base64.b64encode(
+            logs[0].encode("utf8")
+        ).decode("utf-8")
+        assert request_body["log"][1] == base64.b64encode(
+            logs[1].encode("utf8")
+        ).decode("utf-8")
+
+        assert result == expected_result
+
+
+def test_run_parser_error(chronicle_client, mock_error_response):
+    """Test run_parser function for API error."""
+    log_type = "WINDOWS"
+    parser_code = "invalid parser"
+    logs = ["test log"]
+
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_error_response
+    ):
+        with pytest.raises(APIError) as exc_info:
+            run_parser(
+                chronicle_client,
+                log_type=log_type,
+                parser_code=parser_code,
+                parser_extension_code="",
+                logs=logs,
+            )
+        # Check for the new detailed error message format
+        assert "Failed to evaluate parser for log type 'WINDOWS'" in str(exc_info.value)
+        assert "Bad request" in str(exc_info.value)
+
+
+def test_run_parser_large_logs(chronicle_client, mock_response):
+    """Test run_parser function with large log entries."""
+    log_type = "BIG_DATA"
+    parser_code = "filter {}"
+    # Create a large log entry (1MB)
+    large_log = "x" * (1024 * 1024)
+    logs = [large_log]
+
+    expected_result = {"runParserResults": [{"parsedEvents": []}]}
+    mock_response.json.return_value = expected_result
+
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_response
+    ) as mock_post:
+        result = run_parser(
+            chronicle_client,
+            log_type=log_type,
+            parser_code=parser_code,
+            parser_extension_code="",
+            logs=logs,
+        )
+
+        called_args = mock_post.call_args
+        request_body = called_args[1]["json"]
+
+        # Verify large log is properly encoded
+        assert len(request_body["log"]) == 1
+        # Base64 encoding increases size by ~33%
+        assert len(request_body["log"][0]) > 1024 * 1024
+
+        assert result == expected_result
+
+
+def test_run_parser_validation_empty_log_type(chronicle_client):
+    """Test run_parser validation for empty log_type."""
+    with pytest.raises(ValueError) as exc_info:
+        run_parser(
+            chronicle_client,
+            log_type="",
+            parser_code="filter {}",
+            parser_extension_code="",
+            logs=["test log"],
+        )
+    assert "log_type cannot be empty" in str(exc_info.value)
+
+
+def test_run_parser_validation_empty_parser_code(chronicle_client):
+    """Test run_parser validation for empty parser_code."""
+    with pytest.raises(ValueError) as exc_info:
+        run_parser(
+            chronicle_client,
+            log_type="OKTA",
+            parser_code="",
+            parser_extension_code="",
+            logs=["test log"],
+        )
+    assert "parser_code cannot be empty" in str(exc_info.value)
+
+
+def test_run_parser_validation_logs_not_list(chronicle_client):
+    """Test run_parser validation when logs is not a list."""
+    with pytest.raises(TypeError) as exc_info:
+        run_parser(
+            chronicle_client,
+            log_type="OKTA",
+            parser_code="filter {}",
+            parser_extension_code="",
+            logs="not a list",  # type: ignore
+        )
+    assert "logs must be a list" in str(exc_info.value)
+
+
+def test_run_parser_validation_log_too_large(chronicle_client):
+    """Test run_parser validation when a log exceeds size limit."""
+    large_log = "x" * (MAX_LOG_SIZE + 1)
+    with pytest.raises(ValueError) as exc_info:
+        run_parser(
+            chronicle_client,
+            log_type="OKTA",
+            parser_code="filter {}",
+            parser_extension_code="",
+            logs=[large_log],
+        )
+    assert "exceeds maximum size" in str(exc_info.value)
+    assert str(MAX_LOG_SIZE) in str(exc_info.value)
+
+
+def test_run_parser_validation_too_many_logs(chronicle_client):
+    """Test run_parser validation when too many logs are provided."""
+    logs = ["log"] * (MAX_LOGS + 1)
+    with pytest.raises(ValueError) as exc_info:
+        run_parser(
+            chronicle_client,
+            log_type="OKTA",
+            parser_code="filter {}",
+            parser_extension_code="",
+            logs=logs,
+        )
+    assert f"exceeds maximum of {MAX_LOGS}" in str(exc_info.value)
+
+
+def test_run_parser_validation_total_size_exceeded(chronicle_client):
+    """Test run_parser validation when total size exceeds limit."""
+    # Create logs that individually are OK but together exceed total limit
+    log_size = 1024 * 1024  # 1MB each
+    num_logs = (MAX_TOTAL_SIZE // log_size) + 2
+    logs = ["x" * log_size for _ in range(num_logs)]
+
+    with pytest.raises(ValueError) as exc_info:
+        run_parser(
+            chronicle_client,
+            log_type="OKTA",
+            parser_code="filter {}",
+            parser_extension_code="",
+            logs=logs,
+        )
+    assert "Total size of all logs" in str(exc_info.value)
+    assert str(MAX_TOTAL_SIZE) in str(exc_info.value)
+
+
+def test_run_parser_validation_invalid_extension_type(chronicle_client):
+    """Test run_parser validation when parser_extension_code is wrong type."""
+    with pytest.raises(TypeError) as exc_info:
+        run_parser(
+            chronicle_client,
+            log_type="OKTA",
+            parser_code="filter {}",
+            parser_extension_code=123,  # type: ignore
+            logs=["test log"],
+        )
+    assert "parser_extension_code must be a string or None" in str(exc_info.value)
+
+
+def test_run_parser_detailed_error_400(chronicle_client, mock_response):
+    """Test run_parser with detailed error message for 400 status."""
+    mock_response.status_code = 400
+    mock_response.text = "Invalid log type: INVALID_TYPE"
+
+    with patch.object(chronicle_client.session, "post", return_value=mock_response):
+        with pytest.raises(APIError) as exc_info:
+            run_parser(
+                chronicle_client,
+                log_type="INVALID_TYPE",
+                parser_code="filter {}",
+                parser_extension_code="",
+                logs=["test log"],
+            )
+        error_msg = str(exc_info.value)
+        assert "Failed to evaluate parser for log type 'INVALID_TYPE'" in error_msg
+        assert "Bad request" in error_msg
+        assert "Log type 'INVALID_TYPE' may not be valid" in error_msg
+
+
+def test_run_parser_detailed_error_404(chronicle_client, mock_response):
+    """Test run_parser with detailed error message for 404 status."""
+    mock_response.status_code = 404
+    mock_response.text = "Not found"
+
+    with patch.object(chronicle_client.session, "post", return_value=mock_response):
+        with pytest.raises(APIError) as exc_info:
+            run_parser(
+                chronicle_client,
+                log_type="MISSING_TYPE",
+                parser_code="filter {}",
+                parser_extension_code="",
+                logs=["test log"],
+            )
+        error_msg = str(exc_info.value)
+        assert "Log type 'MISSING_TYPE' not found" in error_msg
+
+
+def test_run_parser_detailed_error_413(chronicle_client, mock_response):
+    """Test run_parser with detailed error message for 413 status."""
+    mock_response.status_code = 413
+    mock_response.text = "Request entity too large"
+
+    with patch.object(chronicle_client.session, "post", return_value=mock_response):
+        with pytest.raises(APIError) as exc_info:
+            run_parser(
+                chronicle_client,
+                log_type="OKTA",
+                parser_code="filter {}",
+                parser_extension_code="",
+                logs=["test log"],
+            )
+        error_msg = str(exc_info.value)
+        assert "Request too large" in error_msg
+        assert "Try reducing the number or size of logs" in error_msg
+
+
+def test_run_parser_validation_empty_logs_list(chronicle_client):
+    """Test run_parser validation for empty logs list."""
+    with pytest.raises(ValueError) as exc_info:
+        run_parser(
+            chronicle_client,
+            log_type="OKTA",
+            parser_code="filter {}",
+            parser_extension_code="",
+            logs=[],
+        )
+    assert "At least one log must be provided" in str(exc_info.value)
+
+
+def test_run_parser_validation_non_string_log(chronicle_client):
+    """Test run_parser validation when a log is not a string."""
+    with pytest.raises(TypeError) as exc_info:
+        run_parser(
+            chronicle_client,
+            log_type="OKTA",
+            parser_code="filter {}",
+            parser_extension_code="",
+            logs=["valid log", 123, "another log"],  # type: ignore
+        )
+    assert "All logs must be strings" in str(exc_info.value)
+    assert "index 1" in str(exc_info.value)
