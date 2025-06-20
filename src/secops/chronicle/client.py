@@ -820,9 +820,7 @@ class ChronicleClient:
             SecOpsError: If the input parameters are invalid
             ValueError: If max_results is outside valid range
         """
-        return test_rule(
-            self, rule_text, start_time, end_time, max_results, timeout
-        )
+        return test_rule(self, rule_text, start_time, end_time, max_results, timeout)
 
     # Rule Alert methods
 

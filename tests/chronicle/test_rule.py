@@ -63,18 +63,18 @@ def mock_streaming_response():
     """Create a mock streaming API response."""
     mock = Mock()
     mock.status_code = 200
-    
+
     # Create an iterable with simulated chunks of streamed response
     chunks = [
         '{"type": "progress", "percentDone": 10}\n',
         '{"type": "progress", "percentDone": 50}\n',
         '{"type": "detection", "detection": {"rule_id": "rule1", "data": "test"}}\n',
-        '{"type": "progress", "percentDone": 100}\n'
+        '{"type": "progress", "percentDone": 100}\n',
     ]
-    
+
     # Set up the iter_content method to return our chunks
     mock.iter_content.return_value = chunks
-    
+
     return mock
 
 
@@ -358,13 +358,13 @@ def test_test_rule(chronicle_client, mock_streaming_response):
     start_time = datetime(2023, 1, 1, tzinfo=timezone.utc)
     end_time = datetime(2023, 1, 2, tzinfo=timezone.utc)
     rule_text = "rule test {}"
-    
+
     with patch.object(
         chronicle_client.session, "post", return_value=mock_streaming_response
     ) as mock_post:
         # Act
         results = list(test_rule(chronicle_client, rule_text, start_time, end_time))
-        
+
         # Assert
         mock_post.assert_called_once_with(
             f"{chronicle_client.base_url}/legacy:legacyRunTestRule",
@@ -380,12 +380,15 @@ def test_test_rule(chronicle_client, mock_streaming_response):
             stream=True,
             timeout=300,
         )
-        
+
         # Verify we processed all streamed objects
         assert len(results) == 4
         assert results[0] == {"type": "progress", "percentDone": 10}
         assert results[1] == {"type": "progress", "percentDone": 50}
-        assert results[2] == {"type": "detection", "detection": {"rule_id": "rule1", "data": "test"}}
+        assert results[2] == {
+            "type": "detection",
+            "detection": {"rule_id": "rule1", "data": "test"},
+        }
         assert results[3] == {"type": "progress", "percentDone": 100}
 
 
@@ -395,14 +398,14 @@ def test_test_rule_error(chronicle_client, mock_error_response):
     start_time = datetime(2023, 1, 1, tzinfo=timezone.utc)
     end_time = datetime(2023, 1, 2, tzinfo=timezone.utc)
     rule_text = "rule test {}"
-    
+
     with patch.object(
         chronicle_client.session, "post", return_value=mock_error_response
     ):
         # Act & Assert
         with pytest.raises(APIError) as exc_info:
             list(test_rule(chronicle_client, rule_text, start_time, end_time))
-        
+
         assert "Failed to test rule" in str(exc_info.value)
 
 
@@ -412,17 +415,23 @@ def test_test_rule_invalid_max_results(chronicle_client):
     start_time = datetime(2023, 1, 1)
     end_time = datetime(2023, 1, 2)
     rule_text = "rule test {}"
-    
+
     # Act & Assert - Test with too large value
     with pytest.raises(ValueError) as exc_info:
-        list(test_rule(chronicle_client, rule_text, start_time, end_time, max_results=20000))
-    
+        list(
+            test_rule(
+                chronicle_client, rule_text, start_time, end_time, max_results=20000
+            )
+        )
+
     assert "max_results must be between" in str(exc_info.value)
-    
+
     # Act & Assert - Test with negative value
     with pytest.raises(ValueError) as exc_info:
-        list(test_rule(chronicle_client, rule_text, start_time, end_time, max_results=-5))
-    
+        list(
+            test_rule(chronicle_client, rule_text, start_time, end_time, max_results=-5)
+        )
+
     assert "max_results must be between" in str(exc_info.value)
 
 
@@ -432,12 +441,12 @@ def test_test_rule_handles_exceptions(chronicle_client):
     start_time = datetime(2023, 1, 1)
     end_time = datetime(2023, 1, 2)
     rule_text = "rule test {}"
-    
+
     with patch.object(
         chronicle_client.session, "post", side_effect=Exception("Connection error")
     ):
         # Act & Assert
         with pytest.raises(APIError) as exc_info:
             list(test_rule(chronicle_client, rule_text, start_time, end_time))
-        
+
         assert "Error testing rule" in str(exc_info.value)

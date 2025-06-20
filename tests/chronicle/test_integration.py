@@ -507,29 +507,31 @@ rule test_network_events {
         $e
 }
 """
-    
+
     try:
         print("\nStarting rule testing integration test...")
-        
+
         # Set time range for testing - use a small window to ensure fast response
         end_time = datetime.now(timezone.utc) - timedelta(minutes=60)
-        start_time = end_time - timedelta(minutes=80)  # Just test against 10 minutes of data
-        
+        start_time = end_time - timedelta(
+            minutes=80
+        )  # Just test against 10 minutes of data
+
         print(f"Testing rule against data from {start_time} to {end_time}")
         print("Rule type: Simple network connection finder")
-        
+
         # Test the rule with a low max_results
         results = []
         progress_updates = []
         detection_count = 0
         error_messages = []
-        
+
         # Use test_rule with streaming response
         for result in chronicle.test_rule(
             rule_text=test_rule_text,
             start_time=start_time,
             end_time=end_time,
-            max_results=5  # Keep this small for test purposes
+            max_results=5,  # Keep this small for test purposes
         ):
             # Store results by type for validation
             if result.get("type") == "progress":
@@ -539,41 +541,50 @@ rule test_network_events {
                 results.append(result)
             elif result.get("type") == "error":
                 error_messages.append(result.get("message", "Unknown error"))
-        
+
         # Validate that we got progress updates
-        assert len(progress_updates) > 0, "Should have received at least one progress update"
-        
+        assert (
+            len(progress_updates) > 0
+        ), "Should have received at least one progress update"
+
         # Print summary of what we found
         print(f"Received {len(progress_updates)} progress updates")
         print(f"Found {detection_count} detections")
-        
+
         if error_messages:
             print(f"Encountered {len(error_messages)} errors: {error_messages}")
-        
+
         # Check the progress updates - should have at least one with 100%
-        assert any(p == 100 for p in progress_updates), "Should have received a 100% progress update"
-        
+        assert any(
+            p == 100 for p in progress_updates
+        ), "Should have received a 100% progress update"
+
         # We don't assert on detection_count as it might be 0 in some environments
         # The test passes as long as the API responds properly
-        
+
         # If we got detections, validate their structure
         if results:
             detection = results[0].get("detection", {})
-            assert "id" in detection or "resultEvents" in detection, "Detection should have id or resultEvents field"
+            assert (
+                "id" in detection or "resultEvents" in detection
+            ), "Detection should have id or resultEvents field"
             print("Detection structure validation passed")
-            
+
     except APIError as e:
         print(f"API Error during rule testing: {str(e)}")
-        
+
         # If we get a "not found" or permission error, skip rather than fail
         if (
-            "permission" in str(e).lower() 
+            "permission" in str(e).lower()
             or "not found" in str(e).lower()
             or "not enabled" in str(e).lower()
             or "not authorized" in str(e).lower()
-            or "outside available data range" in str(e).lower()  # Also skip if data not available
+            or "outside available data range"
+            in str(e).lower()  # Also skip if data not available
         ):
-            pytest.skip(f"Skipping due to permission/access issues or data range limitations: {str(e)}")
+            pytest.skip(
+                f"Skipping due to permission/access issues or data range limitations: {str(e)}"
+            )
         raise
 
 

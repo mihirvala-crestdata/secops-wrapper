@@ -993,31 +993,34 @@ rule test_network_connection {
             ]
             + common_args
             + [
-                "rule", 
-                "test", 
-                "--file", 
+                "rule",
+                "test",
+                "--file",
                 temp_file_path,
-                "--time-window", 
+                "--time-window",
                 "10",  # Use a small time window for faster testing
                 "--max-results",
-                "5"   # Limit to 5 results for faster testing
+                "5",  # Limit to 5 results for faster testing
             ]
         )
 
         result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
-        
+
         # The command may fail in some environments due to permissions or lack of data
         # So we'll skip the test rather than fail it in those cases
-        if "permission" in result.stderr.lower() or "not authorized" in result.stderr.lower():
+        if (
+            "permission" in result.stderr.lower()
+            or "not authorized" in result.stderr.lower()
+        ):
             pytest.skip(f"Skipping test due to permission issues: {result.stderr}")
-            
+
         # If we get a success response, check that it contains expected output elements
         if result.returncode == 0:
             # Should show progress updates
             assert "Progress:" in result.stderr
             # Should indicate completion
             assert "Finished testing" in result.stderr
-            
+
         # Test 2: Test with specific date range
         cmd_date_range = (
             [
@@ -1025,28 +1028,32 @@ rule test_network_connection {
             ]
             + common_args
             + [
-                "rule", 
-                "test", 
-                "--file", 
+                "rule",
+                "test",
+                "--file",
                 temp_file_path,
-                "--start-time", 
-                (datetime.now(timezone.utc) - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "--start-time",
+                (datetime.now(timezone.utc) - timedelta(minutes=30)).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ),
                 "--end-time",
                 datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "--max-results",
-                "5"   # Limit to 5 results for faster testing
+                "5",  # Limit to 5 results for faster testing
             ]
         )
 
-        result_date_range = subprocess.run(cmd_date_range, env=cli_env, capture_output=True, text=True)
-        
+        result_date_range = subprocess.run(
+            cmd_date_range, env=cli_env, capture_output=True, text=True
+        )
+
         # If we get a success response, check that it contains expected output elements
         if result_date_range.returncode == 0:
             # Should show progress updates
             assert "Progress:" in result_date_range.stderr
             # Should indicate completion
             assert "Finished testing" in result_date_range.stderr
-            
+
     except Exception as e:
         pytest.fail(f"Unexpected error in CLI rule test command: {str(e)}")
     finally:

@@ -272,10 +272,10 @@ def test_rule(
         start_time = start_time.replace(tzinfo=timezone.utc)
     if not end_time.tzinfo:
         end_time = end_time.replace(tzinfo=timezone.utc)
-        
+
     # Format as RFC3339 with Z suffix
-    start_time_str = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
-    end_time_str = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+    start_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end_time_str = end_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Fix: Use the full path for the legacy API endpoint
     url = f"{client.base_url}/projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}/legacy:legacyRunTestRule"
@@ -287,20 +287,20 @@ def test_rule(
             "endTime": end_time_str,
         },
         "maxResults": max_results,
-        "scope": ""  # Empty scope parameter
+        "scope": "",  # Empty scope parameter
     }
 
     # Make the request and get the complete response
     try:
         response = client.session.post(url, json=body, timeout=timeout)
-        
+
         if response.status_code != 200:
             raise APIError(f"Failed to test rule: {response.text}")
-        
+
         # Parse the response as a JSON array
         try:
             json_array = json.loads(response.text)
-            
+
             # Yield each item in the array
             for item in json_array:
                 # Transform the response items to match the expected format
@@ -310,17 +310,24 @@ def test_rule(
                 elif "progressPercent" in item:
                     yield {"type": "progress", "percentDone": item["progressPercent"]}
                 elif "ruleCompilationError" in item:
-                    yield {"type": "error", "message": item["ruleCompilationError"], "isCompilationError": True}
+                    yield {
+                        "type": "error",
+                        "message": item["ruleCompilationError"],
+                        "isCompilationError": True,
+                    }
                 elif "ruleError" in item:
                     yield {"type": "error", "message": item["ruleError"]}
                 elif "tooManyDetections" in item and item["tooManyDetections"]:
-                    yield {"type": "info", "message": "Too many detections found, results may be incomplete"}
+                    yield {
+                        "type": "info",
+                        "message": "Too many detections found, results may be incomplete",
+                    }
                 else:
                     # Unknown item type, yield as-is
                     yield item
-                    
+
         except json.JSONDecodeError as e:
             raise APIError(f"Failed to parse rule test response: {str(e)}")
-    
+
     except Exception as e:
         raise APIError(f"Error testing rule: {str(e)}")

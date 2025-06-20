@@ -1309,23 +1309,23 @@ rule test_network_connections {
     detection_count = 0
     event_count = 0
     last_progress = 0
-    
+
     for result in chronicle.test_rule(test_rule, start_time, end_time, max_results=5):
         result_type = result.get("type")
-        
+
         if result_type == "progress":
             percent_done = result.get("percentDone", 0)
             if percent_done > last_progress or percent_done == 100:
                 print(f"  Progress: {percent_done}%")
                 last_progress = percent_done
-        
+
         elif result_type == "detection":
             detection_count += 1
             detection = result.get("detection", {})
-            
+
             # Extract UDM events from the detection
             result_events = detection.get("resultEvents", {})
-            
+
             # Process all variables in resultEvents
             for var_name, var_data in result_events.items():
                 event_samples = var_data.get("eventSamples", [])
@@ -1334,7 +1334,7 @@ rule test_network_connections {
                     if event:
                         event_count += 1
                         results.append(event)
-                        
+
                         if len(results) <= 3:  # Show details for first 3 events only
                             print(f"\n  Event {len(results)} details:")
                             metadata = event.get("metadata", {})
@@ -1342,42 +1342,46 @@ rule test_network_connections {
                             event_timestamp = metadata.get("eventTimestamp", "N/A")
                             vendor = metadata.get("vendorName", "N/A")
                             product = metadata.get("productName", "N/A")
-                            
+
                             print(f"    Type: {event_type}")
                             print(f"    Timestamp: {event_timestamp}")
                             print(f"    Vendor/Product: {vendor}/{product}")
-                            
+
                             # Show source and destination if available
-                            principal_ip = event.get("principal", {}).get("ip", ["N/A"])[0]
+                            principal_ip = event.get("principal", {}).get(
+                                "ip", ["N/A"]
+                            )[0]
                             target_ip = event.get("target", {}).get("ip", ["N/A"])[0]
                             print(f"    Source IP: {principal_ip}")
                             print(f"    Target IP: {target_ip}")
-    
+
     # Print summary
-    print(f"\nSummary: Found {detection_count} detections with {event_count} total events")
-    
+    print(
+        f"\nSummary: Found {detection_count} detections with {event_count} total events"
+    )
+
     print("\n2. Extracting only UDM events for further processing:")
-    
+
     # Method 2: Extract just the UDM events for further processing
     print("  Collecting UDM events...")
     udm_events = []
-    
+
     # Reset time range to avoid duplicates
     end_time = datetime.now(timezone.utc)
     start_time = end_time - timedelta(days=7)
-    
+
     for result in chronicle.test_rule(test_rule, start_time, end_time, max_results=5):
         if result.get("type") == "detection":
             detection = result.get("detection", {})
             result_events = detection.get("resultEvents", {})
-            
+
             for var_name, var_data in result_events.items():
                 event_samples = var_data.get("eventSamples", [])
                 for sample in event_samples:
                     event = sample.get("event")
                     if event:
                         udm_events.append(event)
-    
+
     print(f"  Collected {len(udm_events)} UDM events")
     print("  These events can be processed programmatically or output as JSON:")
     print("  Example (first event metadata):")
@@ -1387,7 +1391,7 @@ rule test_network_connections {
         print(f"    Event type: {metadata.get('eventType')}")
         print(f"    Event timestamp: {metadata.get('eventTimestamp')}")
         print(f"    Event ID: {metadata.get('id')}")
-    
+
     return "Rule testing complete"
 
 

@@ -1133,12 +1133,12 @@ def setup_rule_command(subparsers):
         "--file", required=True, help="File containing rule text"
     )
     validate_parser.set_defaults(func=handle_rule_validate_command)
-    
+
     # Test rule command
-    test_parser = rule_subparsers.add_parser("test", help="Test a rule against historical data")
-    test_parser.add_argument(
-        "--file", required=True, help="File containing rule text"
+    test_parser = rule_subparsers.add_parser(
+        "test", help="Test a rule against historical data"
     )
+    test_parser.add_argument("--file", required=True, help="File containing rule text")
     test_parser.add_argument(
         "--max-results",
         "--max_results",
@@ -1255,17 +1255,17 @@ def handle_rule_test_command(args, chronicle):
             rule_text = f.read()
 
         start_time, end_time = get_time_range(args)
-        
+
         # Process streaming results
         all_events = []
-        
+
         for result in chronicle.test_rule(
             rule_text, start_time, end_time, max_results=args.max_results
         ):
             if result.get("type") == "detection":
                 detection = result.get("detection", {})
                 result_events = detection.get("resultEvents", {})
-                
+
                 # Extract UDM events from resultEvents structure
                 # resultEvents is an object with variable names as keys (from the rule)
                 # and each variable contains an eventSamples array with the actual events
@@ -1276,17 +1276,17 @@ def handle_rule_test_command(args, chronicle):
                                 # Extract the actual UDM event
                                 udm_event = sample.get("event")
                                 all_events.append(udm_event)
-        
+
         # Output all events as a single JSON array
         print(json.dumps(all_events))
-        
+
     except APIError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
         print(f"Error: {str(e)}", file=sys.stderr)
         sys.exit(1)
-    
+
     return 0
 
 
@@ -2163,4 +2163,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
