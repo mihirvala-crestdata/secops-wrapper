@@ -1142,6 +1142,7 @@ print(f"Finished testing. Found {detection_count} detection(s).")
 ```
 
 # Extract just the UDM events for programmatic processing
+```python
 udm_events = []
 for result in chronicle.test_rule(rule_text, start_time, end_time, max_results=100):
     if result.get("type") == "detection":
@@ -1160,6 +1161,7 @@ for event in udm_events:
     # Process each UDM event
     metadata = event.get("metadata", {})
     print(f"Event type: {metadata.get('eventType')}")
+```
 
 ### Retrohunts
 
