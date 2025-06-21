@@ -124,10 +124,6 @@ service_account_info = {
 client = SecOpsClient(service_account_info=service_account_info)
 ```
 
-### Custom User-Agent Header
-
-All API requests made by the SDK include a custom User-Agent header `secops-wrapper-sdk`. This helps identify requests coming from this SDK in logs and monitoring systems. The User-Agent is automatically set for all requests and cannot be modified.
-
 ## Using the Chronicle API
 
 ### Initializing the Chronicle Client
