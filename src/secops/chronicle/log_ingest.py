@@ -299,7 +299,7 @@ def ingest_log(
 
         if namespace:
             log_data["environment_namespace"] = namespace
-        
+
         # Fix for labels: API expects a map where values are LogLabel objects
         if labels:
             log_data["labels"] = {
@@ -439,5 +439,5 @@ def ingest_udm(
         except ValueError:
             # If JSON parsing fails, provide the raw text in the return value
             response_data = {"raw_response": response.text}
-    
-    return response_data 
+
+    return response_data
