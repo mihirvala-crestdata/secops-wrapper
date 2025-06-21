@@ -124,6 +124,10 @@ service_account_info = {
 client = SecOpsClient(service_account_info=service_account_info)
 ```
 
+### Custom User-Agent Header
+
+All API requests made by the SDK include a custom User-Agent header `secops-wrapper-sdk`. This helps identify requests coming from this SDK in logs and monitoring systems. The User-Agent is automatically set for all requests and cannot be modified.
+
 ## Using the Chronicle API
 
 ### Initializing the Chronicle Client
@@ -1101,12 +1105,12 @@ rule test_rule {
 }
 """
 
-# Test the rule - this returns a generator that streams results
-test_results = chronicle.test_rule(
+# Test the rule
+test_results = chronicle.run_rule_test(
     rule_text=rule_text,
     start_time=start_time,
     end_time=end_time,
-    max_results=1000  # Maximum number of results to return (1-10000)
+    max_results=100
 )
 
 # Process streaming results
@@ -1141,7 +1145,7 @@ print(f"Finished testing. Found {detection_count} detection(s).")
 # Extract just the UDM events for programmatic processing
 ```python
 udm_events = []
-for result in chronicle.test_rule(rule_text, start_time, end_time, max_results=100):
+for result in chronicle.run_rule_test(rule_text, start_time, end_time, max_results=100):
     if result.get("type") == "detection":
         detection = result.get("detection", {})
         result_events = detection.get("resultEvents", {})

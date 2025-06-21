@@ -1259,7 +1259,7 @@ def handle_rule_test_command(args, chronicle):
         # Process streaming results
         all_events = []
 
-        for result in chronicle.test_rule(
+        for result in chronicle.run_rule_test(
             rule_text, start_time, end_time, max_results=args.max_results
         ):
             if result.get("type") == "detection":

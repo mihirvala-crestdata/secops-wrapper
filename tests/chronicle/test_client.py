@@ -15,7 +15,7 @@
 """Tests for Chronicle API client."""
 from datetime import datetime, timezone, timedelta
 import pytest
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, patch, call, MagicMock
 from secops.chronicle.client import ChronicleClient
 from secops.chronicle.models import (
     Entity,
@@ -33,12 +33,20 @@ from secops.chronicle.models import (
 )
 from secops.exceptions import APIError
 import time
+from config import SERVICE_ACCOUNT_JSON
 
 
 @pytest.fixture
 def chronicle_client():
     """Create a Chronicle client for testing."""
-    return ChronicleClient(customer_id="test-customer", project_id="test-project")
+    with patch("secops.auth.SecOpsAuth") as mock_auth:
+        mock_session = Mock()
+        mock_session.headers = {}
+        mock_auth.return_value.session = mock_session
+        client = ChronicleClient(
+            project_id="test-project", customer_id="test-customer", region="us"
+        )
+        return client
 
 
 @pytest.fixture
@@ -51,12 +59,55 @@ def mock_response():
     return mock
 
 
+def test_chronicle_client_initialization():
+    """Test Chronicle client initialization."""
+    with patch("secops.auth.SecOpsAuth") as mock_auth:
+        mock_session = Mock()
+        mock_session.headers = {}
+        mock_auth.return_value.session = mock_session
+        client = ChronicleClient(
+            project_id="test-project", customer_id="test-customer", region="us"
+        )
+        assert client.project_id == "test-project"
+        assert client.customer_id == "test-customer"
+        assert client.region == "us"
+        assert client.base_url == "https://us-chronicle.googleapis.com/v1alpha"
+
+
+def test_chronicle_client_custom_user_agent():
+    """Test that Chronicle client sets custom user agent."""
+    with patch("secops.auth.SecOpsAuth") as mock_auth:
+        mock_session = Mock()
+        mock_session.headers = {}
+        mock_auth.return_value.session = mock_session
+
+        client = ChronicleClient(
+            project_id="test-project", customer_id="test-customer", region="us"
+        )
+
+        # Verify that the user agent was set
+        assert client.session.headers.get("User-Agent") == "secops-wrapper-sdk"
+
+
+def test_chronicle_client_custom_session_user_agent():
+    """Test that Chronicle client sets custom user agent even with custom session."""
+    mock_session = Mock()
+    mock_session.headers = {}
+
+    client = ChronicleClient(
+        project_id="test-project",
+        customer_id="test-customer",
+        region="us",
+        session=mock_session,
+    )
+
+    # Verify that the user agent was set
+    assert client.session.headers.get("User-Agent") == "secops-wrapper-sdk"
+
+
 def test_fetch_udm_search_csv(chronicle_client, mock_response):
     """Test fetching UDM search results."""
-    with patch(
-        "google.auth.transport.requests.AuthorizedSession.post",
-        return_value=mock_response,
-    ):
+    with patch.object(chronicle_client.session, "post", return_value=mock_response):
         result = chronicle_client.fetch_udm_search_csv(
             query='metadata.event_type = "NETWORK_CONNECTION"',
             start_time=datetime(2024, 1, 14, 23, 7, tzinfo=timezone.utc),
@@ -93,12 +144,11 @@ def test_fetch_udm_search_csv_parsing_error(chronicle_client):
     """Test handling of parsing errors in CSV response."""
     error_response = Mock()
     error_response.status_code = 200
+    # Set text to start with { to trigger JSON parsing attempt
+    error_response.text = '{"invalid": json}'
     error_response.json.side_effect = ValueError("Invalid JSON")
 
-    with patch(
-        "google.auth.transport.requests.AuthorizedSession.post",
-        return_value=error_response,
-    ):
+    with patch.object(chronicle_client.session, "post", return_value=error_response):
         with pytest.raises(APIError) as exc_info:
             chronicle_client.fetch_udm_search_csv(
                 query='metadata.event_type = "NETWORK_CONNECTION"',

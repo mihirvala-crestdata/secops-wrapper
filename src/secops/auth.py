@@ -86,4 +86,6 @@ class SecOpsAuth:
             self._session = google.auth.transport.requests.AuthorizedSession(
                 self.credentials
             )
+            # Set custom user agent
+            self._session.headers["User-Agent"] = "secops-wrapper-sdk"
         return self._session

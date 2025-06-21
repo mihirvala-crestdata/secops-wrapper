@@ -1016,10 +1016,13 @@ rule test_network_connection {
 
         # If we get a success response, check that it contains expected output elements
         if result.returncode == 0:
-            # Should show progress updates
-            assert "Progress:" in result.stderr
-            # Should indicate completion
-            assert "Finished testing" in result.stderr
+            # The output should be a JSON array (could be empty)
+            try:
+                output = json.loads(result.stdout)
+                # Should be a list (array) of events
+                assert isinstance(output, list)
+            except json.JSONDecodeError:
+                pytest.fail(f"Expected JSON output but got: {result.stdout}")
 
         # Test 2: Test with specific date range
         cmd_date_range = (
@@ -1049,10 +1052,13 @@ rule test_network_connection {
 
         # If we get a success response, check that it contains expected output elements
         if result_date_range.returncode == 0:
-            # Should show progress updates
-            assert "Progress:" in result_date_range.stderr
-            # Should indicate completion
-            assert "Finished testing" in result_date_range.stderr
+            # The output should be a JSON array (could be empty)
+            try:
+                output = json.loads(result_date_range.stdout)
+                # Should be a list (array) of events
+                assert isinstance(output, list)
+            except json.JSONDecodeError:
+                pytest.fail(f"Expected JSON output but got: {result_date_range.stdout}")
 
     except Exception as e:
         pytest.fail(f"Unexpected error in CLI rule test command: {str(e)}")

@@ -73,7 +73,7 @@ from secops.chronicle.rule import (
     delete_rule as _delete_rule,
     enable_rule as _enable_rule,
     search_rules as _search_rules,
-    test_rule,
+    run_rule_test,
 )
 from secops.chronicle.rule_alert import (
     get_alert as _get_alert,
@@ -265,6 +265,10 @@ class ChronicleClient:
                 )
 
             self._session = auth.session
+
+        # Ensure custom user agent is set
+        if hasattr(self._session, "headers"):
+            self._session.headers["User-Agent"] = "secops-wrapper-sdk"
 
     @property
     def session(self) -> google_auth_requests.AuthorizedSession:
@@ -791,7 +795,7 @@ class ChronicleClient:
         """
         return _search_rules(self, query)
 
-    def test_rule(
+    def run_rule_test(
         self,
         rule_text: str,
         start_time: datetime,
@@ -820,7 +824,9 @@ class ChronicleClient:
             SecOpsError: If the input parameters are invalid
             ValueError: If max_results is outside valid range
         """
-        return test_rule(self, rule_text, start_time, end_time, max_results, timeout)
+        return run_rule_test(
+            self, rule_text, start_time, end_time, max_results, timeout
+        )
 
     # Rule Alert methods
 

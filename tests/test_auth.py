@@ -56,3 +56,12 @@ def test_custom_scopes():
     auth = SecOpsAuth(service_account_info=SERVICE_ACCOUNT_JSON, scopes=custom_scopes)
     assert auth.credentials is not None
     assert set(custom_scopes).issubset(set(auth.credentials.scopes))
+
+
+def test_custom_user_agent():
+    """Test that custom user agent is set on the session."""
+    auth = SecOpsAuth(service_account_info=SERVICE_ACCOUNT_JSON)
+    session = auth.session
+    assert session is not None
+    assert hasattr(session, "headers")
+    assert session.headers.get("User-Agent") == "secops-wrapper-sdk"

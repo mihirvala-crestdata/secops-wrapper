@@ -520,18 +520,18 @@ rule test_network_events {
         print(f"Testing rule against data from {start_time} to {end_time}")
         print("Rule type: Simple network connection finder")
 
-        # Test the rule with a low max_results
+        # Initialize result tracking variables
         results = []
         progress_updates = []
         detection_count = 0
         error_messages = []
 
-        # Use test_rule with streaming response
-        for result in chronicle.test_rule(
+        # Use run_rule_test with streaming response
+        for result in chronicle.run_rule_test(
             rule_text=test_rule_text,
             start_time=start_time,
             end_time=end_time,
-            max_results=5,  # Keep this small for test purposes
+            max_results=5,
         ):
             # Store results by type for validation
             if result.get("type") == "progress":

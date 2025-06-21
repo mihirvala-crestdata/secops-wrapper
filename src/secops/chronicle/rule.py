@@ -232,7 +232,7 @@ def search_rules(client, query: str) -> Dict[str, Any]:
     return results
 
 
-def test_rule(
+def run_rule_test(
     client,
     rule_text: str,
     start_time: datetime,
