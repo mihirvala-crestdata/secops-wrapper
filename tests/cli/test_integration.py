@@ -471,10 +471,8 @@ def test_cli_parser_run_evaluation(cli_env, common_args):
         # Clean up temporary files regardless of test outcome
         if parser_code_file_path and os.path.exists(parser_code_file_path):
             os.unlink(parser_code_file_path)
-            print(f"Cleaned up {parser_code_file_path}")
         if logs_file_path and os.path.exists(logs_file_path):
             os.unlink(logs_file_path)
-            print(f"Cleaned up {logs_file_path}")
 
 
 @pytest.mark.integration
@@ -957,6 +955,113 @@ rule test_rule {
 
         # Should return "Rule is valid."
         assert "Rule is valid" in result.stdout
+    finally:
+        # Clean up
+        os.unlink(temp_file_path)
+
+
+@pytest.mark.integration
+def test_cli_rule_test(cli_env, common_args):
+    """Test the rule test command."""
+    # Create a temporary file with a simple valid rule
+    with tempfile.NamedTemporaryFile(
+        suffix=".yaral", mode="w+", delete=False
+    ) as temp_file:
+        temp_file.write(
+            """
+rule test_network_connection {
+    meta:
+        description = "Test rule for network connections"
+        author = "CLI Test"
+        severity = "Low"
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
+}
+"""
+        )
+        temp_file_path = temp_file.name
+
+    try:
+        # Test 1: Basic test with time window
+        cmd = (
+            [
+                "secops",
+            ]
+            + common_args
+            + [
+                "rule",
+                "test",
+                "--file",
+                temp_file_path,
+                "--time-window",
+                "10",  # Use a small time window for faster testing
+                "--max-results",
+                "5",  # Limit to 5 results for faster testing
+            ]
+        )
+
+        result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
+
+        # The command may fail in some environments due to permissions or lack of data
+        # So we'll skip the test rather than fail it in those cases
+        if (
+            "permission" in result.stderr.lower()
+            or "not authorized" in result.stderr.lower()
+        ):
+            pytest.skip(f"Skipping test due to permission issues: {result.stderr}")
+
+        # If we get a success response, check that it contains expected output elements
+        if result.returncode == 0:
+            # The output should be a JSON array (could be empty)
+            try:
+                output = json.loads(result.stdout)
+                # Should be a list (array) of events
+                assert isinstance(output, list)
+            except json.JSONDecodeError:
+                pytest.fail(f"Expected JSON output but got: {result.stdout}")
+
+        # Test 2: Test with specific date range
+        cmd_date_range = (
+            [
+                "secops",
+            ]
+            + common_args
+            + [
+                "rule",
+                "test",
+                "--file",
+                temp_file_path,
+                "--start-time",
+                (datetime.now(timezone.utc) - timedelta(minutes=30)).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ),
+                "--end-time",
+                datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "--max-results",
+                "5",  # Limit to 5 results for faster testing
+            ]
+        )
+
+        result_date_range = subprocess.run(
+            cmd_date_range, env=cli_env, capture_output=True, text=True
+        )
+
+        # If we get a success response, check that it contains expected output elements
+        if result_date_range.returncode == 0:
+            # The output should be a JSON array (could be empty)
+            try:
+                output = json.loads(result_date_range.stdout)
+                # Should be a list (array) of events
+                assert isinstance(output, list)
+            except json.JSONDecodeError:
+                pytest.fail(f"Expected JSON output but got: {result_date_range.stdout}")
+
+    except Exception as e:
+        pytest.fail(f"Unexpected error in CLI rule test command: {str(e)}")
     finally:
         # Clean up
         os.unlink(temp_file_path)

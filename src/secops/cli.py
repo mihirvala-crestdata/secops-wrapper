@@ -1134,6 +1134,22 @@ def setup_rule_command(subparsers):
     )
     validate_parser.set_defaults(func=handle_rule_validate_command)
 
+    # Test rule command
+    test_parser = rule_subparsers.add_parser(
+        "test", help="Test a rule against historical data"
+    )
+    test_parser.add_argument("--file", required=True, help="File containing rule text")
+    test_parser.add_argument(
+        "--max-results",
+        "--max_results",
+        dest="max_results",
+        type=int,
+        default=100,
+        help="Maximum results to return (1-10000, default 100)",
+    )
+    add_time_range_args(test_parser)
+    test_parser.set_defaults(func=handle_rule_test_command)
+
     # Search rules command
     search_parser = rule_subparsers.add_parser("search", help="Search rules")
     search_parser.set_defaults(func=handle_rule_search_command)
@@ -1227,6 +1243,51 @@ def handle_rule_validate_command(args, chronicle):
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def handle_rule_test_command(args, chronicle):
+    """Handle rule test command.
+
+    This command tests a rule against historical data and outputs UDM events as JSON objects.
+    """
+    try:
+        with open(args.file, "r") as f:
+            rule_text = f.read()
+
+        start_time, end_time = get_time_range(args)
+
+        # Process streaming results
+        all_events = []
+
+        for result in chronicle.run_rule_test(
+            rule_text, start_time, end_time, max_results=args.max_results
+        ):
+            if result.get("type") == "detection":
+                detection = result.get("detection", {})
+                result_events = detection.get("resultEvents", {})
+
+                # Extract UDM events from resultEvents structure
+                # resultEvents is an object with variable names as keys (from the rule)
+                # and each variable contains an eventSamples array with the actual events
+                for var_name, event_data in result_events.items():
+                    if isinstance(event_data, dict) and "eventSamples" in event_data:
+                        for sample in event_data.get("eventSamples", []):
+                            if "event" in sample:
+                                # Extract the actual UDM event
+                                udm_event = sample.get("event")
+                                all_events.append(udm_event)
+
+        # Output all events as a single JSON array
+        print(json.dumps(all_events))
+
+    except APIError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {str(e)}", file=sys.stderr)
+        sys.exit(1)
+
+    return 0
 
 
 def handle_rule_search_command(args, chronicle):

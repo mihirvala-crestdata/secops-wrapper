@@ -449,6 +449,146 @@ rule test_rule {
 
 
 @pytest.mark.integration
+def test_chronicle_search_rules():
+    """Test Chronicle rule search functionality with real API."""
+    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+
+    try:
+        # Search for rules containing "Uppercase"
+        result = chronicle.search_rules("Uppercase")
+
+        # Basic validation of the response structure
+        assert isinstance(result, dict)
+        assert "rules" in result
+
+        # Print some debug info about what we found
+        print(f"\nFound {len(result['rules'])} rules containing 'Uppercase'")
+
+        # If we found any rules, validate their structure
+        if result["rules"]:
+            rule = result["rules"][0]
+            assert "name" in rule
+            assert "text" in rule
+
+            # Print the first rule's name for debugging
+            print(f"First matching rule ID: {rule['name'].split('/')[-1]}")
+
+            # Verify the search term appears in the rule text
+            assert any(
+                "Uppercase" in rule["text"] for rule in result["rules"]
+            ), "Search term 'Uppercase' not found in any returned rule's text"
+        else:
+            print("No rules found containing 'Uppercase' - this is acceptable")
+
+    except Exception as e:
+        print(f"\nUnexpected error in rule search test: {type(e).__name__}: {str(e)}")
+        pytest.skip(f"Test skipped due to unexpected error: {str(e)}")
+
+
+@pytest.mark.integration
+def test_chronicle_test_rule():
+    """Test Chronicle rule testing functionality with real API."""
+    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+
+    # Create a simple test rule that should find common events
+    test_rule_text = """
+rule test_network_events {
+    meta:
+        description = "Test rule for finding network connection events"
+        author = "SecOps SDK Integration Test"
+        severity = "Informational" 
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
+}
+"""
+
+    try:
+        print("\nStarting rule testing integration test...")
+
+        # Set time range for testing - use a small window to ensure fast response
+        end_time = datetime.now(timezone.utc) - timedelta(minutes=60)
+        start_time = end_time - timedelta(
+            minutes=80
+        )  # Just test against 10 minutes of data
+
+        print(f"Testing rule against data from {start_time} to {end_time}")
+        print("Rule type: Simple network connection finder")
+
+        # Initialize result tracking variables
+        results = []
+        progress_updates = []
+        detection_count = 0
+        error_messages = []
+
+        # Use run_rule_test with streaming response
+        for result in chronicle.run_rule_test(
+            rule_text=test_rule_text,
+            start_time=start_time,
+            end_time=end_time,
+            max_results=5,
+        ):
+            # Store results by type for validation
+            if result.get("type") == "progress":
+                progress_updates.append(result.get("percentDone", 0))
+            elif result.get("type") == "detection":
+                detection_count += 1
+                results.append(result)
+            elif result.get("type") == "error":
+                error_messages.append(result.get("message", "Unknown error"))
+
+        # Validate that we got progress updates
+        assert (
+            len(progress_updates) > 0
+        ), "Should have received at least one progress update"
+
+        # Print summary of what we found
+        print(f"Received {len(progress_updates)} progress updates")
+        print(f"Found {detection_count} detections")
+
+        if error_messages:
+            print(f"Encountered {len(error_messages)} errors: {error_messages}")
+
+        # Check the progress updates - should have at least one with 100%
+        assert any(
+            p == 100 for p in progress_updates
+        ), "Should have received a 100% progress update"
+
+        # We don't assert on detection_count as it might be 0 in some environments
+        # The test passes as long as the API responds properly
+
+        # If we got detections, validate their structure
+        if results:
+            detection = results[0].get("detection", {})
+            assert (
+                "id" in detection or "resultEvents" in detection
+            ), "Detection should have id or resultEvents field"
+            print("Detection structure validation passed")
+
+    except APIError as e:
+        print(f"API Error during rule testing: {str(e)}")
+
+        # If we get a "not found" or permission error, skip rather than fail
+        if (
+            "permission" in str(e).lower()
+            or "not found" in str(e).lower()
+            or "not enabled" in str(e).lower()
+            or "not authorized" in str(e).lower()
+            or "outside available data range"
+            in str(e).lower()  # Also skip if data not available
+        ):
+            pytest.skip(
+                f"Skipping due to permission/access issues or data range limitations: {str(e)}"
+            )
+        raise
+
+
+@pytest.mark.integration
 def test_chronicle_retrohunt():
     """Test Chronicle retrohunt functionality with real API."""
     client = SecOpsClient()
@@ -570,44 +710,6 @@ rule test_rule {
 
     except APIError as e:
         pytest.fail(f"API Error during rule validation test: {str(e)}")
-
-
-@pytest.mark.integration
-def test_chronicle_search_rules():
-    """Test Chronicle rule search functionality with real API."""
-    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
-    chronicle = client.chronicle(**CHRONICLE_CONFIG)
-
-    try:
-        # Search for rules containing "Uppercase"
-        result = chronicle.search_rules("Uppercase")
-
-        # Basic validation of the response structure
-        assert isinstance(result, dict)
-        assert "rules" in result
-
-        # Print some debug info about what we found
-        print(f"\nFound {len(result['rules'])} rules containing 'Uppercase'")
-
-        # If we found any rules, validate their structure
-        if result["rules"]:
-            rule = result["rules"][0]
-            assert "name" in rule
-            assert "text" in rule
-
-            # Print the first rule's name for debugging
-            print(f"First matching rule ID: {rule['name'].split('/')[-1]}")
-
-            # Verify the search term appears in the rule text
-            assert any(
-                "Uppercase" in rule["text"] for rule in result["rules"]
-            ), "Search term 'Uppercase' not found in any returned rule's text"
-        else:
-            print("No rules found containing 'Uppercase' - this is acceptable")
-
-    except Exception as e:
-        print(f"\nUnexpected error in rule search test: {type(e).__name__}: {str(e)}")
-        pytest.skip(f"Test skipped due to unexpected error: {str(e)}")
 
 
 @pytest.mark.integration

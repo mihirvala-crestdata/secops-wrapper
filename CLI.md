@@ -351,6 +351,21 @@ secops rule search --query "suspicious process"
 secops rule search --query "MITRE.*T1055"
 ```
 
+Test a rule against historical data:
+
+```bash
+# Test a rule with default result limit (100) for the last 24 hours
+secops rule test --file "/path/to/rule.yaral" --time-window 24
+
+# Test with custom time range and higher result limit
+secops rule test --file "/path/to/rule.yaral" --start-time "2023-07-01T00:00:00Z" --end-time "2023-07-02T00:00:00Z" --max-results 1000
+
+# Output UDM events as JSON and save to a file for further processing
+secops rule test --file "/path/to/rule.yaral" --time-window 24 > udm_events.json
+```
+
+The `rule test` command outputs UDM events as pure JSON objects that can be piped to a file or processed by other tools. This makes it easy to integrate with other systems or perform additional analysis on the events.
+
 ### Alert Management
 
 Get alerts:
@@ -605,6 +620,32 @@ secops alert --snapshot-query "feedback_summary.priority = \"PRIORITY_CRITICAL\"
 
 ```bash
 secops export create --gcs-bucket "projects/my-project/buckets/my-export-bucket" --all-logs --time-window 168
+```
+
+### Test a Detection Rule Against Historical Data
+
+```bash
+# Create a rule file
+cat > test.yaral << 'EOF'
+rule test_rule {
+    meta:
+        description = "Test rule for validation"
+        author = "Test Author"
+        severity = "Low"
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
+}
+EOF
+
+# Test the rule against the last 24 hours of data
+secops rule test --file test.yaral --time-window 24
+
+# Test the rule with a larger result set from a specific time range
+secops rule test --file test.yaral --start-time "2023-08-01T00:00:00Z" --end-time "2023-08-08T00:00:00Z" --max-results 500
 ```
 
 ### Ask Gemini About a Security Threat

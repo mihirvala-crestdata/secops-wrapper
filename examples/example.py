@@ -50,10 +50,13 @@ def example_udm_search(chronicle):
             max_events=5,
         )
 
-        print(f"\nFound {events['total_events']} events")
-        if events["events"]:
+        total_events = events.get("total_events", 0)
+        events_list = events.get("events", [])
+        print(f"\nFound {total_events} events")
+
+        if events_list:
             print("\nFirst event details:")
-            event = events["events"][0]
+            event = events_list[0]
             print(f"Event name: {event.get('name', 'N/A')}")
             # Extract metadata from UDM
             metadata = event.get("udm", {}).get("metadata", {})
@@ -68,6 +71,8 @@ def example_udm_search(chronicle):
             print(f"Connection: {principal_ip} -> {target_ip}")
 
             print(f"\nMore data available: {events.get('more_data_available', False)}")
+        else:
+            print("\nNo events found in the specified time range.")
     except Exception as e:
         print(f"Error performing UDM search: {e}")
 
@@ -92,10 +97,14 @@ order:
             max_values=10,
         )
         print("\nTop hostnames by event count:")
-        for row in stats["rows"]:
-            print(
-                f"Hostname: {row.get('target.hostname', 'N/A')}, Count: {row.get('count', 0)}"
-            )
+        rows = stats.get("rows", [])
+        if rows:
+            for row in rows:
+                print(
+                    f"Hostname: {row.get('target.hostname', 'N/A')}, Count: {row.get('count', 0)}"
+                )
+        else:
+            print("No data found for the specified query and time range.")
     except Exception as e:
         print(f"Error performing stats query: {e}")
 
@@ -227,15 +236,56 @@ def example_list_iocs(chronicle):
             start_time=start_time, end_time=end_time, max_matches=10000
         )
 
-        print(f"\nFound {len(iocs['matches'])} IoC matches")
-        if iocs["matches"]:
+        # Handle different possible response structures
+        matches = iocs.get("matches", [])
+        print(f"\nFound {len(matches)} IoC matches")
+
+        if matches:
             print("\nFirst IoC details:")
-            first_ioc = iocs["matches"][0]
-            print(f"Type: {next(iter(first_ioc['artifactIndicator'].keys()))}")
-            print(f"Value: {next(iter(first_ioc['artifactIndicator'].values()))}")
-            print(f"Sources: {', '.join(first_ioc['sources'])}")
+            first_ioc = matches[0]
+
+            # Safely extract IoC type and value
+            artifact_indicator = first_ioc.get("artifactIndicator", {})
+            if artifact_indicator:
+                ioc_type = next(iter(artifact_indicator.keys()), "Unknown")
+                ioc_value = next(iter(artifact_indicator.values()), "Unknown")
+                print(f"Type: {ioc_type}")
+                print(f"Value: {ioc_value}")
+            else:
+                print("No artifact indicator found in IoC")
+
+            # Safely extract sources
+            sources = first_ioc.get("sources", [])
+            if sources:
+                print(f"Sources: {', '.join(sources)}")
+            else:
+                print("No sources found")
+
+            # Show additional IoC details if available
+            if "iocIngestTimestamp" in first_ioc:
+                print(f"Ingest Time: {first_ioc['iocIngestTimestamp']}")
+            if "firstSeenTimestamp" in first_ioc:
+                print(f"First Seen: {first_ioc['firstSeenTimestamp']}")
+            if "lastSeenTimestamp" in first_ioc:
+                print(f"Last Seen: {first_ioc['lastSeenTimestamp']}")
+        else:
+            print("\nNo IoC matches found in the specified time range.")
+            print("This could mean:")
+            print("- No IoCs were ingested during this period")
+            print("- No IoCs match the search criteria")
+            print("- The time range is too narrow")
+
+        # Print response structure for debugging if no matches
+        if not matches:
+            print(f"\nResponse keys: {list(iocs.keys())}")
+            print(f"Full response structure: {iocs}")
+
     except APIError as e:
         print(f"Error: {str(e)}")
+        print("This might happen if:")
+        print("- No IoCs are available in this environment")
+        print("- Insufficient permissions to access IoC data")
+        print("- The API endpoint is not available")
 
 
 def example_alerts_and_cases(chronicle):
@@ -447,10 +497,15 @@ def example_nl_search(chronicle):
             max_events=5,
         )
 
-        print(f"\nFound {results['total_events']} events")
-        if results["events"]:
+        total_events = results.get("total_events", 0)
+        events_list = results.get("events", [])
+        print(f"\nFound {total_events} events")
+
+        if events_list:
             print("\nFirst event details:")
-            pprint(results["events"][0])
+            pprint(events_list[0])
+        else:
+            print("\nNo events found for this query.")
 
         # Try a more specific query
         print("\nPart 3: More specific natural language search")
@@ -463,10 +518,15 @@ def example_nl_search(chronicle):
             max_events=5,
         )
 
-        print(f"\nFound {specific_results['total_events']} events")
-        if specific_results["events"]:
+        specific_total_events = specific_results.get("total_events", 0)
+        specific_events_list = specific_results.get("events", [])
+        print(f"\nFound {specific_total_events} events")
+
+        if specific_events_list:
             print("\nFirst event details:")
-            pprint(specific_results["events"][0])
+            pprint(specific_events_list[0])
+        else:
+            print("\nNo events found for this specific query.")
 
     except APIError as e:
         if "no valid query could be generated" in str(e):
@@ -1132,124 +1192,103 @@ def example_parser_workflow(chronicle):
         )
 
         print("\nStep 4: Examine the parsed output")
-        if "runParserResults" in parser_result:
-            for i, result in enumerate(parser_result["runParserResults"]):
+        run_parser_results = parser_result.get("runParserResults", [])
+        if run_parser_results:
+            for i, result in enumerate(run_parser_results):
                 print(f"\nResult for log {i+1}:")
 
-                if "errors" in result and result["errors"]:
-                    print(f"  Parsing errors: {result['errors']}")
+                errors = result.get("errors", [])
+                if errors:
+                    print(f"  Parsing errors: {errors}")
 
-                if "parsedEvents" in result:
-                    parsed_events_data = result["parsedEvents"]
+                parsed_events_data = result.get("parsedEvents", {})
 
-                    # Handle the structure - parsedEvents is a dict with 'events' key
-                    if (
-                        isinstance(parsed_events_data, dict)
-                        and "events" in parsed_events_data
-                    ):
-                        parsed_events = parsed_events_data["events"]
-                    else:
-                        # In case it's already a list (backward compatibility)
-                        parsed_events = (
-                            parsed_events_data
-                            if isinstance(parsed_events_data, list)
-                            else []
+                # Handle the structure - parsedEvents is a dict with 'events' key
+                if (
+                    isinstance(parsed_events_data, dict)
+                    and "events" in parsed_events_data
+                ):
+                    parsed_events = parsed_events_data["events"]
+                else:
+                    # In case it's already a list (backward compatibility)
+                    parsed_events = (
+                        parsed_events_data
+                        if isinstance(parsed_events_data, list)
+                        else []
+                    )
+
+                print(f"  Number of parsed events: {len(parsed_events)}")
+
+                # Extract UDM events
+                udm_events = []
+                for event in parsed_events:
+                    # The parsed event might be the UDM event directly or wrapped in an "event" key
+                    if isinstance(event, dict):
+                        if "event" in event:
+                            udm_event = event["event"]
+                        else:
+                            udm_event = event
+
+                        udm_events.append(udm_event)
+
+                        # Print a summary of the UDM event
+                        print(f"\n  Parsed UDM event summary:")
+                        metadata = udm_event.get("metadata", {})
+                        if metadata:
+                            print(f"    Event Type: {metadata.get('eventType', 'N/A')}")
+                            print(f"    Product: {metadata.get('productName', 'N/A')}")
+                            print(f"    Vendor: {metadata.get('vendorName', 'N/A')}")
+                            print(
+                                f"    Event Time: {metadata.get('eventTimestamp', 'N/A')}"
+                            )
+
+                        principal = udm_event.get("principal", {})
+                        if principal:
+                            user = principal.get("user", {})
+                            if isinstance(user, dict):
+                                print(f"    User: {user.get('userid', 'N/A')}")
+                            ip_value = principal.get("ip", "N/A")
+                            if isinstance(ip_value, list) and ip_value:
+                                print(f"    Source IP: {ip_value[0]}")
+                            elif isinstance(ip_value, str):
+                                print(f"    Source IP: {ip_value}")
+
+                        security_results = udm_event.get("securityResult", [])
+                        if isinstance(security_results, list) and security_results:
+                            security = security_results[0]
+                            print(f"    Action: {security.get('action', 'N/A')}")
+                            print(f"    Summary: {security.get('summary', 'N/A')}")
+
+                if udm_events:
+                    print(f"\nStep 5: Ingest the parsed UDM events")
+                    print(f"Ingesting {len(udm_events)} UDM event(s)...")
+
+                    try:
+                        # Ingest the UDM events
+                        ingest_result = chronicle.ingest_udm(
+                            udm_events=(
+                                udm_events[0] if len(udm_events) == 1 else udm_events
+                            )
                         )
 
-                    print(f"  Number of parsed events: {len(parsed_events)}")
+                        print("\nUDM ingestion successful!")
+                        print(f"API Response: {ingest_result}")
 
-                    # Extract UDM events
-                    udm_events = []
-                    for event in parsed_events:
-                        # The parsed event might be the UDM event directly or wrapped in an "event" key
-                        if isinstance(event, dict):
-                            if "event" in event:
-                                udm_event = event["event"]
-                            else:
-                                udm_event = event
+                        # Print the full UDM event for reference
+                        print("\nFull UDM event that was ingested:")
+                        udm_json = json.dumps(udm_events[0], indent=2)
+                        if len(udm_json) > 1000:
+                            print(udm_json[:1000] + "...")
+                        else:
+                            print(udm_json)
 
-                            udm_events.append(udm_event)
-
-                            # Print a summary of the UDM event
-                            print(f"\n  Parsed UDM event summary:")
-                            if "metadata" in udm_event:
-                                metadata = udm_event["metadata"]
-                                print(
-                                    f"    Event Type: {metadata.get('eventType', 'N/A')}"
-                                )
-                                print(
-                                    f"    Product: {metadata.get('productName', 'N/A')}"
-                                )
-                                print(
-                                    f"    Vendor: {metadata.get('vendorName', 'N/A')}"
-                                )
-                                print(
-                                    f"    Event Time: {metadata.get('eventTimestamp', 'N/A')}"
-                                )
-
-                            if "principal" in udm_event:
-                                principal = udm_event["principal"]
-                                if "user" in principal and isinstance(
-                                    principal["user"], dict
-                                ):
-                                    print(
-                                        f"    User: {principal['user'].get('userid', 'N/A')}"
-                                    )
-                                if "ip" in principal:
-                                    ip_value = principal.get("ip", "N/A")
-                                    if isinstance(ip_value, list) and ip_value:
-                                        print(f"    Source IP: {ip_value[0]}")
-                                    elif isinstance(ip_value, str):
-                                        print(f"    Source IP: {ip_value}")
-
-                            if "securityResult" in udm_event:
-                                security_results = udm_event["securityResult"]
-                                if (
-                                    isinstance(security_results, list)
-                                    and security_results
-                                ):
-                                    security = security_results[0]
-                                    print(
-                                        f"    Action: {security.get('action', 'N/A')}"
-                                    )
-                                    print(
-                                        f"    Summary: {security.get('summary', 'N/A')}"
-                                    )
-
-                    if udm_events:
-                        print(f"\nStep 5: Ingest the parsed UDM events")
-                        print(f"Ingesting {len(udm_events)} UDM event(s)...")
-
-                        try:
-                            # Ingest the UDM events
-                            ingest_result = chronicle.ingest_udm(
-                                udm_events=(
-                                    udm_events[0]
-                                    if len(udm_events) == 1
-                                    else udm_events
-                                )
-                            )
-
-                            print("\nUDM ingestion successful!")
-                            print(f"API Response: {ingest_result}")
-
-                            # Print the full UDM event for reference
-                            print("\nFull UDM event that was ingested:")
-                            udm_json = json.dumps(udm_events[0], indent=2)
-                            if len(udm_json) > 1000:
-                                print(udm_json[:1000] + "...")
-                            else:
-                                print(udm_json)
-
-                        except Exception as e:
-                            print(f"\nError ingesting UDM events: {e}")
-                            print(
-                                "This might happen if the parsed event doesn't have required UDM fields."
-                            )
-                    else:
-                        print("\nNo UDM events were extracted from the parser output.")
+                    except Exception as e:
+                        print(f"\nError ingesting UDM events: {e}")
+                        print(
+                            "This might happen if the parsed event doesn't have required UDM fields."
+                        )
                 else:
-                    print("  No parsed events in the result.")
+                    print("\nNo UDM events were extracted from the parser output.")
         else:
             print("\nNo parser results returned.")
 
@@ -1276,6 +1315,70 @@ def example_parser_workflow(chronicle):
         print(f"\nUnexpected error: {e}")
 
 
+def example_rule_test(chronicle):
+    """Example 13: Test a detection rule against historical data."""
+    print("\n=== Example 13: Test a Detection Rule Against Historical Data ===")
+
+    # Define time range for testing - use a recent time period (last 7 days)
+    end_time = datetime.now(timezone.utc) - timedelta(minutes=15)
+    start_time = end_time - timedelta(days=7)  # Test against last 7 days
+
+    # Create a simple rule that should find network connection events
+    test_rule = """
+rule test_network_connections {
+  meta:
+    description = "Test rule for finding network connection events"
+    author = "SecOps SDK Example"
+    severity = "Informational" 
+    yara_version = "YL2.0"
+    rule_version = "1.0"
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+  condition:
+    $e
+}
+"""
+    print(f"Testing rule against data from {start_time} to {end_time}")
+    print("Rule text:")
+    print(test_rule)
+    print("\nSearching for matching events...")
+
+    # Collect UDM events from rule test results
+    udm_events = []
+
+    for result in chronicle.run_rule_test(
+        test_rule, start_time, end_time, max_results=5
+    ):
+        if result.get("type") == "detection":
+            detection = result.get("detection", {})
+            result_events = detection.get("resultEvents", {})
+
+            # Extract UDM events from resultEvents structure
+            for var_name, var_data in result_events.items():
+                event_samples = var_data.get("eventSamples", [])
+                for sample in event_samples:
+                    event = sample.get("event")
+                    if event:
+                        udm_events.append(event)
+
+    # Print results
+    print(f"\nFound {len(udm_events)} UDM events matching the rule:")
+
+    if udm_events:
+        print("\nUDM Events (pretty-printed JSON):")
+        print("=" * 80)
+
+        for i, event in enumerate(udm_events, 1):
+            print(f"\nEvent {i}:")
+            print(json.dumps(event, indent=2, default=str))
+            print("-" * 40)
+    else:
+        print("No events found matching the rule in the specified time range.")
+        print("Try adjusting the time range or rule criteria.")
+
+    return "Rule testing complete"
+
+
 # Map of example functions
 EXAMPLES = {
     "1": example_udm_search,
@@ -1290,6 +1393,7 @@ EXAMPLES = {
     "10": example_udm_ingestion,
     "11": example_gemini,
     "12": example_parser_workflow,
+    "13": example_rule_test,
 }
 
 
@@ -1304,7 +1408,7 @@ def main():
     parser.add_argument(
         "--example",
         "-e",
-        help="Example number to run (1-12). If not specified, runs all examples.",
+        help="Example number to run (1-13). If not specified, runs all examples.",
     )
 
     args = parser.parse_args()

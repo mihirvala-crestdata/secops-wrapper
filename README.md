@@ -1074,6 +1074,92 @@ mitre_rules = chronicle.search_rules("T1055")
 print(f"Found {len(mitre_rules.get('rules', []))} rules mentioning T1055 technique")
 ```
 
+### Testing Rules
+
+Test rules against historical data to validate their effectiveness before deployment:
+
+```python
+from datetime import datetime, timedelta, timezone
+
+# Define time range for testing
+end_time = datetime.now(timezone.utc)
+start_time = end_time - timedelta(days=7)  # Test against last 7 days
+
+# Rule to test
+rule_text = """
+rule test_rule {
+    meta:
+        description = "Test rule for validation"
+        author = "Test Author"
+        severity = "Low"
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
+}
+"""
+
+# Test the rule
+test_results = chronicle.run_rule_test(
+    rule_text=rule_text,
+    start_time=start_time,
+    end_time=end_time,
+    max_results=100
+)
+
+# Process streaming results
+detection_count = 0
+for result in test_results:
+    result_type = result.get("type")
+    
+    if result_type == "progress":
+        # Progress update
+        percent_done = result.get("percentDone", 0)
+        print(f"Progress: {percent_done}%")
+    
+    elif result_type == "detection":
+        # Detection result
+        detection_count += 1
+        detection = result.get("detection", {})
+        print(f"Detection {detection_count}:")
+        
+        # Process detection details
+        if "rule_id" in detection:
+            print(f"  Rule ID: {detection['rule_id']}")
+        if "data" in detection:
+            print(f"  Data: {detection['data']}")
+            
+    elif result_type == "error":
+        # Error information
+        print(f"Error: {result.get('message', 'Unknown error')}")
+
+print(f"Finished testing. Found {detection_count} detection(s).")
+```
+
+# Extract just the UDM events for programmatic processing
+```python
+udm_events = []
+for result in chronicle.run_rule_test(rule_text, start_time, end_time, max_results=100):
+    if result.get("type") == "detection":
+        detection = result.get("detection", {})
+        result_events = detection.get("resultEvents", {})
+        
+        for var_name, var_data in result_events.items():
+            event_samples = var_data.get("eventSamples", [])
+            for sample in event_samples:
+                event = sample.get("event")
+                if event:
+                    udm_events.append(event)
+
+# Process the UDM events
+for event in udm_events:
+    # Process each UDM event
+    metadata = event.get("metadata", {})
+    print(f"Event type: {metadata.get('eventType')}")
+```
+
 ### Retrohunts
 
 Run rules against historical data to find past matches:

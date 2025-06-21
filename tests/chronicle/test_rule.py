@@ -15,7 +15,7 @@
 """Tests for Chronicle rule functions."""
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, call
 from secops.chronicle.client import ChronicleClient
 from secops.chronicle.rule import (
     create_rule,
@@ -25,8 +25,11 @@ from secops.chronicle.rule import (
     delete_rule,
     enable_rule,
     search_rules,
+    run_rule_test,
 )
 from secops.exceptions import APIError, SecOpsError
+from datetime import datetime, timezone
+import json
 
 
 @pytest.fixture
@@ -53,6 +56,26 @@ def mock_error_response():
     mock.status_code = 400
     mock.text = "Error message"
     mock.raise_for_status.side_effect = Exception("API Error")
+    return mock
+
+
+@pytest.fixture
+def mock_streaming_response():
+    """Create a mock streaming API response."""
+    mock = Mock()
+    mock.status_code = 200
+
+    # Create an iterable with simulated chunks of streamed response
+    chunks = [
+        '{"type": "progress", "percentDone": 10}\n',
+        '{"type": "progress", "percentDone": 50}\n',
+        '{"type": "detection", "detection": {"rule_id": "rule1", "data": "test"}}\n',
+        '{"type": "progress", "percentDone": 100}\n',
+    ]
+
+    # Set up the iter_content method to return our chunks
+    mock.iter_content.return_value = chunks
+
     return mock
 
 
@@ -328,3 +351,117 @@ def test_search_rules_error(chronicle_client, mock_error_response):
             search_rules(chronicle_client, "(")
 
         assert "Invalid regular expression" in str(exc_info.value)
+
+
+def test_run_rule_test(chronicle_client, mock_streaming_response):
+    """Test run_rule_test function."""
+    # Arrange
+    start_time = datetime(2023, 1, 1, tzinfo=timezone.utc)
+    end_time = datetime(2023, 1, 2, tzinfo=timezone.utc)
+    rule_text = "rule test {}"
+
+    # Mock the response to return a JSON array
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.text = json.dumps(
+        [
+            {"progressPercent": 10},
+            {"progressPercent": 50},
+            {"detection": {"rule_id": "rule1", "data": "test"}},
+            {"progressPercent": 100},
+        ]
+    )
+
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_response
+    ) as mock_post:
+        # Act
+        results = list(run_rule_test(chronicle_client, rule_text, start_time, end_time))
+
+        # Assert
+        expected_url = f"{chronicle_client.base_url}/projects/{chronicle_client.project_id}/locations/{chronicle_client.region}/instances/{chronicle_client.customer_id}/legacy:legacyRunTestRule"
+        mock_post.assert_called_once_with(
+            expected_url,
+            json={
+                "ruleText": rule_text,
+                "timeRange": {
+                    "startTime": "2023-01-01T00:00:00Z",
+                    "endTime": "2023-01-02T00:00:00Z",
+                },
+                "maxResults": 100,
+                "scope": "",
+            },
+            timeout=300,
+        )
+
+        # Verify we processed all streamed objects
+        assert len(results) == 4
+        assert results[0] == {"type": "progress", "percentDone": 10}
+        assert results[1] == {"type": "progress", "percentDone": 50}
+        assert results[2] == {
+            "type": "detection",
+            "detection": {"rule_id": "rule1", "data": "test"},
+        }
+        assert results[3] == {"type": "progress", "percentDone": 100}
+
+
+def test_run_rule_test_error(chronicle_client, mock_error_response):
+    """Test run_rule_test function with error response."""
+    # Arrange
+    start_time = datetime(2023, 1, 1, tzinfo=timezone.utc)
+    end_time = datetime(2023, 1, 2, tzinfo=timezone.utc)
+    rule_text = "rule test {}"
+
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_error_response
+    ):
+        # Act & Assert
+        with pytest.raises(APIError) as exc_info:
+            list(run_rule_test(chronicle_client, rule_text, start_time, end_time))
+
+        assert "Failed to test rule" in str(exc_info.value)
+
+
+def test_run_rule_test_invalid_max_results(chronicle_client):
+    """Test run_rule_test function with invalid max_results."""
+    # Arrange
+    start_time = datetime(2023, 1, 1)
+    end_time = datetime(2023, 1, 2)
+    rule_text = "rule test {}"
+
+    # Act & Assert - Test with too large value
+    with pytest.raises(ValueError) as exc_info:
+        list(
+            run_rule_test(
+                chronicle_client, rule_text, start_time, end_time, max_results=20000
+            )
+        )
+
+    assert "max_results must be between" in str(exc_info.value)
+
+    # Act & Assert - Test with negative value
+    with pytest.raises(ValueError) as exc_info:
+        list(
+            run_rule_test(
+                chronicle_client, rule_text, start_time, end_time, max_results=-5
+            )
+        )
+
+    assert "max_results must be between" in str(exc_info.value)
+
+
+def test_run_rule_test_handles_exceptions(chronicle_client):
+    """Test that run_rule_test handles exceptions properly."""
+    # Arrange
+    start_time = datetime(2023, 1, 1)
+    end_time = datetime(2023, 1, 2)
+    rule_text = "rule test {}"
+
+    with patch.object(
+        chronicle_client.session, "post", side_effect=Exception("Connection error")
+    ):
+        # Act & Assert
+        with pytest.raises(APIError) as exc_info:
+            list(run_rule_test(chronicle_client, rule_text, start_time, end_time))
+
+        assert "Error testing rule" in str(exc_info.value)
