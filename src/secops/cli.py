@@ -2132,12 +2132,12 @@ def main() -> None:
             )
             print("\nPlease set up your configuration first:", file=sys.stderr)
             print(
-                "  secops config set --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID",
+                "  secops config set --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID --region YOUR_REGION",
                 file=sys.stderr,
             )
             print("\nOr provide them directly on the command line:", file=sys.stderr)
             print(
-                f"  secops --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID {args.command}",
+                f"  secops --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID --region YOUR_REGION {args.command}",
                 file=sys.stderr,
             )
             print("\nNeed help finding these values?", file=sys.stderr)
