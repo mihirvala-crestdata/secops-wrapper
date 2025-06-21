@@ -152,22 +152,42 @@ import json
 current_time = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 okta_log = {
     "actor": {
-        "displayName": "Joe Doe",
-        "alternateId": "jdoe@example.com"
+        "alternateId": "mark.taylor@cymbal-investments.org",
+        "displayName": "Mark Taylor",
+        "id": "00u4j7xcb5N6zfiRP5d8",
+        "type": "User"
     },
     "client": {
-        "ipAddress": "192.168.1.100",
         "userAgent": {
-            "os": "Mac OS X",
-            "browser": "SAFARI"
+            "rawUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+            "os": "Windows 10",
+            "browser": "CHROME"
+        },
+        "ipAddress": "96.6.127.53",
+        "geographicalContext": {
+            "city": "New York",
+            "state": "New York",
+            "country": "United States",
+            "postalCode": "10118",
+            "geolocation": {"lat": 40.7123, "lon": -74.0068}
         }
     },
-    "displayMessage": "User login to Okta",
-    "eventType": "user.session.start",
-    "outcome": {
-        "result": "SUCCESS"
+    "displayMessage": "Max sign in attempts exceeded",
+    "eventType": "user.account.lock",
+    "outcome": {"result": "FAILURE", "reason": "LOCKED_OUT"},
+    "published": "2025-06-19T21:51:50.116Z",
+    "securityContext": {
+        "asNumber": 20940,
+        "asOrg": "akamai technologies inc.",
+        "isp": "akamai international b.v.",
+        "domain": "akamaitechnologies.com",
+        "isProxy": false
     },
-    "published": current_time  # Current time in ISO format
+    "severity": "DEBUG",
+    "legacyEventType": "core.user_auth.account_locked",
+    "uuid": "5b90a94a-d7ba-11ea-834a-85c24a1b2121",
+    "version": "0"
+    # ... additional OKTA log fields may be included
 }
 
 # Ingest a single log using the default forwarder
@@ -717,7 +737,7 @@ alert_list = alerts.get('alerts', {}).get('alerts', [])
 # Extract case IDs from alerts
 case_ids = {alert.get('caseName') for alert in alert_list if alert.get('caseName')}
 
-# Get case details
+# Get case details using the batch API
 if case_ids:
     cases = chronicle.get_cases(list(case_ids))
     
@@ -726,6 +746,12 @@ if case_ids:
         print(f"Case: {case.display_name}")
         print(f"Priority: {case.priority}")
         print(f"Status: {case.status}")
+        print(f"Stage: {case.stage}")
+        
+        # Access SOAR platform information if available
+        if case.soar_platform_info:
+            print(f"SOAR Case ID: {case.soar_platform_info.case_id}")
+            print(f"SOAR Platform: {case.soar_platform_info.platform_type}")
 ```
 
 The alerts response includes:
@@ -746,7 +772,7 @@ You can filter alerts using the snapshot query parameter with fields like:
 The `CaseList` class provides helper methods for working with cases:
 
 ```python
-# Get details for specific cases
+# Get details for specific cases (uses the batch API)
 cases = chronicle.get_cases(["case-id-1", "case-id-2"])
 
 # Filter cases by priority
@@ -758,6 +784,220 @@ open_cases = cases.filter_by_status("STATUS_OPEN")
 # Look up a specific case
 case = cases.get_case("case-id-1")
 ```
+
+> **Note**: The case management API uses the `legacy:legacyBatchGetCases` endpoint to retrieve multiple cases in a single request. You can retrieve up to 1000 cases in a single batch.
+
+## Parser Management
+
+Chronicle parsers are used to process and normalize raw log data into Chronicle's Unified Data Model (UDM) format. Parsers transform various log formats (JSON, XML, CEF, etc.) into a standardized structure that enables consistent querying and analysis across different data sources.
+
+The SDK provides comprehensive support for managing Chronicle parsers:
+
+### Creating Parsers
+
+Create new parser:
+
+```python
+parser_text = """
+filter {
+    mutate {
+      replace => {
+        "event1.idm.read_only_udm.metadata.event_type" => "GENERIC_EVENT"
+        "event1.idm.read_only_udm.metadata.vendor_name" =>  "ACME Labs"
+      }
+    }
+    grok {
+      match => {
+        "message" => ["^(?P<_firstWord>[^\s]+)\s.*$"]
+      }
+      on_error => "_grok_message_failed"
+    }
+    if ![_grok_message_failed] {
+      mutate {
+        replace => {
+          "event1.idm.read_only_udm.metadata.description" => "%{_firstWord}"
+        }
+      }
+    }
+    mutate {
+      merge => {
+        "@output" => "event1"
+      }
+    }
+}
+"""
+
+log_type = "WINDOWS_AD"
+
+# Create the parser
+parser = chronicle.create_parser(
+    log_type=log_type, 
+    parser_code=parser_text,
+    validated_on_empty_logs=True  # Whether to validate parser on empty logs
+)
+parser_id = parser.get("name", "").split("/")[-1]
+print(f"Parser ID: {parser_id}")
+```
+
+### Managing Parsers
+
+Retrieve, list, copy, activate/deactivate, and delete parsers:
+
+```python
+# List all parsers
+parsers = chronicle.list_parsers()
+for parser in parsers:
+    parser_id = parser.get("name", "").split("/")[-1]
+    state = parser.get("state")
+    print(f"Parser ID: {parser_id}, State: {state}")
+
+log_type = "WINDOWS_AD"
+    
+# Get specific parser
+parser = chronicle.get_parser(log_type=log_type, id=parser_id)
+print(f"Parser content: {parser.get('text')}")
+
+# Activate/Deactivate parser
+chronicle.activate_parser(log_type=log_type, id=parser_id)
+chronicle.deactivate_parser(log_type=log_type, id=parser_id)
+
+# Copy an existing parser as a starting point
+copied_parser = chronicle.copy_parser(log_type=log_type, id="pa_existing_parser")
+
+# Delete parser
+chronicle.delete_parser(log_type=log_type, id=parser_id)
+
+# Force delete an active parser
+chronicle.delete_parser(log_type=log_type, id=parser_id, force=True)
+
+# Activate a release candidate parser
+chronicle.activate_release_candidate_parser(log_type=log_type, id="pa_release_candidate")
+```
+
+> **Note:** Parsers work in conjunction with log ingestion. When you ingest logs using `chronicle.ingest_log()`, Chronicle automatically applies the appropriate parser based on the log type to transform your raw logs into UDM format. If you're working with custom log formats, you may need to create or configure custom parsers first.
+
+### Run Parser against sample logs
+
+Run the parser on one or more sample logs:
+
+```python
+# Sample parser code that extracts fields from logs
+parser_text = """
+filter {
+    mutate {
+      replace => {
+        "event1.idm.read_only_udm.metadata.event_type" => "GENERIC_EVENT"
+        "event1.idm.read_only_udm.metadata.vendor_name" =>  "ACME Labs"
+      }
+    }
+    grok {
+      match => {
+        "message" => ["^(?P<_firstWord>[^\s]+)\s.*$"]
+      }
+      on_error => "_grok_message_failed"
+    }
+    if ![_grok_message_failed] {
+      mutate {
+        replace => {
+          "event1.idm.read_only_udm.metadata.description" => "%{_firstWord}"
+        }
+      }
+    }
+    mutate {
+      merge => {
+        "@output" => "event1"
+      }
+    }
+}
+"""
+
+log_type = "WINDOWS_AD"
+
+# Sample log entries to test
+sample_logs = [
+    '{"message": "ERROR: Failed authentication attempt"}',
+    '{"message": "WARNING: Suspicious activity detected"}',
+    '{"message": "INFO: User logged in successfully"}'
+]
+
+# Run parser evaluation
+result = chronicle.run_parser(
+    log_type=log_type, 
+    parser_code=parser_text,
+    parser_extension_code=None,  # Optional parser extension
+    logs=sample_logs,
+    statedump_allowed=False  # Enable if using statedump filters
+)
+
+# Check the results
+if "runParserResults" in result:
+    for i, parser_result in enumerate(result["runParserResults"]):
+        print(f"\nLog {i+1} parsing result:")
+        if "parsedEvents" in parser_result:
+            print(f"  Parsed events: {parser_result['parsedEvents']}")
+        if "errors" in parser_result:
+            print(f"  Errors: {parser_result['errors']}")
+```
+
+The `run_parser` function includes comprehensive validation:
+- Validates log type and parser code are provided
+- Ensures logs are provided as a list of strings
+- Enforces size limits (10MB per log, 50MB total, max 1000 logs)
+- Provides detailed error messages for different failure scenarios
+
+### Complete Parser Workflow Example
+
+Here's a complete example that demonstrates retrieving a parser, running it against a log, and ingesting the parsed UDM event:
+
+```python
+# Step 1: List and retrieve an OKTA parser
+parsers = chronicle.list_parsers(log_type="OKTA")
+parser_id = parsers[0]["name"].split("/")[-1]
+parser_details = chronicle.get_parser(log_type="OKTA", id=parser_id)
+
+# Extract and decode parser code
+import base64
+parser_code = base64.b64decode(parser_details["cbn"]).decode('utf-8')
+
+# Step 2: Run the parser against a sample log
+okta_log = {
+    "actor": {"alternateId": "user@example.com", "displayName": "Test User"},
+    "eventType": "user.account.lock",
+    "outcome": {"result": "FAILURE", "reason": "LOCKED_OUT"},
+    "published": "2025-06-19T21:51:50.116Z"
+    # ... other OKTA log fields
+}
+
+result = chronicle.run_parser(
+    log_type="OKTA",
+    parser_code=parser_code,
+    parser_extension_code=None,
+    logs=[json.dumps(okta_log)]
+)
+
+# Step 3: Extract and ingest the parsed UDM event
+if result["runParserResults"][0]["parsedEvents"]:
+    # parsedEvents is a dict with 'events' key containing the actual events list
+    parsed_events_data = result["runParserResults"][0]["parsedEvents"]
+    if isinstance(parsed_events_data, dict) and "events" in parsed_events_data:
+        events = parsed_events_data["events"]
+        if events and len(events) > 0:
+            # Extract the first event
+            if "event" in events[0]:
+                udm_event = events[0]["event"]
+            else:
+                udm_event = events[0]
+            
+            # Ingest the parsed UDM event back into Chronicle
+            ingest_result = chronicle.ingest_udm(udm_events=udm_event)
+            print(f"UDM event ingested: {ingest_result}")
+```
+
+This workflow is useful for:
+- Testing parsers before deployment
+- Understanding how logs are transformed to UDM format
+- Re-processing logs with updated parsers
+- Debugging parsing issues
 
 ## Rule Management
 
@@ -832,6 +1072,92 @@ for rule in results.get("rules", []):
 # Find rules mentioning a specific MITRE technique
 mitre_rules = chronicle.search_rules("T1055")
 print(f"Found {len(mitre_rules.get('rules', []))} rules mentioning T1055 technique")
+```
+
+### Testing Rules
+
+Test rules against historical data to validate their effectiveness before deployment:
+
+```python
+from datetime import datetime, timedelta, timezone
+
+# Define time range for testing
+end_time = datetime.now(timezone.utc)
+start_time = end_time - timedelta(days=7)  # Test against last 7 days
+
+# Rule to test
+rule_text = """
+rule test_rule {
+    meta:
+        description = "Test rule for validation"
+        author = "Test Author"
+        severity = "Low"
+        yara_version = "YL2.0"
+        rule_version = "1.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+    condition:
+        $e
+}
+"""
+
+# Test the rule
+test_results = chronicle.run_rule_test(
+    rule_text=rule_text,
+    start_time=start_time,
+    end_time=end_time,
+    max_results=100
+)
+
+# Process streaming results
+detection_count = 0
+for result in test_results:
+    result_type = result.get("type")
+    
+    if result_type == "progress":
+        # Progress update
+        percent_done = result.get("percentDone", 0)
+        print(f"Progress: {percent_done}%")
+    
+    elif result_type == "detection":
+        # Detection result
+        detection_count += 1
+        detection = result.get("detection", {})
+        print(f"Detection {detection_count}:")
+        
+        # Process detection details
+        if "rule_id" in detection:
+            print(f"  Rule ID: {detection['rule_id']}")
+        if "data" in detection:
+            print(f"  Data: {detection['data']}")
+            
+    elif result_type == "error":
+        # Error information
+        print(f"Error: {result.get('message', 'Unknown error')}")
+
+print(f"Finished testing. Found {detection_count} detection(s).")
+```
+
+# Extract just the UDM events for programmatic processing
+```python
+udm_events = []
+for result in chronicle.run_rule_test(rule_text, start_time, end_time, max_results=100):
+    if result.get("type") == "detection":
+        detection = result.get("detection", {})
+        result_events = detection.get("resultEvents", {})
+        
+        for var_name, var_data in result_events.items():
+            event_samples = var_data.get("eventSamples", [])
+            for sample in event_samples:
+                event = sample.get("event")
+                if event:
+                    udm_events.append(event)
+
+# Process the UDM events
+for event in udm_events:
+    # Process each UDM event
+    metadata = event.get("metadata", {})
+    print(f"Event type: {metadata.get('eventType')}")
 ```
 
 ### Retrohunts
@@ -983,6 +1309,183 @@ else:
     print(f"Rule is invalid: {result.message}")
     if result.position:
         print(f"Error at line {result.position['startLine']}, column {result.position['startColumn']}")
+```
+
+## Data Tables and Reference Lists
+
+Chronicle provides two ways to manage and reference structured data in detection rules: Data Tables and Reference Lists. These can be used to maintain lists of trusted/suspicious entities, mappings of contextual information, or any other structured data useful for detection.
+
+### Data Tables
+
+Data Tables are collections of structured data with defined columns and data types. They can be referenced in detection rules to enhance your detections with additional context.
+
+#### Creating Data Tables
+
+```python
+from secops.chronicle.data_table import DataTableColumnType
+
+# Create a data table with different column types
+data_table = chronicle.create_data_table(
+    name="suspicious_ips",
+    description="Known suspicious IP addresses with context",
+    header={
+        "ip_address": DataTableColumnType.CIDR,
+        "severity": DataTableColumnType.STRING,
+        "description": DataTableColumnType.STRING
+    },
+    # Optional: Add initial rows
+    rows=[
+        ["192.168.1.100", "High", "Scanning activity"],
+        ["10.0.0.5", "Medium", "Suspicious login attempts"]
+    ]
+)
+
+print(f"Created table: {data_table['name']}")
+```
+
+#### Managing Data Tables
+
+```python
+# List all data tables
+tables = chronicle.list_data_tables()
+for table in tables:
+    table_id = table["name"].split("/")[-1]
+    print(f"Table: {table_id}, Created: {table.get('createTime')}")
+
+# Get a specific data table's details
+table_details = chronicle.get_data_table("suspicious_ips")
+print(f"Column count: {len(table_details.get('columnInfo', []))}")
+
+# Add rows to a data table
+chronicle.create_data_table_rows(
+    "suspicious_ips",
+    [
+        ["172.16.0.1", "Low", "Unusual outbound connection"],
+        ["192.168.2.200", "Critical", "Data exfiltration attempt"]
+    ]
+)
+
+# List rows in a data table
+rows = chronicle.list_data_table_rows("suspicious_ips")
+for row in rows:
+    row_id = row["name"].split("/")[-1]
+    values = row.get("values", [])
+    print(f"Row {row_id}: {values}")
+
+# Delete specific rows by ID
+row_ids = [rows[0]["name"].split("/")[-1], rows[1]["name"].split("/")[-1]]
+chronicle.delete_data_table_rows("suspicious_ips", row_ids)
+
+# Delete a data table
+chronicle.delete_data_table("suspicious_ips", force=True)  # force=True deletes even if it has rows
+```
+
+### Reference Lists
+
+Reference Lists are simple lists of values (strings, CIDR blocks, or regex patterns) that can be referenced in detection rules. They are useful for maintaining whitelists, blacklists, or any other categorized sets of values.
+
+#### Creating Reference Lists
+
+```python
+from secops.chronicle.reference_list import ReferenceListSyntaxType, ReferenceListView
+
+# Create a reference list with string entries
+string_list = chronicle.create_reference_list(
+    name="admin_accounts",
+    description="Administrative user accounts",
+    entries=["admin", "administrator", "root", "system"],
+    syntax_type=ReferenceListSyntaxType.STRING
+)
+
+print(f"Created reference list: {string_list['name']}")
+
+# Create a reference list with CIDR entries
+cidr_list = chronicle.create_reference_list(
+    name="trusted_networks",
+    description="Internal network ranges",
+    entries=["10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"],
+    syntax_type=ReferenceListSyntaxType.CIDR
+)
+
+# Create a reference list with regex patterns
+regex_list = chronicle.create_reference_list(
+    name="email_patterns",
+    description="Email patterns to watch for",
+    entries=[".*@suspicious\\.com", "malicious_.*@.*\\.org"],
+    syntax_type=ReferenceListSyntaxType.REGEX
+)
+```
+
+#### Managing Reference Lists
+
+```python
+# List all reference lists (basic view without entries)
+lists = chronicle.list_reference_lists(view=ReferenceListView.BASIC)
+for ref_list in lists:
+    list_id = ref_list["name"].split("/")[-1]
+    print(f"List: {list_id}, Description: {ref_list.get('description')}")
+
+# Get a specific reference list including all entries
+admin_list = chronicle.get_reference_list("admin_accounts", view=ReferenceListView.FULL)
+entries = [entry.get("value") for entry in admin_list.get("entries", [])]
+print(f"Admin accounts: {entries}")
+
+# Update reference list entries
+chronicle.update_reference_list(
+    name="admin_accounts",
+    entries=["admin", "administrator", "root", "system", "superuser"]
+)
+
+# Update reference list description
+chronicle.update_reference_list(
+    name="admin_accounts",
+    description="Updated administrative user accounts list"
+)
+
+```
+
+### Using in YARA-L Rules
+
+Both Data Tables and Reference Lists can be referenced in YARA-L detection rules.
+
+#### Using Data Tables in Rules
+
+```
+rule detect_with_data_table {
+    meta:
+        description = "Detect connections to suspicious IPs"
+        author = "SecOps SDK Example"
+        severity = "Medium"
+        yara_version = "YL2.0"
+    events:
+        $e.metadata.event_type = "NETWORK_CONNECTION"
+        $e.target.ip != ""
+        $lookup in data_table.suspicious_ips
+        $lookup.ip_address = $e.target.ip
+        $severity = $lookup.severity
+        
+    condition:
+        $e and $lookup and $severity = "High"
+}
+```
+
+#### Using Reference Lists in Rules
+
+```
+rule detect_with_reference_list {
+    meta:
+        description = "Detect admin account usage from untrusted networks"
+        author = "SecOps SDK Example" 
+        severity = "High"
+        yara_version = "YL2.0"
+    events:
+        $login.metadata.event_type = "USER_LOGIN"
+        $login.principal.user.userid in reference_list.admin_accounts
+        not $login.principal.ip in reference_list.trusted_networks
+        
+    condition:
+        $login
+}
 ```
 
 ## Gemini AI

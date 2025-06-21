@@ -15,7 +15,7 @@
 """Tests for Chronicle rule functions."""
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, call
 from secops.chronicle.client import ChronicleClient
 from secops.chronicle.rule import (
     create_rule,
@@ -24,18 +24,18 @@ from secops.chronicle.rule import (
     update_rule,
     delete_rule,
     enable_rule,
-    search_rules
+    search_rules,
+    run_rule_test,
 )
 from secops.exceptions import APIError, SecOpsError
+from datetime import datetime, timezone
+import json
 
 
 @pytest.fixture
 def chronicle_client():
     """Create a Chronicle client for testing."""
-    return ChronicleClient(
-        customer_id="test-customer",
-        project_id="test-project"
-    )
+    return ChronicleClient(customer_id="test-customer", project_id="test-project")
 
 
 @pytest.fixture
@@ -43,7 +43,9 @@ def mock_response():
     """Create a mock API response."""
     mock = Mock()
     mock.status_code = 200
-    mock.json.return_value = {"name": "projects/test-project/locations/us/instances/test-customer/rules/ru_12345"}
+    mock.json.return_value = {
+        "name": "projects/test-project/locations/us/instances/test-customer/rules/ru_12345"
+    }
     return mock
 
 
@@ -57,17 +59,39 @@ def mock_error_response():
     return mock
 
 
+@pytest.fixture
+def mock_streaming_response():
+    """Create a mock streaming API response."""
+    mock = Mock()
+    mock.status_code = 200
+
+    # Create an iterable with simulated chunks of streamed response
+    chunks = [
+        '{"type": "progress", "percentDone": 10}\n',
+        '{"type": "progress", "percentDone": 50}\n',
+        '{"type": "detection", "detection": {"rule_id": "rule1", "data": "test"}}\n',
+        '{"type": "progress", "percentDone": 100}\n',
+    ]
+
+    # Set up the iter_content method to return our chunks
+    mock.iter_content.return_value = chunks
+
+    return mock
+
+
 def test_create_rule(chronicle_client, mock_response):
     """Test create_rule function."""
     # Arrange
-    with patch.object(chronicle_client.session, 'post', return_value=mock_response) as mock_post:
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_response
+    ) as mock_post:
         # Act
         result = create_rule(chronicle_client, "rule test {}")
-        
+
         # Assert
         mock_post.assert_called_once_with(
             f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules",
-            json={"text": "rule test {}"}
+            json={"text": "rule test {}"},
         )
         assert result == mock_response.json.return_value
 
@@ -75,11 +99,13 @@ def test_create_rule(chronicle_client, mock_response):
 def test_create_rule_error(chronicle_client, mock_error_response):
     """Test create_rule function with error response."""
     # Arrange
-    with patch.object(chronicle_client.session, 'post', return_value=mock_error_response):
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_error_response
+    ):
         # Act & Assert
         with pytest.raises(APIError) as exc_info:
             create_rule(chronicle_client, "rule test {}")
-        
+
         assert "Failed to create rule" in str(exc_info.value)
 
 
@@ -87,10 +113,12 @@ def test_get_rule(chronicle_client, mock_response):
     """Test get_rule function."""
     # Arrange
     rule_id = "ru_12345"
-    with patch.object(chronicle_client.session, 'get', return_value=mock_response) as mock_get:
+    with patch.object(
+        chronicle_client.session, "get", return_value=mock_response
+    ) as mock_get:
         # Act
         result = get_rule(chronicle_client, rule_id)
-        
+
         # Assert
         mock_get.assert_called_once_with(
             f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}"
@@ -102,11 +130,13 @@ def test_get_rule_error(chronicle_client, mock_error_response):
     """Test get_rule function with error response."""
     # Arrange
     rule_id = "ru_12345"
-    with patch.object(chronicle_client.session, 'get', return_value=mock_error_response):
+    with patch.object(
+        chronicle_client.session, "get", return_value=mock_error_response
+    ):
         # Act & Assert
         with pytest.raises(APIError) as exc_info:
             get_rule(chronicle_client, rule_id)
-        
+
         assert "Failed to get rule" in str(exc_info.value)
 
 
@@ -114,14 +144,17 @@ def test_list_rules(chronicle_client, mock_response):
     """Test list_rules function."""
     # Arrange
     mock_response.json.return_value = {"rules": [{"name": "rule1"}, {"name": "rule2"}]}
-    
-    with patch.object(chronicle_client.session, 'get', return_value=mock_response) as mock_get:
+
+    with patch.object(
+        chronicle_client.session, "get", return_value=mock_response
+    ) as mock_get:
         # Act
         result = list_rules(chronicle_client)
-        
+
         # Assert
         mock_get.assert_called_once_with(
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules", params={"pageSize": 1000, "view": "FULL"}
+            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules",
+            params={"pageSize": 1000, "view": "FULL"},
         )
         assert result == mock_response.json.return_value
         assert len(result["rules"]) == 2
@@ -130,11 +163,13 @@ def test_list_rules(chronicle_client, mock_response):
 def test_list_rules_error(chronicle_client, mock_error_response):
     """Test list_rules function with error response."""
     # Arrange
-    with patch.object(chronicle_client.session, 'get', return_value=mock_error_response):
+    with patch.object(
+        chronicle_client.session, "get", return_value=mock_error_response
+    ):
         # Act & Assert
         with pytest.raises(APIError) as exc_info:
             list_rules(chronicle_client)
-        
+
         assert "Failed to list rules" in str(exc_info.value)
 
 
@@ -143,16 +178,18 @@ def test_update_rule(chronicle_client, mock_response):
     # Arrange
     rule_id = "ru_12345"
     rule_text = "rule updated_test {}"
-    
-    with patch.object(chronicle_client.session, 'patch', return_value=mock_response) as mock_patch:
+
+    with patch.object(
+        chronicle_client.session, "patch", return_value=mock_response
+    ) as mock_patch:
         # Act
         result = update_rule(chronicle_client, rule_id, rule_text)
-        
+
         # Assert
         mock_patch.assert_called_once_with(
             f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}",
             params={"update_mask": "text"},
-            json={"text": rule_text}
+            json={"text": rule_text},
         )
         assert result == mock_response.json.return_value
 
@@ -162,12 +199,14 @@ def test_update_rule_error(chronicle_client, mock_error_response):
     # Arrange
     rule_id = "ru_12345"
     rule_text = "rule updated_test {}"
-    
-    with patch.object(chronicle_client.session, 'patch', return_value=mock_error_response):
+
+    with patch.object(
+        chronicle_client.session, "patch", return_value=mock_error_response
+    ):
         # Act & Assert
         with pytest.raises(APIError) as exc_info:
             update_rule(chronicle_client, rule_id, rule_text)
-        
+
         assert "Failed to update rule" in str(exc_info.value)
 
 
@@ -176,15 +215,17 @@ def test_delete_rule(chronicle_client, mock_response):
     # Arrange
     rule_id = "ru_12345"
     mock_response.json.return_value = {}  # Empty response on successful delete
-    
-    with patch.object(chronicle_client.session, 'delete', return_value=mock_response) as mock_delete:
+
+    with patch.object(
+        chronicle_client.session, "delete", return_value=mock_response
+    ) as mock_delete:
         # Act
         result = delete_rule(chronicle_client, rule_id)
-        
+
         # Assert
         mock_delete.assert_called_once_with(
             f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}",
-            params={}
+            params={},
         )
         assert result == {}
 
@@ -193,12 +234,14 @@ def test_delete_rule_error(chronicle_client, mock_error_response):
     """Test delete_rule function with error response."""
     # Arrange
     rule_id = "ru_12345"
-    
-    with patch.object(chronicle_client.session, 'delete', return_value=mock_error_response):
+
+    with patch.object(
+        chronicle_client.session, "delete", return_value=mock_error_response
+    ):
         # Act & Assert
         with pytest.raises(APIError) as exc_info:
             delete_rule(chronicle_client, rule_id)
-        
+
         assert "Failed to delete rule" in str(exc_info.value)
 
 
@@ -207,15 +250,17 @@ def test_delete_rule_force(chronicle_client, mock_response):
     # Arrange
     rule_id = "ru_12345"
     mock_response.json.return_value = {}  # Empty response on successful delete
-    
-    with patch.object(chronicle_client.session, 'delete', return_value=mock_response) as mock_delete:
+
+    with patch.object(
+        chronicle_client.session, "delete", return_value=mock_response
+    ) as mock_delete:
         # Act
         result = delete_rule(chronicle_client, rule_id, force=True)
-        
+
         # Assert
         mock_delete.assert_called_once_with(
             f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}",
-            params={"force": "true"}
+            params={"force": "true"},
         )
         assert result == {}
 
@@ -224,16 +269,18 @@ def test_enable_rule(chronicle_client, mock_response):
     """Test enable_rule function."""
     # Arrange
     rule_id = "ru_12345"
-    
-    with patch.object(chronicle_client.session, 'patch', return_value=mock_response) as mock_patch:
+
+    with patch.object(
+        chronicle_client.session, "patch", return_value=mock_response
+    ) as mock_patch:
         # Act
         result = enable_rule(chronicle_client, rule_id, True)
-        
+
         # Assert
         mock_patch.assert_called_once_with(
             f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}/deployment",
             params={"update_mask": "enabled"},
-            json={"enabled": True}
+            json={"enabled": True},
         )
         assert result == mock_response.json.return_value
 
@@ -242,16 +289,18 @@ def test_disable_rule(chronicle_client, mock_response):
     """Test disable_rule function (enable_rule with enabled=False)."""
     # Arrange
     rule_id = "ru_12345"
-    
-    with patch.object(chronicle_client.session, 'patch', return_value=mock_response) as mock_patch:
+
+    with patch.object(
+        chronicle_client.session, "patch", return_value=mock_response
+    ) as mock_patch:
         # Act
         result = enable_rule(chronicle_client, rule_id, False)
-        
+
         # Assert
         mock_patch.assert_called_once_with(
             f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}/deployment",
             params={"update_mask": "enabled"},
-            json={"enabled": False}
+            json={"enabled": False},
         )
         assert result == mock_response.json.return_value
 
@@ -260,26 +309,32 @@ def test_enable_rule_error(chronicle_client, mock_error_response):
     """Test enable_rule function with error response."""
     # Arrange
     rule_id = "ru_12345"
-    
-    with patch.object(chronicle_client.session, 'patch', return_value=mock_error_response):
+
+    with patch.object(
+        chronicle_client.session, "patch", return_value=mock_error_response
+    ):
         # Act & Assert
         with pytest.raises(APIError) as exc_info:
             enable_rule(chronicle_client, rule_id)
-        
+
         assert "Failed to enable rule" in str(exc_info.value)
+
 
 def test_search_rules(chronicle_client, mock_response):
     """Test search_rules function."""
     # Arrange
     mock_response.json.return_value = {"rules": [{"name": "rule1"}, {"name": "rule2"}]}
-    
-    with patch.object(chronicle_client.session, 'get', return_value=mock_response) as mock_get:
+
+    with patch.object(
+        chronicle_client.session, "get", return_value=mock_response
+    ) as mock_get:
         # Act
         result = search_rules(chronicle_client, ".*")
-        
+
         # Assert
         mock_get.assert_called_once_with(
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules", params={"pageSize": 1000, "view": "FULL"}
+            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules",
+            params={"pageSize": 1000, "view": "FULL"},
         )
         assert result == mock_response.json.return_value
         assert len(result["rules"]) == 2
@@ -288,9 +343,125 @@ def test_search_rules(chronicle_client, mock_response):
 def test_search_rules_error(chronicle_client, mock_error_response):
     """Test list_rules function with error response."""
     # Arrange
-    with patch.object(chronicle_client.session, 'get', return_value=mock_error_response):
+    with patch.object(
+        chronicle_client.session, "get", return_value=mock_error_response
+    ):
         # Act & Assert
         with pytest.raises(SecOpsError) as exc_info:
             search_rules(chronicle_client, "(")
-        
+
         assert "Invalid regular expression" in str(exc_info.value)
+
+
+def test_run_rule_test(chronicle_client, mock_streaming_response):
+    """Test run_rule_test function."""
+    # Arrange
+    start_time = datetime(2023, 1, 1, tzinfo=timezone.utc)
+    end_time = datetime(2023, 1, 2, tzinfo=timezone.utc)
+    rule_text = "rule test {}"
+
+    # Mock the response to return a JSON array
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.text = json.dumps(
+        [
+            {"progressPercent": 10},
+            {"progressPercent": 50},
+            {"detection": {"rule_id": "rule1", "data": "test"}},
+            {"progressPercent": 100},
+        ]
+    )
+
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_response
+    ) as mock_post:
+        # Act
+        results = list(run_rule_test(chronicle_client, rule_text, start_time, end_time))
+
+        # Assert
+        expected_url = f"{chronicle_client.base_url}/projects/{chronicle_client.project_id}/locations/{chronicle_client.region}/instances/{chronicle_client.customer_id}/legacy:legacyRunTestRule"
+        mock_post.assert_called_once_with(
+            expected_url,
+            json={
+                "ruleText": rule_text,
+                "timeRange": {
+                    "startTime": "2023-01-01T00:00:00Z",
+                    "endTime": "2023-01-02T00:00:00Z",
+                },
+                "maxResults": 100,
+                "scope": "",
+            },
+            timeout=300,
+        )
+
+        # Verify we processed all streamed objects
+        assert len(results) == 4
+        assert results[0] == {"type": "progress", "percentDone": 10}
+        assert results[1] == {"type": "progress", "percentDone": 50}
+        assert results[2] == {
+            "type": "detection",
+            "detection": {"rule_id": "rule1", "data": "test"},
+        }
+        assert results[3] == {"type": "progress", "percentDone": 100}
+
+
+def test_run_rule_test_error(chronicle_client, mock_error_response):
+    """Test run_rule_test function with error response."""
+    # Arrange
+    start_time = datetime(2023, 1, 1, tzinfo=timezone.utc)
+    end_time = datetime(2023, 1, 2, tzinfo=timezone.utc)
+    rule_text = "rule test {}"
+
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_error_response
+    ):
+        # Act & Assert
+        with pytest.raises(APIError) as exc_info:
+            list(run_rule_test(chronicle_client, rule_text, start_time, end_time))
+
+        assert "Failed to test rule" in str(exc_info.value)
+
+
+def test_run_rule_test_invalid_max_results(chronicle_client):
+    """Test run_rule_test function with invalid max_results."""
+    # Arrange
+    start_time = datetime(2023, 1, 1)
+    end_time = datetime(2023, 1, 2)
+    rule_text = "rule test {}"
+
+    # Act & Assert - Test with too large value
+    with pytest.raises(ValueError) as exc_info:
+        list(
+            run_rule_test(
+                chronicle_client, rule_text, start_time, end_time, max_results=20000
+            )
+        )
+
+    assert "max_results must be between" in str(exc_info.value)
+
+    # Act & Assert - Test with negative value
+    with pytest.raises(ValueError) as exc_info:
+        list(
+            run_rule_test(
+                chronicle_client, rule_text, start_time, end_time, max_results=-5
+            )
+        )
+
+    assert "max_results must be between" in str(exc_info.value)
+
+
+def test_run_rule_test_handles_exceptions(chronicle_client):
+    """Test that run_rule_test handles exceptions properly."""
+    # Arrange
+    start_time = datetime(2023, 1, 1)
+    end_time = datetime(2023, 1, 2)
+    rule_text = "rule test {}"
+
+    with patch.object(
+        chronicle_client.session, "post", side_effect=Exception("Connection error")
+    ):
+        # Act & Assert
+        with pytest.raises(APIError) as exc_info:
+            list(run_rule_test(chronicle_client, rule_text, start_time, end_time))
+
+        assert "Error testing rule" in str(exc_info.value)
