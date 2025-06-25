@@ -226,6 +226,8 @@ class ChronicleClient:
         self.project_id = project_id
         self.customer_id = customer_id
         self.region = region
+        self._default_forwarder_display_name: str = "Wrapper-SDK-Forwarder"
+        self._cached_default_forwarder_id: Optional[str] = None
 
         # Format the instance ID to match the expected format
         if region in ["dev", "staging"]:
