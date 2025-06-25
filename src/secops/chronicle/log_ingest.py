@@ -23,9 +23,13 @@ from typing import Dict, Any, List, Optional, Union
 from secops.exceptions import APIError
 from secops.chronicle.log_types import is_valid_log_type
 
+# Forward declaration for type hinting to avoid circular import
+if False:
+    from secops.chronicle.client import ChronicleClient
+
 
 def create_forwarder(
-    client,
+    client: "ChronicleClient",
     display_name: str,
     metadata: Optional[Dict[str, Any]] = None,
     upload_compression: bool = False,
@@ -72,7 +76,7 @@ def create_forwarder(
 
 
 def list_forwarders(
-    client, page_size: int = 50, page_token: Optional[str] = None
+    client: "ChronicleClient", page_size: int = 50, page_token: Optional[str] = None
 ) -> Dict[str, Any]:
     """List forwarders in Chronicle.
 
@@ -117,7 +121,7 @@ def list_forwarders(
     return result
 
 
-def get_forwarder(client, forwarder_id: str) -> Dict[str, Any]:
+def get_forwarder(client: "ChronicleClient", forwarder_id: str) -> Dict[str, Any]:
     """Get a forwarder by ID.
 
     Args:
@@ -142,38 +146,94 @@ def get_forwarder(client, forwarder_id: str) -> Dict[str, Any]:
     return response.json()
 
 
+def _find_forwarder_by_display_name(
+    client: "ChronicleClient", display_name: str
+) -> Optional[Dict[str, Any]]:
+    """Find an existing forwarder by its display name.
+
+    This function calls list_forwarders which handles pagination to get all forwarders.
+
+    Args:
+        client: ChronicleClient instance.
+        display_name: Name of the forwarder to find.
+
+    Returns:
+        Dictionary containing the forwarder details if found, otherwise None.
+
+    Raises:
+        APIError: If the API request to list forwarders fails.
+    """
+    try:
+        # list_forwarders internally handles pagination to get all forwarders
+        # when no page_token is supplied initially.
+        forwarders_response = list_forwarders(client, page_size=1000)
+        for forwarder in forwarders_response.get("forwarders", []):
+            if forwarder.get("displayName") == display_name:
+                return forwarder
+        return None
+    except APIError as e:
+        # Re-raise APIError if listing fails, to be handled by the caller
+        raise APIError(f"Failed to list forwarders while searching for '{display_name}': {str(e)}")
+
+
 def get_or_create_forwarder(
-    client, display_name: str = "Wrapper-SDK-Forwarder"
+    client: "ChronicleClient", display_name: Optional[str] = None
 ) -> Dict[str, Any]:
     """Get an existing forwarder by name or create a new one if none exists.
 
+    This function now includes caching for the default forwarder to reduce
+    API calls to list_forwarders.
+
     Args:
-        client: ChronicleClient instance
-        display_name: Name of the forwarder to find or create
+        client: ChronicleClient instance.
+        display_name: Name of the forwarder to find or create.
+                      If None, uses the default name "Wrapper-SDK-Forwarder".
 
     Returns:
-        Dictionary containing the forwarder details
+        Dictionary containing the forwarder details.
 
     Raises:
-        APIError: If the API request fails
+        APIError: If the API request fails.
     """
-    try:
-        # List existing forwarders
-        forwarders = list_forwarders(client, page_size=1000)
+    target_display_name = display_name or client._default_forwarder_display_name
+    is_default_forwarder_request = (target_display_name == client._default_forwarder_display_name)
 
-        # Try to find a forwarder with the given display name
-        for forwarder in forwarders.get("forwarders", []):
-            if forwarder.get("displayName") == display_name:
-                return forwarder
+    if is_default_forwarder_request and client._cached_default_forwarder_id:
+        try:
+            # Attempt to get the cached default forwarder directly
+            forwarder = get_forwarder(client, client._cached_default_forwarder_id)
+            if forwarder.get("displayName") == client._default_forwarder_display_name:
+                return forwarder  # Cache hit and valid
+            else:
+                # Cached ID points to a forwarder with a different name (unexpected)
+                # or forwarder was modified. Invalidate cache.
+                client._cached_default_forwarder_id = None
+        except APIError:
+            # Forwarder might have been deleted or permissions changed. Invalidate cache.
+            client._cached_default_forwarder_id = None
+            # Proceed to find/create logic
+
+    try:
+        # Try to find the forwarder by its display name
+        found_forwarder = _find_forwarder_by_display_name(client, target_display_name)
+
+        if found_forwarder:
+            if is_default_forwarder_request:
+                # Cache the ID of the default forwarder if found
+                client._cached_default_forwarder_id = extract_forwarder_id(found_forwarder["name"])
+            return found_forwarder
 
         # No matching forwarder found, create a new one
-        return create_forwarder(client, display_name=display_name)
+        created_forwarder = create_forwarder(client, display_name=target_display_name)
+        if is_default_forwarder_request:
+            # Cache the ID of the newly created default forwarder
+            client._cached_default_forwarder_id = extract_forwarder_id(created_forwarder["name"])
+        return created_forwarder
 
     except APIError as e:
-        # Handle permission issues or other API errors
         if "permission" in str(e).lower():
             raise APIError(f"Insufficient permissions to manage forwarders: {str(e)}")
-        raise
+        raise e
 
 
 def extract_forwarder_id(forwarder_name: str) -> str:
@@ -211,7 +271,7 @@ def extract_forwarder_id(forwarder_name: str) -> str:
 
 
 def ingest_log(
-    client,
+    client: "ChronicleClient",
     log_type: str,
     log_message: Union[str, List[str]],
     log_entry_time: Optional[datetime] = None,
@@ -322,7 +382,7 @@ def ingest_log(
 
 
 def ingest_udm(
-    client,
+    client: "ChronicleClient",
     udm_events: Union[Dict[str, Any], List[Dict[str, Any]]],
     add_missing_ids: bool = True,
 ) -> Dict[str, Any]:

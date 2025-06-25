@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2025-06-25
+### Fixed
+- Optimized `get_or_create_forwarder` function to reduce `list_forwarders` API calls.
+  - Implemented caching for the default forwarder ID within the `ChronicleClient` instance.
+  - Added a direct `get_forwarder` check for the cached ID before attempting to list all forwarders.
+  - This significantly reduces API quota usage when ingesting logs with the default forwarder.
+
 ## [0.6.1] - 2025-06-21
 ### Fixed
 - Environment Namespace.
