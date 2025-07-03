@@ -851,6 +851,8 @@ def setup_parser_command(subparsers):
             "  secops parser run --log-type OKTA --parser-code 'filter {}' --log 'log1' --log 'log2'\n\n"
             "  # Run parser using files:\n"
             "  secops parser run --log-type WINDOWS --parser-code-file parser.conf --logs-file logs.txt\n\n"
+            "  # Run parser with the active parser\n"
+            "  secops parser run --log-type OKTA --log-file logs.txt\n\n"
             "  # Run parser with extension:\n"
             "  secops parser run --log-type CUSTOM --parser-code-file parser.conf \\\n"
             "    --parser-extension-code-file extension.conf --logs-file logs.txt"
