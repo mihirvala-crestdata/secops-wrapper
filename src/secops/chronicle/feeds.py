@@ -107,6 +107,14 @@ def list_feeds(client, page_size: int = 100, page_token: str = None) -> List[Fee
 
     Args:
         client: ChronicleClient instance
+        page_size: The maximum number of feeds to return
+        page_token: A page token, received from a previous ListFeeds call
+
+    Returns:
+        List of feed dictionaries
+
+    Raises:
+        APIError: If the API request fails
     """
     feeds: list[dict] = []
 
@@ -131,6 +139,18 @@ def list_feeds(client, page_size: int = 100, page_token: str = None) -> List[Fee
 
 
 def get_feed(client, feed_id: str) -> Feed:
+    """Get a feed by ID.
+
+    Args:
+        client: ChronicleClient instance
+        feed_id: Feed ID
+
+    Returns:
+        Feed dictionary
+
+    Raises:
+        APIError: If the API request fails
+    """
     feed_id = os.path.basename(feed_id)
     url = f"{client.base_url}/{client.instance_id}/feeds/{feed_id}"
     response = client.session.get(url)
@@ -141,6 +161,18 @@ def get_feed(client, feed_id: str) -> Feed:
 
 
 def create_feed(client, feed_config: CreateFeedModel) -> Feed:
+    """Create a new feed.
+
+    Args:
+        client: ChronicleClient instance
+        feed_config: Feed configuration model
+
+    Returns:
+        Created feed dictionary
+
+    Raises:
+        APIError: If the API request fails
+    """
     url = f"{client.base_url}/{client.instance_id}/feeds"
     response = client.session.post(url, json=feed_config.to_dict())
     if response.status_code != 200:
@@ -155,6 +187,20 @@ def update_feed(
     feed_config: CreateFeedModel,
     update_mask: Optional[Union[List[str], None]] = None,
 ) -> Feed:
+    """Update an existing feed.
+
+    Args:
+        client: ChronicleClient instance
+        feed_id: Feed ID
+        feed_config: Feed configuration model
+        update_mask: Optional list of fields to update
+
+    Returns:
+        Updated feed dictionary
+
+    Raises:
+        APIError: If the API request fails
+    """
     url = f"{client.base_url}/{client.instance_id}/feeds/{feed_id}"
 
     if update_mask is None:
@@ -176,6 +222,15 @@ def update_feed(
 
 
 def delete_feed(client, feed_id: str) -> None:
+    """Delete a feed.
+
+    Args:
+        client: ChronicleClient instance
+        feed_id: Feed ID
+
+    Raises:
+        APIError: If the API request fails
+    """
     url = f"{client.base_url}/{client.instance_id}/feeds/{feed_id}"
     response = client.session.delete(url)
     if response.status_code != 200:
@@ -183,6 +238,15 @@ def delete_feed(client, feed_id: str) -> None:
 
 
 def disable_feed(client, feed_id: str) -> None:
+    """Disable a feed.
+
+    Args:
+        client: ChronicleClient instance
+        feed_id: Feed ID
+
+    Raises:
+        APIError: If the API request fails
+    """
     url = f"{client.base_url}/{client.instance_id}/feeds/{feed_id}:disable"
     response = client.session.post(url)
     if response.status_code != 200:
@@ -190,6 +254,15 @@ def disable_feed(client, feed_id: str) -> None:
 
 
 def enable_feed(client, feed_id: str) -> None:
+    """Enable a feed.
+
+    Args:
+        client: ChronicleClient instance
+        feed_id: Feed ID
+
+    Raises:
+        APIError: If the API request fails
+    """
     url = f"{client.base_url}/{client.instance_id}/feeds/{feed_id}:enable"
     response = client.session.post(url)
     if response.status_code != 200:
@@ -197,6 +270,18 @@ def enable_feed(client, feed_id: str) -> None:
 
 
 def generate_secret(client, feed_id: str) -> FeedSecret:
+    """Generate a secret for a feed.
+
+    Args:
+        client: ChronicleClient instance
+        feed_id: Feed ID
+
+    Returns:
+        Dictionary containing the generated secret
+
+    Raises:
+        APIError: If the API request fails
+    """
     url = f"{client.base_url}/{client.instance_id}/feeds/{feed_id}:generateSecret"
     response = client.session.post(url)
     if response.status_code != 200:
