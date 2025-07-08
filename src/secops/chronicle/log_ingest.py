@@ -173,7 +173,9 @@ def _find_forwarder_by_display_name(
         return None
     except APIError as e:
         # Re-raise APIError if listing fails, to be handled by the caller
-        raise APIError(f"Failed to list forwarders while searching for '{display_name}': {str(e)}")
+        raise APIError(
+            f"Failed to list forwarders while searching for '{display_name}': {str(e)}"
+        )
 
 
 def get_or_create_forwarder(
@@ -196,7 +198,9 @@ def get_or_create_forwarder(
         APIError: If the API request fails.
     """
     target_display_name = display_name or client._default_forwarder_display_name
-    is_default_forwarder_request = (target_display_name == client._default_forwarder_display_name)
+    is_default_forwarder_request = (
+        target_display_name == client._default_forwarder_display_name
+    )
 
     if is_default_forwarder_request and client._cached_default_forwarder_id:
         try:
@@ -220,14 +224,18 @@ def get_or_create_forwarder(
         if found_forwarder:
             if is_default_forwarder_request:
                 # Cache the ID of the default forwarder if found
-                client._cached_default_forwarder_id = extract_forwarder_id(found_forwarder["name"])
+                client._cached_default_forwarder_id = extract_forwarder_id(
+                    found_forwarder["name"]
+                )
             return found_forwarder
 
         # No matching forwarder found, create a new one
         created_forwarder = create_forwarder(client, display_name=target_display_name)
         if is_default_forwarder_request:
             # Cache the ID of the newly created default forwarder
-            client._cached_default_forwarder_id = extract_forwarder_id(created_forwarder["name"])
+            client._cached_default_forwarder_id = extract_forwarder_id(
+                created_forwarder["name"]
+            )
         return created_forwarder
 
     except APIError as e:
