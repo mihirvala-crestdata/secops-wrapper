@@ -47,7 +47,10 @@ class SecOpsAuth:
         """
         self.scopes = scopes or CHRONICLE_SCOPES
         self.credentials = self._get_credentials(
-            credentials, service_account_path, service_account_info, impersonate_service_account
+            credentials,
+            service_account_path,
+            service_account_info,
+            impersonate_service_account,
         )
         self._session = None
 
@@ -56,7 +59,7 @@ class SecOpsAuth:
         credentials: Optional[Credentials],
         service_account_path: Optional[str],
         service_account_info: Optional[Dict[str, Any]],
-        impersonate_service_account: Optional[str]
+        impersonate_service_account: Optional[str],
     ) -> Credentials:
         """Get credentials from various sources."""
         try:
@@ -64,13 +67,17 @@ class SecOpsAuth:
                 google_credentials = credentials.with_scopes(self.scopes)
 
             elif service_account_info:
-                google_credentials =  service_account.Credentials.from_service_account_info(
-                    service_account_info, scopes=self.scopes
+                google_credentials = (
+                    service_account.Credentials.from_service_account_info(
+                        service_account_info, scopes=self.scopes
+                    )
                 )
 
             elif service_account_path:
-                google_credentials = service_account.Credentials.from_service_account_file(
-                    service_account_path, scopes=self.scopes
+                google_credentials = (
+                    service_account.Credentials.from_service_account_file(
+                        service_account_path, scopes=self.scopes
+                    )
                 )
 
             else:
@@ -81,8 +88,9 @@ class SecOpsAuth:
                 target_credentials = impersonated_credentials.Credentials(
                     source_credentials=google_credentials,
                     target_principal=impersonate_service_account,
-                    target_scopes = self.scopes,
-                    lifetime=600)
+                    target_scopes=self.scopes,
+                    lifetime=600,
+                )
                 return target_credentials
             return google_credentials
         except Exception as e:

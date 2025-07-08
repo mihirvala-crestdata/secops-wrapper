@@ -41,7 +41,7 @@ class SecOpsClient:
             credentials=credentials,
             service_account_path=service_account_path,
             service_account_info=service_account_info,
-            impersonate_service_account=impersonate_service_account
+            impersonate_service_account=impersonate_service_account,
         )
         self._chronicle = None
 
