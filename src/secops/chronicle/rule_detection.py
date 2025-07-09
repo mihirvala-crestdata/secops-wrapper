@@ -47,7 +47,9 @@ def list_detections(
         APIError: If the API request fails
         ValueError: If an invalid alert_state is provided
     """
-    url = f"{client.base_url}/{client.instance_id}/legacy:legacySearchDetections"
+    url = (
+        f"{client.base_url}/{client.instance_id}/legacy:legacySearchDetections"
+    )
 
     # Define valid alert states
     valid_alert_states = ["UNSPECIFIED", "NOT_ALERTING", "ALERTING"]
@@ -60,7 +62,8 @@ def list_detections(
     if alert_state:
         if alert_state not in valid_alert_states:
             raise ValueError(
-                f"alert_state must be one of {valid_alert_states}, got {alert_state}"
+                f"alert_state must be one of {valid_alert_states}, "
+                f"got {alert_state}"
             )
         params["alertState"] = alert_state
 

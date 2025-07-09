@@ -14,10 +14,9 @@
 #
 """Rule management functionality for Chronicle."""
 
-from typing import Dict, Any, Optional, List, Iterator, Union
+from typing import Dict, Any, Iterator
 from datetime import datetime, timezone
 import json
-import time
 from secops.exceptions import APIError, SecOpsError
 import re
 
@@ -196,7 +195,8 @@ def enable_rule(client, rule_id: str, enabled: bool = True) -> Dict[str, Any]:
 
     if response.status_code != 200:
         raise APIError(
-            f"Failed to {'enable' if enabled else 'disable'} rule: {response.text}"
+            f"Failed to {"enable" if enabled else "disable"} "
+            f"rule: {response.text}"
         )
 
     return response.json()
@@ -217,8 +217,8 @@ def search_rules(client, query: str) -> Dict[str, Any]:
     """
     try:
         re.compile(query)
-    except re.error:
-        raise SecOpsError(f"Invalid regular expression: {query}")
+    except re.error as e:
+        raise SecOpsError(f"Invalid regular expression: {query}") from e
 
     rules = list_rules(client)
     results = {"rules": []}
@@ -242,20 +242,22 @@ def run_rule_test(
 ) -> Iterator[Dict[str, Any]]:
     """Tests a rule against historical data and returns matches.
 
-    This function connects to the legacy:legacyRunTestRule streaming API endpoint
-    and processes the response which contains progress updates and detection results.
+    This function connects to the legacy:legacyRunTestRule streaming
+    API endpoint and processes the response which contains progress updates
+    and detection results.
 
     Args:
         client: ChronicleClient instance
         rule_text: Content of the detection rule to test
         start_time: Start time for the test range
         end_time: End time for the test range
-        max_results: Maximum number of results to return (default 100, max 10000)
+        max_results: Maximum number of results to return
+            (default 100, max 10000)
         timeout: Request timeout in seconds (default 300)
 
     Yields:
-        Dictionaries containing detection results, progress updates or error information,
-        depending on the response type.
+        Dictionaries containing detection results, progress updates
+        or error information, depending on the response type.
 
     Raises:
         APIError: If the API request fails
@@ -278,7 +280,11 @@ def run_rule_test(
     end_time_str = end_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Fix: Use the full path for the legacy API endpoint
-    url = f"{client.base_url}/projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}/legacy:legacyRunTestRule"
+    url = (
+        f"{client.base_url}/projects/{client.project_id}/locations"
+        f"/{client.region}/instances/{client.customer_id}"
+        "/legacy:legacyRunTestRule"
+    )
 
     body = {
         "ruleText": rule_text,
@@ -308,7 +314,10 @@ def run_rule_test(
                     # Return the detection with proper type
                     yield {"type": "detection", "detection": item["detection"]}
                 elif "progressPercent" in item:
-                    yield {"type": "progress", "percentDone": item["progressPercent"]}
+                    yield {
+                        "type": "progress",
+                        "percentDone": item["progressPercent"],
+                    }
                 elif "ruleCompilationError" in item:
                     yield {
                         "type": "error",
@@ -320,14 +329,19 @@ def run_rule_test(
                 elif "tooManyDetections" in item and item["tooManyDetections"]:
                     yield {
                         "type": "info",
-                        "message": "Too many detections found, results may be incomplete",
+                        "message": (
+                            "Too many detections found, "
+                            "results may be incomplete"
+                        ),
                     }
                 else:
                     # Unknown item type, yield as-is
                     yield item
 
         except json.JSONDecodeError as e:
-            raise APIError(f"Failed to parse rule test response: {str(e)}")
+            raise APIError(
+                f"Failed to parse rule test response: {str(e)}"
+            ) from e
 
     except Exception as e:
-        raise APIError(f"Error testing rule: {str(e)}")
+        raise APIError(f"Error testing rule: {str(e)}") from e

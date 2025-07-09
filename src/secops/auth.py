@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 """Authentication handling for Google SecOps SDK."""
+
 from typing import Optional, Dict, Any, List
 from google.auth.credentials import Credentials
 from google.oauth2 import service_account
@@ -82,7 +83,7 @@ class SecOpsAuth:
 
             else:
                 # Try to get default credentials
-                google_credentials, project = google.auth.default(scopes=self.scopes)
+                google_credentials, _ = google.auth.default(scopes=self.scopes)
 
             if impersonate_service_account:
                 target_credentials = impersonated_credentials.Credentials(
@@ -94,7 +95,9 @@ class SecOpsAuth:
                 return target_credentials
             return google_credentials
         except Exception as e:
-            raise AuthenticationError(f"Failed to get credentials: {str(e)}")
+            raise AuthenticationError(
+                f"Failed to get credentials: {str(e)}"
+            ) from e
 
     @property
     def session(self):

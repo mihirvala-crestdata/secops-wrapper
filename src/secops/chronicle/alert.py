@@ -17,7 +17,7 @@
 import json
 import time
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from secops.exceptions import APIError
 import re
 
@@ -63,33 +63,36 @@ def get_alerts(
 ) -> Dict[str, Any]:
     """Get alerts from Chronicle.
 
-    This function uses the legacy:legacyFetchAlertsView endpoint to retrieve alerts that match the provided
-    query parameters. The function will poll for results until the response is complete or the maximum number
-    of attempts is reached.
+    This function uses the legacy:legacyFetchAlertsView endpoint to retrieve
+    alerts that match the provided query parameters. The function will poll for
+    results until the response is complete or the maximum number of attempts is
+    reached.
 
     Args:
-        client: ChronicleClient instance
-        start_time: Start time for alert search (inclusive)
-        end_time: End time for alert search (exclusive)
-        snapshot_query: Query for filtering alerts. Uses a syntax similar to UDM search, with supported fields
-            including: detection.rule_set, detection.rule_id, detection.rule_name, case_name,
-            feedback_summary.status, feedback_summary.priority, etc.
-        baseline_query: Optional baseline query to search for. The baseline query is used for this request and
-            its results are cached for subsequent requests, so supplying additional filters in the snapshot_query
-            will not require re-running the baseline query.
-        max_alerts: Maximum number of alerts to return in results
-        enable_cache: Whether to use cached results for the same baseline query and time range
-        max_attempts: Maximum number of polling attempts
-        poll_interval: Time in seconds between polling attempts
+        client: ChronicleClient instance start_time: Start time for alert search
+        (inclusive) end_time: End time for alert search (exclusive)
+        snapshot_query: Query for filtering alerts. Uses a syntax similar to UDM
+        search, with supported fields
+            including: detection.rule_set, detection.rule_id,
+            detection.rule_name, case_name, feedback_summary.status,
+            feedback_summary.priority, etc.
+        baseline_query: Optional baseline query to search for. The baseline
+        query is used for this request and
+            its results are cached for subsequent requests, so supplying
+            additional filters in the snapshot_query will not require re-running
+            the baseline query.
+        max_alerts: Maximum number of alerts to return in results enable_cache:
+        Whether to use cached results for the same baseline query and time range
+        max_attempts: Maximum number of polling attempts poll_interval: Time in
+        seconds between polling attempts
 
     Returns:
-        Dictionary containing alert data including:
-        - progress: Progress of the query (0-1)
-        - complete: Whether the query is complete
-        - alerts: Dictionary containing list of alerts
-        - fieldAggregations: Aggregated alert fields
-        - filteredAlertsCount: Count of alerts matching the snapshot query
-        - baselineAlertsCount: Count of alerts matching the baseline query
+        Dictionary containing alert data including: - progress: Progress of the
+        query (0-1) - complete: Whether the query is complete - alerts:
+        Dictionary containing list of alerts - fieldAggregations: Aggregated
+        alert fields - filteredAlertsCount: Count of alerts matching the
+        snapshot query - baselineAlertsCount: Count of alerts matching the
+        baseline query
 
     Raises:
         APIError: If the API request fails or times out
@@ -99,7 +102,9 @@ def get_alerts(
     # Build the request parameters
     # Ensure timezone awareness and convert to UTC
     start_time_utc = (
-        start_time if start_time.tzinfo else start_time.replace(tzinfo=timezone.utc)
+        start_time
+        if start_time.tzinfo
+        else start_time.replace(tzinfo=timezone.utc)
     )
     end_time_utc = (
         end_time if end_time.tzinfo else end_time.replace(tzinfo=timezone.utc)
@@ -193,7 +198,7 @@ def get_alerts(
                 time.sleep(poll_interval)
 
         except ValueError as e:
-            raise APIError(f"Failed to parse alerts response: {str(e)}")
+            raise APIError(f"Failed to parse alerts response: {str(e)}") from e
 
     if not complete and attempts >= max_attempts:
         raise APIError(f"Alert search timed out after {max_attempts} attempts")

@@ -24,7 +24,7 @@ from secops.exceptions import APIError
 from secops.chronicle.log_types import is_valid_log_type
 
 # Forward declaration for type hinting to avoid circular import
-if False:
+if False:  # pylint: disable=using-constant-test
     from secops.chronicle.client import ChronicleClient
 
 
@@ -76,7 +76,9 @@ def create_forwarder(
 
 
 def list_forwarders(
-    client: "ChronicleClient", page_size: int = 50, page_token: Optional[str] = None
+    client: "ChronicleClient",
+    page_size: int = 50,
+    page_token: Optional[str] = None,
 ) -> Dict[str, Any]:
     """List forwarders in Chronicle.
 
@@ -121,7 +123,9 @@ def list_forwarders(
     return result
 
 
-def get_forwarder(client: "ChronicleClient", forwarder_id: str) -> Dict[str, Any]:
+def get_forwarder(
+    client: "ChronicleClient", forwarder_id: str
+) -> Dict[str, Any]:
     """Get a forwarder by ID.
 
     Args:
@@ -151,7 +155,8 @@ def _find_forwarder_by_display_name(
 ) -> Optional[Dict[str, Any]]:
     """Find an existing forwarder by its display name.
 
-    This function calls list_forwarders which handles pagination to get all forwarders.
+    This function calls list_forwarders which handles pagination to get
+    all forwarders.
 
     Args:
         client: ChronicleClient instance.
@@ -174,8 +179,9 @@ def _find_forwarder_by_display_name(
     except APIError as e:
         # Re-raise APIError if listing fails, to be handled by the caller
         raise APIError(
-            f"Failed to list forwarders while searching for '{display_name}': {str(e)}"
-        )
+            f"Failed to list forwarders while searching for '{display_name}': "
+            f"{str(e)}"
+        ) from e
 
 
 def get_or_create_forwarder(
@@ -197,50 +203,79 @@ def get_or_create_forwarder(
     Raises:
         APIError: If the API request fails.
     """
-    target_display_name = display_name or client._default_forwarder_display_name
+    target_display_name = (
+        display_name
+        or client._default_forwarder_display_name  # pylint: disable=protected-access
+    )
     is_default_forwarder_request = (
-        target_display_name == client._default_forwarder_display_name
+        target_display_name
+        == client._default_forwarder_display_name  # pylint: disable=protected-access
     )
 
-    if is_default_forwarder_request and client._cached_default_forwarder_id:
+    if (
+        is_default_forwarder_request
+        and client._cached_default_forwarder_id  # pylint: disable=protected-access
+    ):
         try:
             # Attempt to get the cached default forwarder directly
-            forwarder = get_forwarder(client, client._cached_default_forwarder_id)
-            if forwarder.get("displayName") == client._default_forwarder_display_name:
+            forwarder = get_forwarder(
+                client,
+                client._cached_default_forwarder_id,  # pylint: disable=protected-access
+            )
+            if (
+                forwarder.get("displayName")
+                == client._default_forwarder_display_name  # pylint: disable=protected-access
+            ):
                 return forwarder  # Cache hit and valid
             else:
-                # Cached ID points to a forwarder with a different name (unexpected)
-                # or forwarder was modified. Invalidate cache.
-                client._cached_default_forwarder_id = None
+                # Cached ID points to a forwarder with
+                # a different name (unexpected) or forwarder was modified.
+                # Invalidate cache.
+                client._cached_default_forwarder_id = (  # pylint: disable=protected-access
+                    None
+                )
         except APIError:
-            # Forwarder might have been deleted or permissions changed. Invalidate cache.
-            client._cached_default_forwarder_id = None
+            # Forwarder might have been deleted or permissions changed.
+            # Invalidate cache.
+            client._cached_default_forwarder_id = (  # pylint: disable=protected-access
+                None
+            )
             # Proceed to find/create logic
 
     try:
         # Try to find the forwarder by its display name
-        found_forwarder = _find_forwarder_by_display_name(client, target_display_name)
+        found_forwarder = _find_forwarder_by_display_name(
+            client, target_display_name
+        )
 
         if found_forwarder:
             if is_default_forwarder_request:
                 # Cache the ID of the default forwarder if found
+                # pylint: disable=protected-access
                 client._cached_default_forwarder_id = extract_forwarder_id(
                     found_forwarder["name"]
                 )
+                # pylint: enable=protected-access
             return found_forwarder
 
         # No matching forwarder found, create a new one
-        created_forwarder = create_forwarder(client, display_name=target_display_name)
+        created_forwarder = create_forwarder(
+            client, display_name=target_display_name
+        )
         if is_default_forwarder_request:
             # Cache the ID of the newly created default forwarder
+            # pylint: disable=protected-access
             client._cached_default_forwarder_id = extract_forwarder_id(
                 created_forwarder["name"]
             )
+            # pylint: enable=protected-access
         return created_forwarder
 
     except APIError as e:
         if "permission" in str(e).lower():
-            raise APIError(f"Insufficient permissions to manage forwarders: {str(e)}")
+            raise APIError(
+                f"Insufficient permissions to manage forwarders: {str(e)}"
+            ) from e
         raise e
 
 
@@ -294,15 +329,22 @@ def ingest_log(
     Args:
         client: ChronicleClient instance
         log_type: Chronicle log type (e.g., "OKTA", "WINDOWS", etc.)
-        log_message: Either a single log message string or a list of log message strings
-        log_entry_time: The time the log entry was created (defaults to current time)
-        collection_time: The time the log was collected (defaults to current time)
-        namespace: The user-configured environment namespace to identify the data domain
-            the logs originated from. This namespace will be used as a tag to identify
-            the appropriate data domain for indexing and enrichment functionality.
-        labels: Dictionary of custom metadata labels to attach to the log entries.
-        forwarder_id: ID of the forwarder to use (creates or uses default if None)
-        force_log_type: Whether to force using the log type even if not in the valid list
+        log_message: Either a single log message string
+            or a list of log message strings
+        log_entry_time: The time the log entry was created
+            (defaults to current time)
+        collection_time: The time the log was collected
+            (defaults to current time)
+        namespace: The user-configured environment namespace to identify
+            the data domain the logs originated from. This namespace will be
+            used as a tag to identify the appropriate data domain for indexing
+            and enrichment functionality.
+        labels: Dictionary of custom metadata labels to attach to
+            the log entries.
+        forwarder_id: ID of the forwarder to use
+            (creates or uses default if None)
+        force_log_type: Whether to force using the log type even if not in
+            the valid list
 
     Returns:
         Dictionary containing the operation details for the ingestion
@@ -314,7 +356,8 @@ def ingest_log(
     # Validate log type
     if not is_valid_log_type(log_type) and not force_log_type:
         raise ValueError(
-            f"Invalid log type: {log_type}. Use force_log_type=True to override."
+            f"Invalid log type: {log_type}. "
+            "Use force_log_type=True to override."
         )
 
     # Get current time as default for log_entry_time and collection_time
@@ -348,10 +391,15 @@ def ingest_log(
         forwarder_resource = forwarder_id
 
     # Construct the import URL
-    url = f"{client.base_url}/{client.instance_id}/logTypes/{log_type}/logs:import"
+    url = (
+        f"{client.base_url}/{client.instance_id}/logTypes"
+        f"/{log_type}/logs:import"
+    )
 
     # Convert single log message to a list for unified processing
-    log_messages = log_message if isinstance(log_message, list) else [log_message]
+    log_messages = (
+        log_message if isinstance(log_message, list) else [log_message]
+    )
 
     # Prepare logs for the payload
     logs = []
@@ -398,8 +446,10 @@ def ingest_udm(
 
     Args:
         client: ChronicleClient instance
-        udm_events: A single UDM event dictionary or a list of UDM event dictionaries
-        add_missing_ids: Whether to automatically add unique IDs to events missing them
+        udm_events: A single UDM event dictionary
+            or a list of UDM event dictionaries
+        add_missing_ids: Whether to automatically add unique IDs to
+            events missing them
 
     Returns:
         Dictionary containing the operation details for the ingestion
@@ -462,7 +512,8 @@ def ingest_udm(
         # Validate basic structure
         if not isinstance(event, dict):
             raise ValueError(
-                f"Invalid UDM event type: {type(event)}. Events must be dictionaries."
+                f"Invalid UDM event type: {type(event)}. "
+                "Events must be dictionaries."
             )
 
         # Check for required metadata section
@@ -475,20 +526,28 @@ def ingest_udm(
         # Add event timestamp if missing
         if "event_timestamp" not in event["metadata"]:
             current_time = datetime.now().astimezone()
-            event["metadata"]["event_timestamp"] = current_time.isoformat().replace(
-                "+00:00", "Z"
-            )
+            event["metadata"][
+                "event_timestamp"
+            ] = current_time.isoformat().replace("+00:00", "Z")
 
         # Add ID if needed
         if add_missing_ids and "id" not in event["metadata"]:
             event["metadata"]["id"] = str(uuid.uuid4())
 
     # Prepare the request
-    parent = f"projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}"
-    url = f"https://{client.region}-chronicle.googleapis.com/v1alpha/{parent}/events:import"
+    parent = (
+        f"projects/{client.project_id}/locations/{client.region}"
+        f"/instances/{client.customer_id}"
+    )
+    url = (
+        f"https://{client.region}-chronicle.googleapis.com/v1alpha/"
+        f"{parent}/events:import"
+    )
 
     # Format the request body
-    body = {"inline_source": {"events": [{"udm": event} for event in events_copy]}}
+    body = {
+        "inline_source": {"events": [{"udm": event} for event in events_copy]}
+    }
 
     # Make the API request
     response = client.session.post(url, json=body)
