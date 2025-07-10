@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Main client for Google SecOps SDK."""
+
 from typing import Optional, Dict, Any
 from google.auth.credentials import Credentials
 from secops.auth import SecOpsAuth

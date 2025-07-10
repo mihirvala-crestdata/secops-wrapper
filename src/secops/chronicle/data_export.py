@@ -18,7 +18,7 @@ This module provides functions to interact with the Chronicle Data Export API,
 allowing users to export Chronicle data to Google Cloud Storage buckets.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass
 from secops.exceptions import APIError
@@ -82,11 +82,12 @@ def create_data_export(
 
     Args:
         client: ChronicleClient instance
-        gcs_bucket: GCS bucket path in format "projects/{project}/buckets/{bucket}"
+        gcs_bucket: GCS bucket path in format
+            "projects/{project}/buckets/{bucket}"
         start_time: Start time for the export (inclusive)
         end_time: End time for the export (exclusive)
-        log_type: Optional specific log type to export. If None and export_all_logs is False,
-                  no logs will be exported
+        log_type: Optional specific log type to export.
+            If None and export_all_logs is False, no logs will be exported
         export_all_logs: Whether to export all log types
 
     Returns:
@@ -138,7 +139,9 @@ def create_data_export(
         )
 
     if export_all_logs and log_type:
-        raise ValueError("Cannot specify both log_type and export_all_logs=True")
+        raise ValueError(
+            "Cannot specify both log_type and export_all_logs=True"
+        )
 
     # Format times in RFC 3339 format
     start_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -163,22 +166,32 @@ def create_data_export(
                 )
                 found = False
                 for lt in available_logs.get("available_log_types", []):
-                    if lt.log_type.endswith("/" + log_type) or lt.log_type.endswith(
-                        "/logTypes/" + log_type
-                    ):
-                        # If we found the log type in the list, use its exact format
+                    if lt.log_type.endswith(
+                        "/" + log_type
+                    ) or lt.log_type.endswith("/logTypes/" + log_type):
+                        # If we found the log type in the list,
+                        # use its exact format
                         payload["log_type"] = lt.log_type
                         found = True
                         break
 
                 if not found:
                     # If log type isn't in the list, try the standard format
-                    # Format log_type as required by the API - the complete format
-                    formatted_log_type = f"projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}/logTypes/{log_type}"
+                    # Format log_type as required by the API -
+                    # the complete format
+                    formatted_log_type = (
+                        f"projects/{client.project_id}/"
+                        f"locations/{client.region}/instances/"
+                        f"{client.customer_id}/logTypes/{log_type}"
+                    )
                     payload["log_type"] = formatted_log_type
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 # If we can't validate, just use the standard format
-                formatted_log_type = f"projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}/logTypes/{log_type}"
+                formatted_log_type = (
+                    f"projects/{client.project_id}/locations/"
+                    f"{client.region}/instances/{client.customer_id}/"
+                    f"logTypes/{log_type}"
+                )
                 payload["log_type"] = formatted_log_type
         else:
             # Log type is already formatted
@@ -218,7 +231,10 @@ def cancel_data_export(client, data_export_id: str) -> Dict[str, Any]:
         print("Export cancellation request submitted")
         ```
     """
-    url = f"{client.base_url}/{client.instance_id}/dataExports/{data_export_id}:cancel"
+    url = (
+        f"{client.base_url}/{client.instance_id}/dataExports/"
+        f"{data_export_id}:cancel"
+    )
 
     response = client.session.post(url)
 
@@ -267,7 +283,10 @@ def fetch_available_log_types(
 
         for log_type in result["available_log_types"]:
             print(f"{log_type.display_name} ({log_type.log_type})")
-            print(f"  Available from {log_type.start_time} to {log_type.end_time}")
+            print(
+                f"Available from {log_type.start_time} "
+                f"to {log_type.end_time}"
+            )
         ```
     """
     # Validate parameters
@@ -289,7 +308,10 @@ def fetch_available_log_types(
         payload["page_token"] = page_token
 
     # Construct the URL and send the request
-    url = f"{client.base_url}/{client.instance_id}/dataExports:fetchavailablelogtypes"
+    url = (
+        f"{client.base_url}/{client.instance_id}/"
+        "dataExports:fetchavailablelogtypes"
+    )
 
     response = client.session.post(url, json=payload)
 

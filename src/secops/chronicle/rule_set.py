@@ -39,11 +39,18 @@ def batch_update_curated_rule_set_deployments(
         APIError: If the API request fails
         ValueError: If required fields are missing from the deployments
     """
-    url = f"{client.base_url}/{client.instance_id}/curatedRuleSetCategories/-/curatedRuleSets/-/curatedRuleSetDeployments:batchUpdate"
+    url = (
+        f"{client.base_url}/{client.instance_id}/curatedRuleSetCategories/-"
+        "/curatedRuleSets/-/curatedRuleSetDeployments:batchUpdate"
+    )
 
     # Helper function to create a deployment name
     def make_deployment_name(category_id, rule_set_id, precision):
-        return f"{client.instance_id}/curatedRuleSetCategories/{category_id}/curatedRuleSets/{rule_set_id}/curatedRuleSetDeployments/{precision}"
+        return (
+            f"{client.instance_id}/curatedRuleSetCategories/{category_id}"
+            f"/curatedRuleSets/{rule_set_id}"
+            f"/curatedRuleSetDeployments/{precision}"
+        )
 
     # Build the request data
     request_items = []
@@ -51,10 +58,14 @@ def batch_update_curated_rule_set_deployments(
     for deployment in deployments:
         # Check required fields
         required_fields = ["category_id", "rule_set_id", "precision", "enabled"]
-        missing_fields = [field for field in required_fields if field not in deployment]
+        missing_fields = [
+            field for field in required_fields if field not in deployment
+        ]
 
         if missing_fields:
-            raise ValueError(f"Deployment missing required fields: {missing_fields}")
+            raise ValueError(
+                f"Deployment missing required fields: {missing_fields}"
+            )
 
         # Get deployment configuration
         category_id = deployment["category_id"]
@@ -66,7 +77,9 @@ def batch_update_curated_rule_set_deployments(
         # Create the request item
         request_item = {
             "curated_rule_set_deployment": {
-                "name": make_deployment_name(category_id, rule_set_id, precision),
+                "name": make_deployment_name(
+                    category_id, rule_set_id, precision
+                ),
                 "enabled": enabled,
                 "alerting": alerting,
             },
@@ -79,13 +92,18 @@ def batch_update_curated_rule_set_deployments(
 
     # Create the complete request payload
     json_data = {
-        "parent": f"{client.instance_id}/curatedRuleSetCategories/-/curatedRuleSets/-",
+        "parent": (
+            f"{client.instance_id}/curatedRuleSetCategories/-"
+            "/curatedRuleSets/-"
+        ),
         "requests": request_items,
     }
 
     response = client.session.post(url, json=json_data)
 
     if response.status_code != 200:
-        raise APIError(f"Failed to batch update rule set deployments: {response.text}")
+        raise APIError(
+            f"Failed to batch update rule set deployments: {response.text}"
+        )
 
     return response.json()

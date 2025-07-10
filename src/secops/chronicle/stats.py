@@ -14,8 +14,7 @@
 #
 """Statistics functionality for Chronicle searches."""
 from datetime import datetime
-import time
-from typing import Dict, Any, List, Union
+from typing import Dict, Any
 from secops.exceptions import APIError
 
 
@@ -29,7 +28,9 @@ def get_stats(
     case_insensitive: bool = True,
     max_attempts: int = 30,
 ) -> Dict[str, Any]:
-    """Get statistics from a Chronicle search query using the Chronicle V1alpha API.
+    """
+    Get statistics from a Chronicle search query using
+    the Chronicle V1alpha API.
 
     Args:
         client: ChronicleClient instance
@@ -38,15 +39,20 @@ def get_stats(
         end_time: Search end time
         max_values: Maximum number of values to return per field
         max_events: Maximum number of events to process
-        case_insensitive: Whether to perform case-insensitive search (legacy parameter, not used by new API)
+        case_insensitive: Whether to perform case-insensitive search
+                (legacy parameter, not used by new API)
         max_attempts: Legacy parameter kept for backwards compatibility
 
     Returns:
-        Dictionary with search statistics including columns, rows, and total_rows
+        Dictionary with search statistics including columns, rows,
+        and total_rows
 
     Raises:
         APIError: If the API request fails
     """
+    # Unused parameters, kept for backward compatibility
+    _ = (max_events, case_insensitive, max_attempts)
+
     # Format the instance ID for the API call
     instance = client.instance_id
 
@@ -139,7 +145,9 @@ def process_stats_results(stats: Dict[str, Any]) -> Dict[str, Any]:
     # Build result rows
     rows = []
     if columns and all(col in column_data for col in columns):
-        max_rows = max(len(column_data[col]) for col in columns) if column_data else 0
+        max_rows = (
+            max(len(column_data[col]) for col in columns) if column_data else 0
+        )
         processed_results["total_rows"] = max_rows
 
         for i in range(max_rows):

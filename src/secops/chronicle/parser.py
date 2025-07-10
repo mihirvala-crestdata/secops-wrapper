@@ -15,7 +15,7 @@
 """Parser management functionality for Chronicle."""
 
 from typing import Dict, Any, List, Optional
-from secops.exceptions import APIError, SecOpsError
+from secops.exceptions import APIError
 import base64
 
 
@@ -25,7 +25,9 @@ MAX_LOGS = 1000  # Maximum number of logs to process
 MAX_TOTAL_SIZE = 50 * 1024 * 1024  # 50MB total
 
 
-def activate_parser(client, log_type: str, id: str) -> Dict[str, Any]:
+def activate_parser(
+    client, log_type: str, id: str  # pylint: disable=redefined-builtin
+) -> Dict[str, Any]:
     """Activate a custom parser.
 
     Args:
@@ -39,7 +41,10 @@ def activate_parser(client, log_type: str, id: str) -> Dict[str, Any]:
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/logTypes/{log_type}/parsers/{id}:activate"
+    url = (
+        f"{client.base_url}/{client.instance_id}/logTypes/{log_type}"
+        f"/parsers/{id}:activate"
+    )
     body = {}
     response = client.session.post(url, json=body)
 
@@ -49,7 +54,9 @@ def activate_parser(client, log_type: str, id: str) -> Dict[str, Any]:
     return response.json()
 
 
-def activate_release_candidate_parser(client, log_type: str, id: str) -> Dict[str, Any]:
+def activate_release_candidate_parser(
+    client, log_type: str, id: str  # pylint: disable=redefined-builtin
+) -> Dict[str, Any]:
     """Activate the release candidate parser making it live for that customer.
 
     Args:
@@ -63,7 +70,10 @@ def activate_release_candidate_parser(client, log_type: str, id: str) -> Dict[st
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/logTypes/{log_type}/parsers/{id}:activateReleaseCandidateParser"
+    url = (
+        f"{client.base_url}/{client.instance_id}/logTypes/{log_type}"
+        f"/parsers/{id}:activateReleaseCandidateParser"
+    )
     body = {}
     response = client.session.post(url, json=body)
 
@@ -73,7 +83,9 @@ def activate_release_candidate_parser(client, log_type: str, id: str) -> Dict[st
     return response.json()
 
 
-def copy_parser(client, log_type: str, id: str) -> Dict[str, Any]:
+def copy_parser(
+    client, log_type: str, id: str  # pylint: disable=redefined-builtin
+) -> Dict[str, Any]:
     """Makes a copy of a prebuilt parser.
 
     Args:
@@ -88,7 +100,8 @@ def copy_parser(client, log_type: str, id: str) -> Dict[str, Any]:
         APIError: If the API request fails
     """
     url = (
-        f"{client.base_url}/{client.instance_id}/logTypes/{log_type}/parsers/{id}:copy"
+        f"{client.base_url}/{client.instance_id}/logTypes/{log_type}"
+        f"/parsers/{id}:copy"
     )
     body = {}
     response = client.session.post(url, json=body)
@@ -100,7 +113,10 @@ def copy_parser(client, log_type: str, id: str) -> Dict[str, Any]:
 
 
 def create_parser(
-    client, log_type: str, parser_code: str, validated_on_empty_logs: bool = True
+    client,
+    log_type: str,
+    parser_code: str,
+    validated_on_empty_logs: bool = True,
 ) -> Dict[str, Any]:
     """Creates a new parser.
 
@@ -131,7 +147,9 @@ def create_parser(
     return response.json()
 
 
-def deactivate_parser(client, log_type: str, id: str) -> Dict[str, Any]:
+def deactivate_parser(
+    client, log_type: str, id: str  # pylint: disable=redefined-builtin
+) -> Dict[str, Any]:
     """Deactivate a custom parser.
 
     Args:
@@ -145,7 +163,10 @@ def deactivate_parser(client, log_type: str, id: str) -> Dict[str, Any]:
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/logTypes/{log_type}/parsers/{id}:deactivate"
+    url = (
+        f"{client.base_url}/{client.instance_id}/logTypes/{log_type}"
+        f"/parsers/{id}:deactivate"
+    )
     body = {}
     response = client.session.post(url, json=body)
 
@@ -156,7 +177,10 @@ def deactivate_parser(client, log_type: str, id: str) -> Dict[str, Any]:
 
 
 def delete_parser(
-    client, log_type: str, id: str, force: bool = False
+    client,
+    log_type: str,
+    id: str,  # pylint: disable=redefined-builtin
+    force: bool = False,
 ) -> Dict[str, Any]:
     """Delete a parser.
 
@@ -172,7 +196,10 @@ def delete_parser(
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/logTypes/{log_type}/parsers/{id}"
+    url = (
+        f"{client.base_url}/{client.instance_id}/logTypes/{log_type}"
+        f"/parsers/{id}"
+    )
     params = {"force": force}
     response = client.session.delete(url, params=params)
 
@@ -182,7 +209,9 @@ def delete_parser(
     return response.json()
 
 
-def get_parser(client, log_type: str, id: str) -> Dict[str, Any]:
+def get_parser(
+    client, log_type: str, id: str  # pylint: disable=redefined-builtin
+) -> Dict[str, Any]:
     """Get a Parser by ID.
 
     Args:
@@ -196,7 +225,10 @@ def get_parser(client, log_type: str, id: str) -> Dict[str, Any]:
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/logTypes/{log_type}/parsers/{id}"
+    url = (
+        f"{client.base_url}/{client.instance_id}/logTypes/{log_type}"
+        f"/parsers/{id}"
+    )
     response = client.session.get(url)
 
     if response.status_code != 200:
@@ -210,7 +242,7 @@ def list_parsers(
     log_type: str = "-",
     page_size: int = 100,
     page_token: str = None,
-    filter: str = None,
+    filter: str = None,  # pylint: disable=redefined-builtin
 ) -> List[Any]:
     """List parsers.
 
@@ -231,9 +263,16 @@ def list_parsers(
     parsers = []
 
     while more:
-        url = f"{client.base_url}/{client.instance_id}/logTypes/{log_type}/parsers"
+        url = (
+            f"{client.base_url}/{client.instance_id}"
+            f"/logTypes/{log_type}/parsers"
+        )
 
-        params = {"pageSize": page_size, "pageToken": page_token, "filter": filter}
+        params = {
+            "pageSize": page_size,
+            "pageToken": page_token,
+            "filter": filter,
+        }
 
         response = client.session.get(url, params=params)
 
@@ -304,14 +343,15 @@ def run_parser(
     for i, log in enumerate(logs):
         if not isinstance(log, str):
             raise TypeError(
-                f"All logs must be strings, but log at index {i} is {type(log).__name__}"
+                f"All logs must be strings, but log at index {i} is "
+                f"{type(log).__name__}"
             )
 
         log_size = len(log.encode("utf-8"))
         if log_size > MAX_LOG_SIZE:
             raise ValueError(
-                f"Log at index {i} exceeds maximum size of {MAX_LOG_SIZE} bytes "
-                f"(actual size: {log_size} bytes)"
+                f"Log at index {i} exceeds maximum size of {MAX_LOG_SIZE} bytes"
+                f" (actual size: {log_size} bytes)"
             )
         total_size += log_size
 
@@ -324,18 +364,27 @@ def run_parser(
 
     # Check number of logs
     if len(logs) > MAX_LOGS:
-        raise ValueError(f"Number of logs ({len(logs)}) exceeds maximum of {MAX_LOGS}")
+        raise ValueError(
+            f"Number of logs ({len(logs)}) exceeds maximum of {MAX_LOGS}"
+        )
 
     # Validate parser_extension_code type if provided
-    if parser_extension_code is not None and not isinstance(parser_extension_code, str):
+    if parser_extension_code is not None and not isinstance(
+        parser_extension_code, str
+    ):
         raise TypeError(
-            f"parser_extension_code must be a string or None, got {type(parser_extension_code).__name__}"
+            "parser_extension_code must be a string or None, got "
+            f"{type(parser_extension_code).__name__}"
         )
 
     # Build request
-    url = f"{client.base_url}/{client.instance_id}/logTypes/{log_type}:runParser"
+    url = (
+        f"{client.base_url}/{client.instance_id}/logTypes/{log_type}:runParser"
+    )
 
-    parser = {"cbn": base64.b64encode(parser_code.encode("utf-8")).decode("utf-8")}
+    parser = {
+        "cbn": base64.b64encode(parser_code.encode("utf-8")).decode("utf-8")
+    }
 
     parser_extension = None
     if parser_extension_code:
@@ -348,7 +397,10 @@ def run_parser(
     body = {
         "parser": parser,
         "parser_extension": parser_extension,
-        "log": [base64.b64encode(log.encode("utf-8")).decode("utf-8") for log in logs],
+        "log": [
+            base64.b64encode(log.encode("utf-8")).decode("utf-8")
+            for log in logs
+        ],
         "statedump_allowed": statedump_allowed,
     }
 

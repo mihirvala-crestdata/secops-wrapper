@@ -14,7 +14,7 @@
 #
 """Rule validation functionality for Chronicle."""
 
-from typing import Dict, Any, Optional, NamedTuple
+from typing import Dict, Optional, NamedTuple
 from secops.exceptions import APIError
 
 
@@ -24,7 +24,8 @@ class ValidationResult(NamedTuple):
     Attributes:
         success: Whether the rule is valid
         message: Error message if validation failed, None if successful
-        position: Dictionary containing position information for errors, if available
+        position: Dictionary containing position information for errors,
+            if available
     """
 
     success: bool
@@ -43,14 +44,16 @@ def validate_rule(client, rule_text: str) -> ValidationResult:
         ValidationResult containing:
             - success: Whether the rule is valid
             - message: Error message if validation failed, None if successful
-            - position: Dictionary containing position information for errors, if available
+            - position: Dictionary containing position information for errors,
+                if available
 
     Raises:
         APIError: If the API request fails
     """
     url = f"{client.base_url}/{client.instance_id}:verifyRuleText"
 
-    # Clean up the rule text by removing leading/trailing backticks and whitespace
+    # Clean up the rule text by removing leading/trailing backticks and
+    # whitespace
     cleaned_rule = rule_text.strip("` \n\t\r")
 
     body = {"ruleText": cleaned_rule}
@@ -69,11 +72,15 @@ def validate_rule(client, rule_text: str) -> ValidationResult:
     # Extract error information
     diagnostics = result.get("compilationDiagnostics", [])
     if not diagnostics:
-        return ValidationResult(success=False, message="Unknown validation error")
+        return ValidationResult(
+            success=False, message="Unknown validation error"
+        )
 
     # Get the first error message and position information
     first_error = diagnostics[0]
     error_message = first_error.get("message")
     position = first_error.get("position")
 
-    return ValidationResult(success=False, message=error_message, position=position)
+    return ValidationResult(
+        success=False, message=error_message, position=position
+    )

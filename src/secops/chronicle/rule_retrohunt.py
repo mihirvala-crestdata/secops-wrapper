@@ -24,7 +24,8 @@ def create_retrohunt(
 ) -> Dict[str, Any]:
     """Creates a retrohunt for a rule.
 
-    A retrohunt applies a rule to historical data within the specified time range.
+    A retrohunt applies a rule to historical data within the specified
+    time range.
 
     Args:
         client: ChronicleClient instance
@@ -70,7 +71,10 @@ def get_retrohunt(client, rule_id: str, operation_id: str) -> Dict[str, Any]:
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/rules/{rule_id}/retrohunts/{operation_id}"
+    url = (
+        f"{client.base_url}/{client.instance_id}/rules/{rule_id}"
+        f"/retrohunts/{operation_id}"
+    )
 
     response = client.session.get(url)
 
