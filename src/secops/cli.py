@@ -515,6 +515,13 @@ def setup_stats_command(subparsers):
         default=100,
         help="Maximum values per field",
     )
+    stats_parser.add_argument(
+        "--timeout",
+        dest="timeout",
+        type=int,
+        default=120,
+        help="Timeout (in seconds) for API request",
+    )
     add_time_range_args(stats_parser)
     stats_parser.set_defaults(func=handle_stats_command)
 
@@ -530,6 +537,7 @@ def handle_stats_command(args, chronicle):
             end_time=end_time,
             max_events=args.max_events,
             max_values=args.max_values,
+            timeout=args.timeout,
         )
         output_formatter(result, args.output)
     except Exception as e:  # pylint: disable=broad-exception-caught

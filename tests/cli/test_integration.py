@@ -802,6 +802,8 @@ order:
             "10",
             "--max-values",
             "5",
+            "--timeout",
+            "180"
         ]
     )
 

@@ -344,7 +344,7 @@ class ChronicleClient:
             start_time: Search start time
             end_time: Search end time
             max_values: Maximum number of values to return per field
-            timeout: Timeout in seconds for each API request (default: 120)
+            timeout: Timeout in seconds for API request (default: 120)
             max_events: Maximum number of events to process
             case_insensitive: Whether to perform case-insensitive search
             max_attempts: Maximum number of polling attempts (deprecated)
