@@ -39,7 +39,7 @@ def test_chronicle_search():
     start_time = end_time - timedelta(hours=1)
 
     result = chronicle.fetch_udm_search_csv(
-        query='metadata.event_type = "NETWORK_CONNECTION"',
+        query='ip != ""',
         start_time=start_time,
         end_time=end_time,
         fields=["timestamp", "user", "hostname", "process name"],

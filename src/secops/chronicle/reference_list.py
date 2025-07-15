@@ -4,6 +4,12 @@ import sys
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from secops.chronicle.data_table import (
+    REF_LIST_DATA_TABLE_ID_REGEX,
+    validate_cidr_entries,
+)
+from secops.exceptions import APIError, SecOpsError
+
 # Use built-in StrEnum if Python 3.11+, otherwise create a compatible version
 if sys.version_info >= (3, 11):
     from enum import StrEnum
@@ -16,13 +22,8 @@ else:
             return self.value
 
 
-from secops.exceptions import APIError, SecOpsError
-from secops.chronicle.data_table import (
-    validate_cidr_entries,
-    REF_LIST_DATA_TABLE_ID_REGEX,
-)
-
-# Add a local reference to the imported function for backward compatibility with tests
+# Add a local reference to the imported function for backward compatibility
+# with tests
 _validate_cidr_entries = validate_cidr_entries
 
 
@@ -40,25 +41,30 @@ class ReferenceListSyntaxType(StrEnum):
 
 
 class ReferenceListView(StrEnum):
-    """ReferenceListView is a mechanism for viewing partial responses of the ReferenceList resource."""
+    """
+    ReferenceListView is a mechanism for viewing partial responses of
+    the ReferenceList resource.
+    """
 
     UNSPECIFIED = "REFERENCE_LIST_VIEW_UNSPECIFIED"
-    """The default / unset value. The API will default to the BASIC view for ListReferenceLists. 
-    The API will default to the FULL view for methods that return a single ReferenceList resource."""
+    """The default / unset value. The API will default to the BASIC view for 
+    ListReferenceLists. The API will default to the FULL view for methods that 
+    return a single ReferenceList resource."""
 
     BASIC = "REFERENCE_LIST_VIEW_BASIC"
-    """Include metadata about the ReferenceList. This is the default view for ListReferenceLists."""
+    """Include metadata about the ReferenceList. This is the default view for 
+    ListReferenceLists."""
 
     FULL = "REFERENCE_LIST_VIEW_FULL"
-    """Include all details about the ReferenceList: metadata, content lines, associated rule counts. 
-    This is the default view for GetReferenceList."""
+    """Include all details about the ReferenceList: metadata, content lines, 
+    associated rule counts. This is the default view for GetReferenceList."""
 
 
 def create_reference_list(
     client: "Any",
     name: str,
     description: str = "",
-    entries: List[str] = [],
+    entries: List[str] = None,
     syntax_type: ReferenceListSyntaxType = ReferenceListSyntaxType.STRING,
 ) -> Dict[str, Any]:
     """Create a new reference list.
@@ -75,13 +81,18 @@ def create_reference_list(
 
     Raises:
         APIError: If the API request fails
-        SecOpsError: If the reference list name is invalid or a CIDR entry is invalid
+        SecOpsError: If the reference list name is invalid or
+            a CIDR entry is invalid
     """
+    # Defaulting to empty entries
+    if entries is None:
+        entries = []
+
     if not REF_LIST_DATA_TABLE_ID_REGEX.match(name):
         raise SecOpsError(
             f"Invalid reference list name: {name}.\n"
-            f"Ensure the name starts with a letter, contains only letters, numbers, and underscores, "
-            f"and has length < 256 characters."
+            "Ensure the name starts with a letter, contains only letters, "
+            "numbers, and underscores, and has length < 256 characters."
         )
 
     # Validate CIDR entries if using CIDR syntax type
@@ -100,7 +111,8 @@ def create_reference_list(
 
     if response.status_code != 200:
         raise APIError(
-            f"Failed to create reference list '{name}': {response.status_code} {response.text}"
+            f"Failed to create reference list '{name}': {response.status_code} "
+            f"{response.text}"
         )
 
     return response.json()
@@ -114,7 +126,8 @@ def get_reference_list(
     Args:
         client: ChronicleClient instance
         name: The name of the reference list
-        view: How much of the ReferenceList to view. Defaults to REFERENCE_LIST_VIEW_FULL.
+        view: How much of the ReferenceList to view.
+            Defaults to REFERENCE_LIST_VIEW_FULL.
 
     Returns:
         Dictionary containing the reference list
@@ -133,7 +146,8 @@ def get_reference_list(
 
     if response.status_code != 200:
         raise APIError(
-            f"Failed to get reference list '{name}': {response.status_code} {response.text}"
+            f"Failed to get reference list '{name}': {response.status_code} "
+            f"{response.text}"
         )
 
     return response.json()
@@ -147,7 +161,8 @@ def list_reference_lists(
 
     Args:
         client: ChronicleClient instance
-        view: How much of each ReferenceList to view. Defaults to REFERENCE_LIST_VIEW_BASIC.
+        view: How much of each ReferenceList to view. Defaults to
+            REFERENCE_LIST_VIEW_BASIC.
 
     Returns:
         List of reference lists, ordered in ascending alphabetical order by name
@@ -169,7 +184,8 @@ def list_reference_lists(
 
         if response.status_code != 200:
             raise APIError(
-                f"Failed to list reference lists: {response.status_code} {response.text}"
+                f"Failed to list reference lists: {response.status_code} "
+                f"{response.text}"
             )
 
         resp_json = response.json()
@@ -207,7 +223,8 @@ def update_reference_list(
     """
     if description is None and entries is None:
         raise SecOpsError(
-            "Either description or entries (or both) must be provided for update."
+            "Either description or entries (or both) must be "
+            "provided for update."
         )
 
     # Get the reference list to check its syntax type for CIDR validation
@@ -242,7 +259,8 @@ def update_reference_list(
 
     if response.status_code != 200:
         raise APIError(
-            f"Failed to update reference list '{name}': {response.status_code} {response.text}"
+            f"Failed to update reference list '{name}': {response.status_code} "
+            f"{response.text}"
         )
 
     return response.json()

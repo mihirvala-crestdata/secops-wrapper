@@ -1,16 +1,21 @@
+"""
+Command line handlers and helpers for SecOps CLI
+"""
+
 import argparse
 import json
 import sys
 from datetime import datetime, timedelta, timezone
-import os
-import base64
-from typing import Optional, Dict, Any, List, Tuple, Union
+from typing import Dict, Any, Tuple
 from pathlib import Path
 
 from secops import SecOpsClient
 from secops.exceptions import SecOpsError, AuthenticationError, APIError
 from secops.chronicle.data_table import DataTableColumnType
-from secops.chronicle.reference_list import ReferenceListSyntaxType, ReferenceListView
+from secops.chronicle.reference_list import (
+    ReferenceListSyntaxType,
+    ReferenceListView,
+)
 
 
 # Define config directory and file paths
@@ -28,10 +33,13 @@ def load_config() -> Dict[str, Any]:
         return {}
 
     try:
-        with open(CONFIG_FILE, "r") as f:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError):
-        print(f"Warning: Failed to load config from {CONFIG_FILE}", file=sys.stderr)
+        print(
+            f"Warning: Failed to load config from {CONFIG_FILE}",
+            file=sys.stderr,
+        )
         return {}
 
 
@@ -45,10 +53,13 @@ def save_config(config: Dict[str, Any]) -> None:
     CONFIG_DIR.mkdir(exist_ok=True)
 
     try:
-        with open(CONFIG_FILE, "w") as f:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
     except IOError as e:
-        print(f"Error: Failed to save config to {CONFIG_FILE}: {e}", file=sys.stderr)
+        print(
+            f"Error: Failed to save config to {CONFIG_FILE}: {e}",
+            file=sys.stderr,
+        )
 
 
 def setup_config_command(subparsers):
@@ -57,13 +68,17 @@ def setup_config_command(subparsers):
     Args:
         subparsers: Subparsers object to add to
     """
-    config_parser = subparsers.add_parser("config", help="Manage CLI configuration")
+    config_parser = subparsers.add_parser(
+        "config", help="Manage CLI configuration"
+    )
     config_subparsers = config_parser.add_subparsers(
         dest="config_command", help="Config command"
     )
 
     # Set config command
-    set_parser = config_subparsers.add_parser("set", help="Set configuration values")
+    set_parser = config_subparsers.add_parser(
+        "set", help="Set configuration values"
+    )
     set_parser.add_argument(
         "--customer-id",
         "--customer_id",
@@ -142,6 +157,9 @@ def handle_config_set_command(args, chronicle=None):
     save_config(config)
     print(f"Configuration saved to {CONFIG_FILE}")
 
+    # Unused argument
+    _ = (chronicle,)
+
 
 def handle_config_view_command(args, chronicle=None):
     """Handle config view command.
@@ -160,6 +178,9 @@ def handle_config_view_command(args, chronicle=None):
     for key, value in config.items():
         print(f"  {key}: {value}")
 
+    # Unused arguments
+    _ = (args, chronicle)
+
 
 def handle_config_clear_command(args, chronicle=None):
     """Handle config clear command.
@@ -173,6 +194,9 @@ def handle_config_clear_command(args, chronicle=None):
         print("Configuration cleared.")
     else:
         print("No configuration found.")
+
+    # Unused arguments
+    _ = (args, chronicle)
 
 
 def parse_datetime(dt_str: str) -> datetime:
@@ -235,16 +259,22 @@ def setup_client(args: argparse.Namespace) -> Tuple[SecOpsClient, Any]:
                     file=sys.stderr,
                 )
                 print(
-                    "\nPlease run the config command to set up your configuration:",
+                    "\nPlease run the config command to set up your "
+                    "configuration:",
                     file=sys.stderr,
                 )
                 print(
-                    "  secops config set --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID",
+                    "  secops config set --customer-id YOUR_CUSTOMER_ID "
+                    "--project-id YOUR_PROJECT_ID",
                     file=sys.stderr,
                 )
-                print("\nOr provide them as command-line options:", file=sys.stderr)
                 print(
-                    "  secops --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID [command]",
+                    "\nOr provide them as command-line options:",
+                    file=sys.stderr,
+                )
+                print(
+                    "  secops --customer-id YOUR_CUSTOMER_ID --project-id "
+                    "YOUR_PROJECT_ID [command]",
                     file=sys.stderr,
                 )
                 print("\nFor help finding these values, run:", file=sys.stderr)
@@ -299,7 +329,10 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
         help="Path to service account JSON file",
     )
     parser.add_argument(
-        "--output", choices=["json", "text"], default="json", help="Output format"
+        "--output",
+        choices=["json", "text"],
+        default="json",
+        help="Output format",
     )
 
 
@@ -326,7 +359,9 @@ def add_chronicle_args(parser: argparse.ArgumentParser) -> None:
         help="GCP project ID",
     )
     parser.add_argument(
-        "--region", default=config.get("region", "us"), help="Chronicle API region"
+        "--region",
+        default=config.get("region", "us"),
+        help="Chronicle API region",
     )
 
 
@@ -372,7 +407,9 @@ def get_time_range(args: argparse.Namespace) -> Tuple[datetime, datetime]:
         Tuple of (start_time, end_time)
     """
     end_time = (
-        parse_datetime(args.end_time) if args.end_time else datetime.now(timezone.utc)
+        parse_datetime(args.end_time)
+        if args.end_time
+        else datetime.now(timezone.utc)
     )
 
     if args.start_time:
@@ -392,7 +429,10 @@ def setup_search_command(subparsers):
     search_parser = subparsers.add_parser("search", help="Search UDM events")
     search_parser.add_argument("--query", help="UDM query string")
     search_parser.add_argument(
-        "--nl-query", "--nl_query", dest="nl_query", help="Natural language query"
+        "--nl-query",
+        "--nl_query",
+        dest="nl_query",
+        help="Natural language query",
     )
     search_parser.add_argument(
         "--max-events",
@@ -403,7 +443,8 @@ def setup_search_command(subparsers):
         help="Maximum events to return",
     )
     search_parser.add_argument(
-        "--fields", help="Comma-separated list of fields to include in CSV output"
+        "--fields",
+        help="Comma-separated list of fields to include in CSV output",
     )
     search_parser.add_argument(
         "--csv", action="store_true", help="Output in CSV format"
@@ -447,7 +488,7 @@ def handle_search_command(args, chronicle):
                 max_events=args.max_events,
             )
             output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -455,7 +496,9 @@ def handle_search_command(args, chronicle):
 def setup_stats_command(subparsers):
     """Set up the stats command parser."""
     stats_parser = subparsers.add_parser("stats", help="Get UDM statistics")
-    stats_parser.add_argument("--query", required=True, help="Stats query string")
+    stats_parser.add_argument(
+        "--query", required=True, help="Stats query string"
+    )
     stats_parser.add_argument(
         "--max-events",
         "--max_events",
@@ -489,19 +532,24 @@ def handle_stats_command(args, chronicle):
             max_values=args.max_values,
         )
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
 
 def setup_entity_command(subparsers):
     """Set up the entity command parser."""
-    entity_parser = subparsers.add_parser("entity", help="Get entity information")
+    entity_parser = subparsers.add_parser(
+        "entity", help="Get entity information"
+    )
     entity_parser.add_argument(
         "--value", required=True, help="Entity value (IP, domain, hash, etc.)"
     )
     entity_parser.add_argument(
-        "--entity-type", "--entity_type", dest="entity_type", help="Entity type hint"
+        "--entity-type",
+        "--entity_type",
+        dest="entity_type",
+        help="Entity type hint",
     )
     add_time_range_args(entity_parser)
     entity_parser.set_defaults(func=handle_entity_command)
@@ -532,16 +580,19 @@ def handle_entity_command(args, chronicle):
                     else:
                         # If it's already a dict or another type, just use it
                         alert_counts_list.append(ac)
-                except Exception:
+                except Exception:  # pylint: disable=broad-exception-caught
                     # If all conversion attempts fail, use string representation
                     alert_counts_list.append(str(ac))
 
-        # Safely handle prevalence data which may not be available for all entity types
+        # Safely handle prevalence data which may not be available for
+        # all entity types
         prevalence_list = []
         if result.prevalence:
             try:
                 prevalence_list = [vars(p) for p in result.prevalence]
-            except Exception as prev_err:
+            except (
+                Exception  # pylint: disable=broad-exception-caught
+            ) as prev_err:
                 print(
                     f"Warning: Unable to process prevalence data: {prev_err}",
                     file=sys.stderr,
@@ -556,10 +607,11 @@ def handle_entity_command(args, chronicle):
             "prevalence": prevalence_list,
         }
         output_formatter(result_dict, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         if "Unsupported artifact type" in str(e):
             print(
-                f"Error: The entity type for '{args.value}' is not supported. Try specifying a different entity type with --entity-type.",
+                f"Error: The entity type for '{args.value}' is not supported. "
+                "Try specifying a different entity type with --entity-type.",
                 file=sys.stderr,
             )
         else:
@@ -582,7 +634,9 @@ def setup_iocs_command(subparsers):
         "--mandiant", action="store_true", help="Include Mandiant attributes"
     )
     iocs_parser.add_argument(
-        "--prioritized", action="store_true", help="Only return prioritized IoCs"
+        "--prioritized",
+        action="store_true",
+        help="Only return prioritized IoCs",
     )
     add_time_range_args(iocs_parser)
     iocs_parser.set_defaults(func=handle_iocs_command)
@@ -601,7 +655,7 @@ def handle_iocs_command(args, chronicle):
             prioritized_only=args.prioritized,
         )
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -609,13 +663,17 @@ def handle_iocs_command(args, chronicle):
 def setup_log_command(subparsers):
     """Set up the log command parser."""
     log_parser = subparsers.add_parser("log", help="Ingest logs")
-    log_subparsers = log_parser.add_subparsers(dest="log_command", help="Log command")
+    log_subparsers = log_parser.add_subparsers(
+        dest="log_command", help="Log command"
+    )
 
     # Ingest log command
     ingest_parser = log_subparsers.add_parser("ingest", help="Ingest raw logs")
     ingest_parser.add_argument("--type", required=True, help="Log type")
     ingest_parser.add_argument("--file", help="File containing log data")
-    ingest_parser.add_argument("--message", help="Log message (alternative to file)")
+    ingest_parser.add_argument(
+        "--message", help="Log message (alternative to file)"
+    )
     ingest_parser.add_argument(
         "--forwarder-id",
         "--forwarder_id",
@@ -632,14 +690,18 @@ def setup_log_command(subparsers):
     ingest_parser.set_defaults(func=handle_log_ingest_command)
 
     # Ingest UDM command
-    udm_parser = log_subparsers.add_parser("ingest-udm", help="Ingest UDM events")
+    udm_parser = log_subparsers.add_parser(
+        "ingest-udm", help="Ingest UDM events"
+    )
     udm_parser.add_argument(
         "--file", required=True, help="File containing UDM event(s)"
     )
     udm_parser.set_defaults(func=handle_udm_ingest_command)
 
     # List log types command
-    types_parser = log_subparsers.add_parser("types", help="List available log types")
+    types_parser = log_subparsers.add_parser(
+        "types", help="List available log types"
+    )
     types_parser.add_argument("--search", help="Search term for log types")
     types_parser.set_defaults(func=handle_log_types_command)
 
@@ -649,7 +711,7 @@ def handle_log_ingest_command(args, chronicle):
     try:
         log_message = args.message
         if args.file:
-            with open(args.file, "r") as f:
+            with open(args.file, "r", encoding="utf-8") as f:
                 log_message = f.read()
 
         # Process labels if provided
@@ -659,7 +721,8 @@ def handle_log_ingest_command(args, chronicle):
             try:
                 labels = json.loads(args.labels)
             except json.JSONDecodeError:
-                # If not valid JSON, try parsing as comma-separated key=value pairs
+                # If not valid JSON, try parsing as comma-separated
+                # key=value pairs
                 labels = {}
                 for pair in args.labels.split(","):
                     if "=" in pair:
@@ -673,7 +736,8 @@ def handle_log_ingest_command(args, chronicle):
 
                 if not labels:
                     print(
-                        "Warning: No valid labels found. Labels should be in JSON format or comma-separated key=value pairs.",
+                        "Warning: No valid labels found. Labels should be in "
+                        "JSON format or comma-separated key=value pairs.",
                         file=sys.stderr,
                     )
 
@@ -685,7 +749,7 @@ def handle_log_ingest_command(args, chronicle):
             labels=labels,
         )
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -693,12 +757,12 @@ def handle_log_ingest_command(args, chronicle):
 def handle_udm_ingest_command(args, chronicle):
     """Handle UDM ingestion command."""
     try:
-        with open(args.file, "r") as f:
+        with open(args.file, "r", encoding="utf-8") as f:
             udm_events = json.load(f)
 
         result = chronicle.ingest_udm(udm_events=udm_events)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -712,7 +776,7 @@ def handle_log_types_command(args, chronicle):
             result = chronicle.get_all_log_types()
 
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -756,7 +820,9 @@ def setup_parser_command(subparsers):
     copy_parser_sub.add_argument(
         "--log-type", type=str, help="Log type of the parser to copy."
     )
-    copy_parser_sub.add_argument("--id", type=str, help="ID of the parser to copy.")
+    copy_parser_sub.add_argument(
+        "--id", type=str, help="ID of the parser to copy."
+    )
     copy_parser_sub.set_defaults(func=handle_parser_copy_command)
 
     # --- Create Parser Command ---
@@ -780,7 +846,10 @@ def setup_parser_command(subparsers):
     create_parser_sub.add_argument(
         "--validated-on-empty-logs",
         action="store_true",
-        help="Whether the parser is validated on empty logs (default: True if not specified, only use flag for True).",
+        help=(
+            "Whether the parser is validated on empty logs "
+            "(default: True if not specified, only use flag for True)."
+        ),
     )
     create_parser_sub.set_defaults(func=handle_parser_create_command)
 
@@ -797,24 +866,38 @@ def setup_parser_command(subparsers):
     deactivate_parser_sub.set_defaults(func=handle_parser_deactivate_command)
 
     # --- Delete Parser Command ---
-    delete_parser_sub = parser_subparsers.add_parser("delete", help="Delete a parser.")
+    delete_parser_sub = parser_subparsers.add_parser(
+        "delete", help="Delete a parser."
+    )
     delete_parser_sub.add_argument(
         "--log-type", type=str, help="Log type of the parser."
     )
-    delete_parser_sub.add_argument("--id", type=str, help="ID of the parser to delete.")
     delete_parser_sub.add_argument(
-        "--force", action="store_true", help="Forcefully delete an ACTIVE parser."
+        "--id", type=str, help="ID of the parser to delete."
+    )
+    delete_parser_sub.add_argument(
+        "--force",
+        action="store_true",
+        help="Forcefully delete an ACTIVE parser.",
     )
     delete_parser_sub.set_defaults(func=handle_parser_delete_command)
 
     # --- Get Parser Command ---
-    get_parser_sub = parser_subparsers.add_parser("get", help="Get a parser by ID.")
-    get_parser_sub.add_argument("--log-type", type=str, help="Log type of the parser.")
-    get_parser_sub.add_argument("--id", type=str, help="ID of the parser to retrieve.")
+    get_parser_sub = parser_subparsers.add_parser(
+        "get", help="Get a parser by ID."
+    )
+    get_parser_sub.add_argument(
+        "--log-type", type=str, help="Log type of the parser."
+    )
+    get_parser_sub.add_argument(
+        "--id", type=str, help="ID of the parser to retrieve."
+    )
     get_parser_sub.set_defaults(func=handle_parser_get_command)
 
     # --- List Parsers Command ---
-    list_parsers_sub = parser_subparsers.add_parser("list", help="List parsers.")
+    list_parsers_sub = parser_subparsers.add_parser(
+        "list", help="List parsers."
+    )
     list_parsers_sub.add_argument(
         "--log-type",
         type=str,
@@ -833,7 +916,9 @@ def setup_parser_command(subparsers):
         help="A page token, received from a previous `list` call.",
     )
     list_parsers_sub.add_argument(
-        "--filter", type=str, help="Filter expression to apply (e.g., 'state=ACTIVE')."
+        "--filter",
+        type=str,
+        help="Filter expression to apply (e.g., 'state=ACTIVE').",
     )
     list_parsers_sub.set_defaults(func=handle_parser_list_command)
 
@@ -848,14 +933,16 @@ def setup_parser_command(subparsers):
         epilog=(
             "Examples:\n"
             "  # Run parser with inline code and logs:\n"
-            "  secops parser run --log-type OKTA --parser-code 'filter {}' --log 'log1' --log 'log2'\n\n"
+            "  secops parser run --log-type OKTA --parser-code 'filter {}' "
+            "--log 'log1' --log 'log2'\n\n"
             "  # Run parser using files:\n"
             "  secops parser run --log-type WINDOWS --parser-code-file parser.conf --logs-file logs.txt\n\n"
             "  # Run parser with the active parser\n"
             "  secops parser run --log-type OKTA --log-file logs.txt\n\n"
             "  # Run parser with extension:\n"
-            "  secops parser run --log-type CUSTOM --parser-code-file parser.conf \\\n"
-            "    --parser-extension-code-file extension.conf --logs-file logs.txt"
+            "  secops parser run --log-type CUSTOM --parser-code-file "
+            "parser.conf \\\n    --parser-extension-code-file extension.conf "
+            "--logs-file logs.txt"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -876,7 +963,9 @@ def setup_parser_command(subparsers):
         type=str,
         help="Path to a file containing the main parser code (CBN code)",
     )
-    run_parser_ext_group = run_parser_sub.add_mutually_exclusive_group(required=False)
+    run_parser_ext_group = run_parser_sub.add_mutually_exclusive_group(
+        required=False
+    )
     run_parser_ext_group.add_argument(
         "--parser-extension-code",
         type=str,
@@ -885,13 +974,20 @@ def setup_parser_command(subparsers):
     run_parser_ext_group.add_argument(
         "--parser-extension-code-file",
         type=str,
-        help="Path to a file containing the parser extension code (CBN snippet)",
+        help=(
+            "Path to a file containing the parser extension code (CBN snippet)"
+        ),
     )
-    run_parser_logs_group = run_parser_sub.add_mutually_exclusive_group(required=True)
+    run_parser_logs_group = run_parser_sub.add_mutually_exclusive_group(
+        required=True
+    )
     run_parser_logs_group.add_argument(
         "--log",
         action="append",
-        help="Provide a raw log string to test. Can be specified multiple times for multiple logs",
+        help=(
+            "Provide a raw log string to test. Can be specified multiple "
+            "times for multiple logs"
+        ),
     )
     run_parser_logs_group.add_argument(
         "--logs-file",
@@ -911,7 +1007,7 @@ def handle_parser_activate_command(args, chronicle):
     try:
         result = chronicle.activate_parser(args.log_type, args.id)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error activating parser: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -919,10 +1015,14 @@ def handle_parser_activate_command(args, chronicle):
 def handle_parser_activate_rc_command(args, chronicle):
     """Handle parser activate-release-candidate command."""
     try:
-        result = chronicle.activate_release_candidate_parser(args.log_type, args.id)
+        result = chronicle.activate_release_candidate_parser(
+            args.log_type, args.id
+        )
         output_formatter(result, args.output)
-    except Exception as e:
-        print(f"Error activating release candidate parser: {e}", file=sys.stderr)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(
+            f"Error activating release candidate parser: {e}", file=sys.stderr
+        )
         sys.exit(1)
 
 
@@ -931,7 +1031,7 @@ def handle_parser_copy_command(args, chronicle):
     try:
         result = chronicle.copy_parser(args.log_type, args.id)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error copying parser: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -942,7 +1042,7 @@ def handle_parser_create_command(args, chronicle):
         parser_code = ""
         if args.parser_code_file:
             try:
-                with open(args.parser_code_file, "r") as f:
+                with open(args.parser_code_file, "r", encoding="utf-8") as f:
                     parser_code = f.read()
             except IOError as e:
                 print(f"Error reading parser code file: {e}", file=sys.stderr)
@@ -958,7 +1058,7 @@ def handle_parser_create_command(args, chronicle):
             args.log_type, parser_code, args.validated_on_empty_logs
         )
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error creating parser: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -968,7 +1068,7 @@ def handle_parser_deactivate_command(args, chronicle):
     try:
         result = chronicle.deactivate_parser(args.log_type, args.id)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error deactivating parser: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -978,7 +1078,7 @@ def handle_parser_delete_command(args, chronicle):
     try:
         result = chronicle.delete_parser(args.log_type, args.id, args.force)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error deleting parser: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -988,7 +1088,7 @@ def handle_parser_get_command(args, chronicle):
     try:
         result = chronicle.get_parser(args.log_type, args.id)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error getting parser: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1000,7 +1100,7 @@ def handle_parser_list_command(args, chronicle):
             args.log_type, args.page_size, args.page_token, args.filter
         )
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error listing parsers: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1012,7 +1112,7 @@ def handle_parser_run_command(args, chronicle):
         parser_code = ""
         if args.parser_code_file:
             try:
-                with open(args.parser_code_file, "r") as f:
+                with open(args.parser_code_file, "r", encoding="utf-8") as f:
                     parser_code = f.read()
             except IOError as e:
                 print(f"Error reading parser code file: {e}", file=sys.stderr)
@@ -1035,10 +1135,15 @@ def handle_parser_run_command(args, chronicle):
         parser_extension_code = ""
         if args.parser_extension_code_file:
             try:
-                with open(args.parser_extension_code_file, "r") as f:
+                with open(
+                    args.parser_extension_code_file, "r", encoding="utf-8"
+                ) as f:
                     parser_extension_code = f.read()
             except IOError as e:
-                print(f"Error reading parser extension code file: {e}", file=sys.stderr)
+                print(
+                    f"Error reading parser extension code file: {e}",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
         elif args.parser_extension_code:
             parser_extension_code = args.parser_extension_code
@@ -1047,7 +1152,7 @@ def handle_parser_run_command(args, chronicle):
         logs = []
         if args.logs_file:
             try:
-                with open(args.logs_file, "r") as f:
+                with open(args.logs_file, "r", encoding="utf-8") as f:
                     logs = [line.strip() for line in f if line.strip()]
             except IOError as e:
                 print(f"Error reading logs file: {e}", file=sys.stderr)
@@ -1057,7 +1162,8 @@ def handle_parser_run_command(args, chronicle):
 
         if not logs:
             print(
-                "Error: No logs provided. Use --log or --logs-file to provide log entries.",
+                "Error: No logs provided. Use --log or --logs-file to provide "
+                "log entries.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -1079,7 +1185,7 @@ def handle_parser_run_command(args, chronicle):
     except APIError as e:
         print(f"API error: {e}", file=sys.stderr)
         sys.exit(1)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error running parser: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1132,12 +1238,16 @@ def setup_rule_command(subparsers):
     delete_parser = rule_subparsers.add_parser("delete", help="Delete a rule")
     delete_parser.add_argument("--id", required=True, help="Rule ID")
     delete_parser.add_argument(
-        "--force", action="store_true", help="Force deletion of rule with retrohunts"
+        "--force",
+        action="store_true",
+        help="Force deletion of rule with retrohunts",
     )
     delete_parser.set_defaults(func=handle_rule_delete_command)
 
     # Validate rule command
-    validate_parser = rule_subparsers.add_parser("validate", help="Validate a rule")
+    validate_parser = rule_subparsers.add_parser(
+        "validate", help="Validate a rule"
+    )
     validate_parser.add_argument(
         "--file", required=True, help="File containing rule text"
     )
@@ -1147,7 +1257,9 @@ def setup_rule_command(subparsers):
     test_parser = rule_subparsers.add_parser(
         "test", help="Test a rule against historical data"
     )
-    test_parser.add_argument("--file", required=True, help="File containing rule text")
+    test_parser.add_argument(
+        "--file", required=True, help="File containing rule text"
+    )
     test_parser.add_argument(
         "--max-results",
         "--max_results",
@@ -1172,7 +1284,7 @@ def handle_rule_list_command(args, chronicle):
     try:
         result = chronicle.list_rules()
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1182,7 +1294,7 @@ def handle_rule_get_command(args, chronicle):
     try:
         result = chronicle.get_rule(args.id)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1190,12 +1302,12 @@ def handle_rule_get_command(args, chronicle):
 def handle_rule_create_command(args, chronicle):
     """Handle rule create command."""
     try:
-        with open(args.file, "r") as f:
+        with open(args.file, "r", encoding="utf-8") as f:
             rule_text = f.read()
 
         result = chronicle.create_rule(rule_text)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1203,12 +1315,12 @@ def handle_rule_create_command(args, chronicle):
 def handle_rule_update_command(args, chronicle):
     """Handle rule update command."""
     try:
-        with open(args.file, "r") as f:
+        with open(args.file, "r", encoding="utf-8") as f:
             rule_text = f.read()
 
         result = chronicle.update_rule(args.id, rule_text)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1219,7 +1331,7 @@ def handle_rule_enable_command(args, chronicle):
         enabled = args.enabled.lower() == "true"
         result = chronicle.enable_rule(args.id, enabled=enabled)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1229,7 +1341,7 @@ def handle_rule_delete_command(args, chronicle):
     try:
         result = chronicle.delete_rule(args.id, force=args.force)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1237,7 +1349,7 @@ def handle_rule_delete_command(args, chronicle):
 def handle_rule_validate_command(args, chronicle):
     """Handle rule validate command."""
     try:
-        with open(args.file, "r") as f:
+        with open(args.file, "r", encoding="utf-8") as f:
             rule_text = f.read()
 
         result = chronicle.validate_rule(rule_text)
@@ -1247,9 +1359,10 @@ def handle_rule_validate_command(args, chronicle):
             print(f"Rule is invalid: {result.message}")
             if result.position:
                 print(
-                    f"Error at line {result.position['startLine']}, column {result.position['startColumn']}"
+                    f'Error at line {result.position["startLine"]}, '
+                    f'column {result.position["startColumn"]}'
                 )
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1257,10 +1370,11 @@ def handle_rule_validate_command(args, chronicle):
 def handle_rule_test_command(args, chronicle):
     """Handle rule test command.
 
-    This command tests a rule against historical data and outputs UDM events as JSON objects.
+    This command tests a rule against historical data and outputs UDM events
+    as JSON objects.
     """
     try:
-        with open(args.file, "r") as f:
+        with open(args.file, "r", encoding="utf-8") as f:
             rule_text = f.read()
 
         start_time, end_time = get_time_range(args)
@@ -1276,10 +1390,14 @@ def handle_rule_test_command(args, chronicle):
                 result_events = detection.get("resultEvents", {})
 
                 # Extract UDM events from resultEvents structure
-                # resultEvents is an object with variable names as keys (from the rule)
-                # and each variable contains an eventSamples array with the actual events
-                for var_name, event_data in result_events.items():
-                    if isinstance(event_data, dict) and "eventSamples" in event_data:
+                # resultEvents is an object with variable names as
+                # keys (from the rule) and each variable contains an
+                # eventSamples array with the actual events
+                for _, event_data in result_events.items():
+                    if (
+                        isinstance(event_data, dict)
+                        and "eventSamples" in event_data
+                    ):
                         for sample in event_data.get("eventSamples", []):
                             if "event" in sample:
                                 # Extract the actual UDM event
@@ -1292,7 +1410,7 @@ def handle_rule_test_command(args, chronicle):
     except APIError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {str(e)}", file=sys.stderr)
         sys.exit(1)
 
@@ -1304,7 +1422,7 @@ def handle_rule_search_command(args, chronicle):
     try:
         result = chronicle.search_rules(args.query)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1316,7 +1434,9 @@ def setup_alert_command(subparsers):
         "--snapshot-query",
         "--snapshot_query",
         dest="snapshot_query",
-        help='Query to filter alerts (e.g. feedback_summary.status != "CLOSED")',
+        help=(
+            'Query to filter alerts (e.g. feedback_summary.status != "CLOSED")'
+        ),
     )
     alert_parser.add_argument(
         "--baseline-query",
@@ -1349,7 +1469,7 @@ def handle_alert_command(args, chronicle):
             max_alerts=args.max_alerts,
         )
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1380,7 +1500,7 @@ def handle_case_command(args, chronicle):
                         "soar_platform_info": (
                             {
                                 "case_id": case.soar_platform_info.case_id,
-                                "platform_type": case.soar_platform_info.platform_type,
+                                "platform_type": case.soar_platform_info.platform_type,  # pylint: disable=line-too-long
                             }
                             if case.soar_platform_info
                             else None
@@ -1394,7 +1514,7 @@ def handle_case_command(args, chronicle):
         else:
             print("Error: No case IDs provided", file=sys.stderr)
             sys.exit(1)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1422,7 +1542,9 @@ def setup_export_command(subparsers):
     log_types_parser.set_defaults(func=handle_export_log_types_command)
 
     # Create export command
-    create_parser = export_subparsers.add_parser("create", help="Create a data export")
+    create_parser = export_subparsers.add_parser(
+        "create", help="Create a data export"
+    )
     create_parser.add_argument(
         "--gcs-bucket",
         "--gcs_bucket",
@@ -1444,12 +1566,16 @@ def setup_export_command(subparsers):
     create_parser.set_defaults(func=handle_export_create_command)
 
     # Get export status command
-    status_parser = export_subparsers.add_parser("status", help="Get export status")
+    status_parser = export_subparsers.add_parser(
+        "status", help="Get export status"
+    )
     status_parser.add_argument("--id", required=True, help="Export ID")
     status_parser.set_defaults(func=handle_export_status_command)
 
     # Cancel export command
-    cancel_parser = export_subparsers.add_parser("cancel", help="Cancel an export")
+    cancel_parser = export_subparsers.add_parser(
+        "cancel", help="Cancel an export"
+    )
     cancel_parser.add_argument("--id", required=True, help="Export ID")
     cancel_parser.set_defaults(func=handle_export_cancel_command)
 
@@ -1478,7 +1604,7 @@ def handle_export_log_types_command(args, chronicle):
         }
 
         output_formatter(log_types_dict, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1495,18 +1621,24 @@ def handle_export_create_command(args, chronicle):
 
         if not available_logs.get("available_log_types") and not args.log_type:
             print(
-                "Warning: No log types are available for export in the specified time range.",
+                "Warning: No log types are available for export in "
+                "the specified time range.",
                 file=sys.stderr,
             )
             print(
-                "You may need to adjust your time range or check your Chronicle instance configuration.",
+                "You may need to adjust your time range or check your "
+                "Chronicle instance configuration.",
                 file=sys.stderr,
             )
             if args.all_logs:
-                print("Creating export with --all-logs flag anyway...", file=sys.stderr)
+                print(
+                    "Creating export with --all-logs flag anyway...",
+                    file=sys.stderr,
+                )
             else:
                 print(
-                    "Error: Cannot create export without specifying a log type when no log types are available.",
+                    "Error: Cannot create export without specifying a log type "
+                    "when no log types are available.",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -1515,22 +1647,23 @@ def handle_export_create_command(args, chronicle):
         if args.log_type and available_logs.get("available_log_types"):
             log_type_found = False
             for lt in available_logs.get("available_log_types", []):
-                if lt.log_type.endswith("/" + args.log_type) or lt.log_type.endswith(
-                    "/logTypes/" + args.log_type
-                ):
+                if lt.log_type.endswith(
+                    "/" + args.log_type
+                ) or lt.log_type.endswith("/logTypes/" + args.log_type):
                     log_type_found = True
                     break
 
             if not log_type_found:
                 print(
-                    f"Warning: Log type '{args.log_type}' not found in available log types.",
+                    f"Warning: Log type '{args.log_type}' not found in "
+                    "available log types.",
                     file=sys.stderr,
                 )
                 print("Available log types:", file=sys.stderr)
                 for lt in available_logs.get("available_log_types", [])[
                     :5
                 ]:  # Show first 5
-                    print(f"  {lt.log_type.split('/')[-1]}", file=sys.stderr)
+                    print(f'  {lt.log_type.split("/")[-1]}', file=sys.stderr)
                 print("Attempting to create export anyway...", file=sys.stderr)
 
         # Proceed with export creation
@@ -1556,7 +1689,7 @@ def handle_export_create_command(args, chronicle):
             sys.exit(1)
 
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         error_msg = str(e)
         print(f"Error: {error_msg}", file=sys.stderr)
 
@@ -1568,7 +1701,8 @@ def handle_export_create_command(args, chronicle):
                 file=sys.stderr,
             )
             print(
-                "2. Try using 'secops export log-types' to see available log types",
+                "2. Try using 'secops export log-types' to see "
+                "available log types",
                 file=sys.stderr,
             )
             print(
@@ -1576,13 +1710,21 @@ def handle_export_create_command(args, chronicle):
                 file=sys.stderr,
             )
             print(
-                "4. Make sure your GCS bucket is properly formatted as 'projects/PROJECT_ID/buckets/BUCKET_NAME'",
+                "4. Make sure your GCS bucket is properly formatted as "
+                "'projects/PROJECT_ID/buckets/BUCKET_NAME'",
                 file=sys.stderr,
             )
-        elif "permission" in error_msg.lower() or "unauthorized" in error_msg.lower():
-            print("\nPossible authentication or permission issues:", file=sys.stderr)
+        elif (
+            "permission" in error_msg.lower()
+            or "unauthorized" in error_msg.lower()
+        ):
             print(
-                "1. Verify your credentials have access to Chronicle and the specified GCS bucket",
+                "\nPossible authentication or permission issues:",
+                file=sys.stderr,
+            )
+            print(
+                "1. Verify your credentials have access to Chronicle and the "
+                "specified GCS bucket",
                 file=sys.stderr,
             )
             print(
@@ -1598,7 +1740,7 @@ def handle_export_status_command(args, chronicle):
     try:
         result = chronicle.get_data_export(args.id)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1608,15 +1750,19 @@ def handle_export_cancel_command(args, chronicle):
     try:
         result = chronicle.cancel_data_export(args.id)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
 
 def setup_gemini_command(subparsers):
     """Set up the Gemini command parser."""
-    gemini_parser = subparsers.add_parser("gemini", help="Interact with Gemini AI")
-    gemini_parser.add_argument("--query", required=True, help="Query for Gemini")
+    gemini_parser = subparsers.add_parser(
+        "gemini", help="Interact with Gemini AI"
+    )
+    gemini_parser.add_argument(
+        "--query", required=True, help="Query for Gemini"
+    )
     gemini_parser.add_argument(
         "--conversation-id",
         "--conversation_id",
@@ -1641,7 +1787,7 @@ def handle_gemini_command(args, chronicle):
     try:
         if args.opt_in:
             result = chronicle.opt_in_to_gemini()
-            print(f"Opt-in result: {'Success' if result else 'Failed'}")
+            print(f'Opt-in result: {"Success" if result else "Failed"}')
             if not result:
                 return
 
@@ -1673,7 +1819,7 @@ def handle_gemini_command(args, chronicle):
                 print("\nSuggested actions:")
                 for action in response.suggested_actions:
                     print(f"- {action.display_text}")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1703,20 +1849,25 @@ def handle_help_command(args, chronicle=None):
         args: Command line arguments
         chronicle: Not used for this command
     """
+    # Unused argument
+    _ = (chronicle,)
+
     if args.topic == "config":
         print("Configuration Help:")
         print("------------------")
         print("To use the SecOps CLI with Chronicle, you need to configure:")
         print("  1. Chronicle Customer ID (your Chronicle instance ID)")
         print(
-            "  2. GCP Project ID (the Google Cloud project associated with your Chronicle instance)"
+            "  2. GCP Project ID (the Google Cloud project associated with "
+            "your Chronicle instance)"
         )
         print("  3. Region (e.g., 'us', 'europe', 'asia-northeast1')")
         print("  4. Optional: Service Account credentials")
         print()
         print("Configuration commands:")
         print(
-            "  secops config set --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID --region YOUR_REGION"
+            "  secops config set --customer-id YOUR_CUSTOMER_ID --project-id "
+            "YOUR_PROJECT_ID --region YOUR_REGION"
         )
         print("  secops config view")
         print("  secops config clear")
@@ -1749,7 +1900,9 @@ def setup_data_table_command(subparsers):
     get_parser.set_defaults(func=handle_dt_get_command)
 
     # Create data table command
-    create_parser = dt_subparsers.add_parser("create", help="Create a data table")
+    create_parser = dt_subparsers.add_parser(
+        "create", help="Create a data table"
+    )
     create_parser.add_argument("--name", required=True, help="Data table name")
     create_parser.add_argument(
         "--description", required=True, help="Data table description"
@@ -1757,20 +1910,32 @@ def setup_data_table_command(subparsers):
     create_parser.add_argument(
         "--header",
         required=True,
-        help='Header definition in JSON format. Example: \'{"col1":"STRING","col2":"CIDR"}\'',
+        help=(
+            "Header definition in JSON format. "
+            'Example: \'{"col1":"STRING","col2":"CIDR"}\''
+        ),
     )
     create_parser.add_argument(
         "--rows",
-        help='Rows in JSON format. Example: \'[["value1","192.168.1.0/24"],["value2","10.0.0.0/8"]]\'',
+        help=(
+            'Rows in JSON format. Example: \'[["value1","192.168.1.0/24"],'
+            '["value2","10.0.0.0/8"]]\''
+        ),
     )
-    create_parser.add_argument("--scopes", help="Comma-separated list of scopes")
+    create_parser.add_argument(
+        "--scopes", help="Comma-separated list of scopes"
+    )
     create_parser.set_defaults(func=handle_dt_create_command)
 
     # Delete data table command
-    delete_parser = dt_subparsers.add_parser("delete", help="Delete a data table")
+    delete_parser = dt_subparsers.add_parser(
+        "delete", help="Delete a data table"
+    )
     delete_parser.add_argument("--name", required=True, help="Data table name")
     delete_parser.add_argument(
-        "--force", action="store_true", help="Force deletion even if table has rows"
+        "--force",
+        action="store_true",
+        help="Force deletion even if table has rows",
     )
     delete_parser.set_defaults(func=handle_dt_delete_command)
 
@@ -1778,7 +1943,9 @@ def setup_data_table_command(subparsers):
     list_rows_parser = dt_subparsers.add_parser(
         "list-rows", help="List data table rows"
     )
-    list_rows_parser.add_argument("--name", required=True, help="Data table name")
+    list_rows_parser.add_argument(
+        "--name", required=True, help="Data table name"
+    )
     list_rows_parser.add_argument(
         "--order-by",
         "--order_by",
@@ -1791,11 +1958,16 @@ def setup_data_table_command(subparsers):
     add_rows_parser = dt_subparsers.add_parser(
         "add-rows", help="Add rows to a data table"
     )
-    add_rows_parser.add_argument("--name", required=True, help="Data table name")
+    add_rows_parser.add_argument(
+        "--name", required=True, help="Data table name"
+    )
     add_rows_parser.add_argument(
         "--rows",
         required=True,
-        help='Rows in JSON format. Example: \'[["value1","192.168.1.0/24"],["value2","10.0.0.0/8"]]\'',
+        help=(
+            'Rows in JSON format. Example: \'[["value1","192.168.1.0/24"],'
+            '["value2","10.0.0.0/8"]]\''
+        ),
     )
     add_rows_parser.set_defaults(func=handle_dt_add_rows_command)
 
@@ -1803,7 +1975,9 @@ def setup_data_table_command(subparsers):
     delete_rows_parser = dt_subparsers.add_parser(
         "delete-rows", help="Delete rows from a data table"
     )
-    delete_rows_parser.add_argument("--name", required=True, help="Data table name")
+    delete_rows_parser.add_argument(
+        "--name", required=True, help="Data table name"
+    )
     delete_rows_parser.add_argument(
         "--row-ids",
         "--row_ids",
@@ -1816,7 +1990,9 @@ def setup_data_table_command(subparsers):
 
 def setup_reference_list_command(subparsers):
     """Set up the reference list command parser."""
-    rl_parser = subparsers.add_parser("reference-list", help="Manage reference lists")
+    rl_parser = subparsers.add_parser(
+        "reference-list", help="Manage reference lists"
+    )
     rl_subparsers = rl_parser.add_subparsers(
         dest="rl_command", help="Reference list command"
     )
@@ -1829,7 +2005,9 @@ def setup_reference_list_command(subparsers):
     list_parser.set_defaults(func=handle_rl_list_command)
 
     # Get reference list command
-    get_parser = rl_subparsers.add_parser("get", help="Get reference list details")
+    get_parser = rl_subparsers.add_parser(
+        "get", help="Get reference list details"
+    )
     get_parser.add_argument("--name", required=True, help="Reference list name")
     get_parser.add_argument(
         "--view", choices=["BASIC", "FULL"], default="FULL", help="View type"
@@ -1837,12 +2015,18 @@ def setup_reference_list_command(subparsers):
     get_parser.set_defaults(func=handle_rl_get_command)
 
     # Create reference list command
-    create_parser = rl_subparsers.add_parser("create", help="Create a reference list")
-    create_parser.add_argument("--name", required=True, help="Reference list name")
+    create_parser = rl_subparsers.add_parser(
+        "create", help="Create a reference list"
+    )
+    create_parser.add_argument(
+        "--name", required=True, help="Reference list name"
+    )
     create_parser.add_argument(
         "--description", default="", help="Reference list description"
     )
-    create_parser.add_argument("--entries", help="Comma-separated list of entries")
+    create_parser.add_argument(
+        "--entries", help="Comma-separated list of entries"
+    )
     create_parser.add_argument(
         "--syntax-type",
         "--syntax_type",
@@ -1860,10 +2044,18 @@ def setup_reference_list_command(subparsers):
     create_parser.set_defaults(func=handle_rl_create_command)
 
     # Update reference list command
-    update_parser = rl_subparsers.add_parser("update", help="Update a reference list")
-    update_parser.add_argument("--name", required=True, help="Reference list name")
-    update_parser.add_argument("--description", help="New reference list description")
-    update_parser.add_argument("--entries", help="Comma-separated list of entries")
+    update_parser = rl_subparsers.add_parser(
+        "update", help="Update a reference list"
+    )
+    update_parser.add_argument(
+        "--name", required=True, help="Reference list name"
+    )
+    update_parser.add_argument(
+        "--description", help="New reference list description"
+    )
+    update_parser.add_argument(
+        "--entries", help="Comma-separated list of entries"
+    )
     update_parser.add_argument(
         "--entries-file",
         "--entries_file",
@@ -1879,11 +2071,13 @@ def handle_dt_list_command(args, chronicle):
     """Handle data table list command."""
     try:
         order_by = (
-            args.order_by if hasattr(args, "order_by") and args.order_by else None
+            args.order_by
+            if hasattr(args, "order_by") and args.order_by
+            else None
         )
         result = chronicle.list_data_tables(order_by=order_by)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1893,7 +2087,7 @@ def handle_dt_get_command(args, chronicle):
     try:
         result = chronicle.get_data_table(args.name)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1909,7 +2103,8 @@ def handle_dt_create_command(args, chronicle):
         except (json.JSONDecodeError, KeyError) as e:
             print(f"Error parsing header: {e}", file=sys.stderr)
             print(
-                "Header should be a JSON object mapping column names to types (STRING, REGEX, CIDR).",
+                "Header should be a JSON object mapping column names to types "
+                "(STRING, REGEX, CIDR).",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -1937,7 +2132,7 @@ def handle_dt_create_command(args, chronicle):
             scopes=scopes,
         )
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1947,7 +2142,7 @@ def handle_dt_delete_command(args, chronicle):
     try:
         result = chronicle.delete_data_table(args.name, force=args.force)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1956,11 +2151,13 @@ def handle_dt_list_rows_command(args, chronicle):
     """Handle data table list rows command."""
     try:
         order_by = (
-            args.order_by if hasattr(args, "order_by") and args.order_by else None
+            args.order_by
+            if hasattr(args, "order_by") and args.order_by
+            else None
         )
         result = chronicle.list_data_table_rows(args.name, order_by=order_by)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1977,7 +2174,7 @@ def handle_dt_add_rows_command(args, chronicle):
 
         result = chronicle.create_data_table_rows(args.name, rows)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1988,7 +2185,7 @@ def handle_dt_delete_rows_command(args, chronicle):
         row_ids = [id.strip() for id in args.row_ids.split(",")]
         result = chronicle.delete_data_table_rows(args.name, row_ids)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -1999,7 +2196,7 @@ def handle_rl_list_command(args, chronicle):
         view = ReferenceListView[args.view]
         result = chronicle.list_reference_lists(view=view)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -2010,7 +2207,7 @@ def handle_rl_get_command(args, chronicle):
         view = ReferenceListView[args.view]
         result = chronicle.get_reference_list(args.name, view=view)
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -2022,7 +2219,7 @@ def handle_rl_create_command(args, chronicle):
         entries = []
         if args.entries_file:
             try:
-                with open(args.entries_file, "r") as f:
+                with open(args.entries_file, "r", encoding="utf-8") as f:
                     entries = [line.strip() for line in f if line.strip()]
             except IOError as e:
                 print(f"Error reading entries file: {e}", file=sys.stderr)
@@ -2039,7 +2236,7 @@ def handle_rl_create_command(args, chronicle):
             syntax_type=syntax_type,
         )
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -2051,7 +2248,7 @@ def handle_rl_update_command(args, chronicle):
         entries = None
         if args.entries_file:
             try:
-                with open(args.entries_file, "r") as f:
+                with open(args.entries_file, "r", encoding="utf-8") as f:
                     entries = [line.strip() for line in f if line.strip()]
             except IOError as e:
                 print(f"Error reading entries file: {e}", file=sys.stderr)
@@ -2063,7 +2260,7 @@ def handle_rl_update_command(args, chronicle):
             name=args.name, description=args.description, entries=entries
         )
         output_formatter(result, args.output)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -2077,7 +2274,9 @@ def main() -> None:
     add_chronicle_args(parser)
 
     # Create subparsers for different commands
-    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
+    subparsers = parser.add_subparsers(
+        dest="command", help="Command to execute"
+    )
 
     # Set up individual command parsers
     setup_search_command(subparsers)
@@ -2123,7 +2322,8 @@ def main() -> None:
     requires_chronicle = any(cmd in args.command for cmd in chronicle_commands)
 
     if requires_chronicle:
-        # Check for required configuration before attempting to create the client
+        # Check for required configuration before attempting to
+        # create the client
         config = load_config()
         customer_id = args.customer_id or config.get("customer_id")
         project_id = args.project_id or config.get("project_id")
@@ -2136,17 +2336,22 @@ def main() -> None:
                 missing.append("project_id")
 
             print(
-                f"Error: Missing required configuration: {', '.join(missing)}",
+                f'Error: Missing required configuration: {", ".join(missing)}',
                 file=sys.stderr,
             )
             print("\nPlease set up your configuration first:", file=sys.stderr)
             print(
-                "  secops config set --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID --region YOUR_REGION",
+                "  secops config set --customer-id YOUR_CUSTOMER_ID "
+                "--project-id YOUR_PROJECT_ID --region YOUR_REGION",
                 file=sys.stderr,
             )
-            print("\nOr provide them directly on the command line:", file=sys.stderr)
             print(
-                f"  secops --customer-id YOUR_CUSTOMER_ID --project-id YOUR_PROJECT_ID --region YOUR_REGION {args.command}",
+                "\nOr provide them directly on the command line:",
+                file=sys.stderr,
+            )
+            print(
+                "  secops --customer-id YOUR_CUSTOMER_ID --project-id "
+                f"YOUR_PROJECT_ID --region YOUR_REGION {args.command}",
                 file=sys.stderr,
             )
             print("\nNeed help finding these values?", file=sys.stderr)
@@ -2157,14 +2362,17 @@ def main() -> None:
             sys.exit(1)
 
     # Set up client
-    client, chronicle = setup_client(args)
+    client, chronicle = setup_client(args)  # pylint: disable=unused-variable
 
     # Execute command
     if hasattr(args, "func"):
         if not requires_chronicle or chronicle is not None:
             args.func(args, chronicle)
         else:
-            print("Error: Chronicle client required for this command", file=sys.stderr)
+            print(
+                "Error: Chronicle client required for this command",
+                file=sys.stderr,
+            )
             print("\nFor help with configuration:", file=sys.stderr)
             print("  secops help --topic config", file=sys.stderr)
             sys.exit(1)

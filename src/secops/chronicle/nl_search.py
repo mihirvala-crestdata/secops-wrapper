@@ -16,7 +16,7 @@
 
 import time
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from secops.exceptions import APIError
 
 
@@ -31,13 +31,18 @@ def translate_nl_to_udm(client, text: str) -> str:
         UDM search query string
 
     Raises:
-        APIError: If the API request fails or no valid query can be generated after retries
+        APIError: If the API request fails or no valid query can be
+            generated after retries
     """
     max_retries = 10
     retry_count = 0
     wait_time = 5  # seconds, will double with each retry
 
-    url = f"https://{client.region}-chronicle.googleapis.com/v1alpha/projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}:translateUdmQuery"
+    url = (
+        f"https://{client.region}-chronicle.googleapis.com/v1alpha/projects"
+        f"/{client.project_id}/locations/{client.region}/instances"
+        f"/{client.customer_id}:translateUdmQuery"
+    )
 
     payload = {"text": text}
 
@@ -47,11 +52,16 @@ def translate_nl_to_udm(client, text: str) -> str:
 
             if response.status_code != 200:
                 # If it's a 429 error, handle it specially
-                if response.status_code == 429 or "RESOURCE_EXHAUSTED" in response.text:
+                if (
+                    response.status_code == 429
+                    or "RESOURCE_EXHAUSTED" in response.text
+                ):
                     if retry_count < max_retries:
                         retry_count += 1
                         print(
-                            f"Received 429 error in translation, retrying ({retry_count}/{max_retries}) after {wait_time} seconds"
+                            "Received 429 error in translation, retrying "
+                            f"({retry_count}/{max_retries}) after "
+                            f"{wait_time} seconds"
                         )
                         time.sleep(wait_time)
                         wait_time *= 2  # Double the wait time for next retry
@@ -72,7 +82,9 @@ def translate_nl_to_udm(client, text: str) -> str:
                 if retry_count < max_retries:
                     retry_count += 1
                     print(
-                        f"Received 429 error, retrying ({retry_count}/{max_retries}) after {wait_time} seconds"
+                        "Received 429 error, retrying "
+                        f"({retry_count}/{max_retries}) after "
+                        f"{wait_time} seconds"
                     )
                     time.sleep(wait_time)
                     wait_time *= 2  # Double the wait time for next retry
@@ -138,7 +150,9 @@ def nl_search(
                     retry_count += 1
                     # Log retry attempt
                     print(
-                        f"Received 429 error, retrying ({retry_count}/{max_retries}) after {wait_time} seconds"
+                        "Received 429 error, retrying "
+                        f"({retry_count}/{max_retries}) after "
+                        f"{wait_time} seconds"
                     )
                     time.sleep(wait_time)
                     wait_time *= 2  # Double the wait time for next retry

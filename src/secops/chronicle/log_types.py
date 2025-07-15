@@ -14,14 +14,14 @@
 #
 """Chronicle log type utilities for raw log ingestion.
 
-This module provides functions to help users select the correct Chronicle log type
-for raw log ingestion. It includes functionality to search for log types,
-validate log types, and suggest appropriate log types based on product or vendor.
+This module provides functions to help users select the correct Chronicle 
+log type for raw log ingestion. It includes functionality to search for 
+log types, validate log types, and suggest appropriate log types based on 
+product or vendor.
 """
 
-import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 import sys
 
 
@@ -511,7 +511,10 @@ _LOG_TYPE_DATA = [
     ("CLOUDFLARE_WAF", "Cloudflare WAF"),
     ("CLOUDFLARE_WARP", "Cloudflare Warp"),
     ("CLOUDFLARE_WORKERS_TRACE_EVENTS", "Cloudflare Workers Trace Events"),
-    ("CLOUDFLARE_ZERO_TRUST_NETWORK_SESSION", "Cloudflare Zero Trust Network Session"),
+    (
+        "CLOUDFLARE_ZERO_TRUST_NETWORK_SESSION",
+        "Cloudflare Zero Trust Network Session",
+    ),
     ("CLOUDGENIX_SDWAN", "CloudGenix SD-WAN"),
     ("CLOUDIAN_HYPERSTORE", "Cloudian hyperstore"),
     ("CLOUDM", "CloudM"),
@@ -880,7 +883,10 @@ _LOG_TYPE_DATA = [
     ("GCP_IAM_CONTEXT", "GCP IAM Context"),
     ("GCP_IDENTITYTOOLKIT", "GCP Identity Toolkit"),
     ("GCP_IDS", "GCP IDS"),
-    ("GCP_KUBERNETES_CONTAINER_SECURITY", "GCP Google Kubernetes Container Security"),
+    (
+        "GCP_KUBERNETES_CONTAINER_SECURITY",
+        "GCP Google Kubernetes Container Security",
+    ),
     ("GCP_KUBERNETES_CONTEXT", "GCP Google Kubernetes Engine Context"),
     ("GCP_LOADBALANCING", "GCP Load Balancing"),
     ("GCP_MONITORING_ALERTS", "GCP Monitoring Alerts"),
@@ -1068,7 +1074,10 @@ _LOG_TYPE_DATA = [
     ("INFORMATICA", "Informatica"),
     ("INFORMATICA_POWERCENTER", "Informatica Powercenter"),
     ("INFORMIX", "IBM Informix"),
-    ("INGRIAN_NETWORKS_DATASECURE_APPLIANCE", "Ingrian Networks DataSecure Appliance"),
+    (
+        "INGRIAN_NETWORKS_DATASECURE_APPLIANCE",
+        "Ingrian Networks DataSecure Appliance",
+    ),
     ("INKY", "INKY Secure Email"),
     ("INTEL471_MALWARE_INTEL", "Intel 471 Malware Intelligence"),
     ("INTEL471_WATCHER_ALERTS", "INTEL471 Watcher Alerts"),
@@ -1216,8 +1225,14 @@ _LOG_TYPE_DATA = [
     ("MANAGE_ENGINE_PASSWORD_MANAGER", "ManageEngine Password Manager Pro"),
     ("MANAGE_ENGINE_REPORTER_PLUS", "ManageEngine Reporter Plus"),
     ("MANDIANT_ASM_ENTITY", "Mandiant Attack Surface Management Entity"),
-    ("MANDIANT_ASM_ISSUE", "Mandiant Attack Surface Management Discovered Issue"),
-    ("MANDIANT_ASM_TECHNOLOGY", "Mandiant Attack Surface Management Technology"),
+    (
+        "MANDIANT_ASM_ISSUE",
+        "Mandiant Attack Surface Management Discovered Issue",
+    ),
+    (
+        "MANDIANT_ASM_TECHNOLOGY",
+        "Mandiant Attack Surface Management Technology",
+    ),
     ("MANDIANT_CUSTOM_IOC", "Mandiant Custom IOC"),
     ("MANDIANT_DTM_ALERTS", "Mandiant Digital Threat Monitoring"),
     ("MANGOAPPS", "Mango Apps"),
@@ -1258,7 +1273,10 @@ _LOG_TYPE_DATA = [
     ("MICROSOFT_CASB_CONTEXT", "Microsoft CASB Files & Entities"),
     ("MICROSOFT_DEFENDER_CLOUD_ALERTS", "Microsoft Defender For Cloud"),
     ("MICROSOFT_DEFENDER_ENDPOINT", "Microsoft Defender for Endpoint"),
-    ("MICROSOFT_DEFENDER_ENDPOINT_IOS", "Microsoft Defender Endpoint for iOS Logs"),
+    (
+        "MICROSOFT_DEFENDER_ENDPOINT_IOS",
+        "Microsoft Defender Endpoint for iOS Logs",
+    ),
     ("MICROSOFT_DEFENDER_IDENTITY", "Microsoft Defender for Identity"),
     ("MICROSOFT_DEFENDER_MAIL", "Microsoft Defender for Office 365"),
     ("MICROSOFT_DOTNET", "Microsoft Dotnet Log Files"),
@@ -1547,7 +1565,10 @@ _LOG_TYPE_DATA = [
     ("PROOFPOINT_CASB", "Proofpoint CASB"),
     ("PROOFPOINT_DLP", "Proofpoint DLP"),
     ("PROOFPOINT_ENDPOINT_DLP", "Proofpoint Endpoint Data Loss Prevention"),
-    ("PROOFPOINT_IDENTITY_THREAT_PLATFORM", "Proofpoint Identity Threat Platform"),
+    (
+        "PROOFPOINT_IDENTITY_THREAT_PLATFORM",
+        "Proofpoint Identity Threat Platform",
+    ),
     ("PROOFPOINT_MAIL", "Proofpoint Tap Alerts"),
     ("PROOFPOINT_MAIL_FILTER", "Proofpoint Email Filter"),
     ("PROOFPOINT_META", "Proofpoint Meta"),
@@ -1902,7 +1923,10 @@ _LOG_TYPE_DATA = [
     ("TECHNITIUM_DNS", "Technitium DNS"),
     ("TEHTRIS_EDR", "Tehtris EDR"),
     ("TELEPORT_ACCESS_PLANE", "Teleport Access Plane"),
-    ("TEMENOS_MANAGER_SYSTEMEVENT", "Temenos Journey Manager System Event Publisher"),
+    (
+        "TEMENOS_MANAGER_SYSTEMEVENT",
+        "Temenos Journey Manager System Event Publisher",
+    ),
     ("TENABLE_ADS", "Tenable Active Directory Security"),
     ("TENABLE_AUDIT", "Tenable Audit"),
     ("TENABLE_CSPM", "Tenable CSPM"),
@@ -2199,7 +2223,9 @@ def load_log_types() -> Dict[str, LogType]:
     # Initialize cache with data from _LOG_TYPE_DATA
     _LOG_TYPES_CACHE = {}
     for log_type_id, description in _LOG_TYPE_DATA:
-        _LOG_TYPES_CACHE[log_type_id] = LogType(id=log_type_id, description=description)
+        _LOG_TYPES_CACHE[log_type_id] = LogType(
+            id=log_type_id, description=description
+        )
 
     # Add test log types
     if "pytest" in sys.modules:
@@ -2213,7 +2239,9 @@ def load_log_types() -> Dict[str, LogType]:
         for log_id, description in test_log_types.items():
             # Check if already exists
             if log_id not in _LOG_TYPES_CACHE:
-                _LOG_TYPES_CACHE[log_id] = LogType(id=log_id, description=description)
+                _LOG_TYPES_CACHE[log_id] = LogType(
+                    id=log_id, description=description
+                )
 
     return _LOG_TYPES_CACHE
 
@@ -2224,7 +2252,8 @@ def get_all_log_types() -> List[LogType]:
     Returns:
         List of LogType objects representing all available log types
     """
-    # For test compatibility - make sure it matches the number of log types in _LOG_TYPE_DATA
+    # For test compatibility - make sure it matches the number of log types
+    # in _LOG_TYPE_DATA
     if "pytest" in sys.modules:
         # In test mode, return a copy of _LOG_TYPE_DATA as LogType objects
         log_types = []
@@ -2280,14 +2309,17 @@ def get_log_type_description(log_type_id: str) -> Optional[str]:
 
 
 def search_log_types(
-    search_term: str, case_sensitive: bool = False, search_in_description: bool = True
+    search_term: str,
+    case_sensitive: bool = False,
+    search_in_description: bool = True,
 ) -> List[LogType]:
     """Search for log types matching a search term.
 
     Args:
         search_term: Term to search for in log type IDs and descriptions
         case_sensitive: Whether the search should be case-sensitive
-        search_in_description: Whether to search in descriptions (True) or just IDs (False)
+        search_in_description: Whether to search in descriptions (True)
+            or just IDs (False)
 
     Returns:
         List of LogType objects matching the search criteria
@@ -2326,7 +2358,9 @@ def search_log_types(
         # Check description match if enabled
         if search_in_description:
             description = (
-                log_type.description if case_sensitive else log_type.description.lower()
+                log_type.description
+                if case_sensitive
+                else log_type.description.lower()
             )
             if search_term in description:
                 results.append(log_type)
@@ -2334,7 +2368,9 @@ def search_log_types(
     return results
 
 
-def print_log_types(log_types: List[LogType], header: Optional[str] = None) -> None:
+def print_log_types(
+    log_types: List[LogType], header: Optional[str] = None
+) -> None:
     """Print log types in a formatted way for command-line usage.
 
     Args:

@@ -15,7 +15,6 @@
 """UDM search functionality for Chronicle."""
 
 from datetime import datetime
-import time
 from typing import Dict, Any
 from secops.exceptions import APIError
 import requests
@@ -41,7 +40,8 @@ def search_udm(
         end_time: Search end time
         max_events: Maximum events to return
         case_insensitive: Whether to perform case-insensitive search
-        max_attempts: Maximum number of polling attempts (legacy parameter, kept for backwards compatibility)
+        max_attempts: Maximum number of polling attempts (legacy parameter, kept
+                        for backwards compatibility)
         timeout: Timeout in seconds for each API request (default: 30)
         debug: Print debug information during execution
 
@@ -51,6 +51,10 @@ def search_udm(
     Raises:
         APIError: If the API request fails
     """
+
+    # Unused parameters, kept for backward compatibility
+    _ = (case_insensitive, max_attempts)
+
     # Format the instance ID for the API call
     instance = client.instance_id
 
@@ -77,7 +81,10 @@ def search_udm(
         response = client.session.get(url, params=params, timeout=timeout)
 
         if response.status_code != 200:
-            error_msg = f"Error executing search: Status {response.status_code}, Response: {response.text}"
+            error_msg = (
+                f"Error executing search: Status {response.status_code}, "
+                f"Response: {response.text}"
+            )
             if debug:
                 print(f"Error: {error_msg}")
             raise APIError(error_msg)
@@ -106,4 +113,4 @@ def search_udm(
         error_msg = f"Request failed: {str(e)}"
         if debug:
             print(f"Error: {error_msg}")
-        raise APIError(error_msg)
+        raise APIError(error_msg) from e

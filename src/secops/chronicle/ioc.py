@@ -14,7 +14,7 @@
 #
 """IOC functionality for Chronicle."""
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 from datetime import datetime
 from secops.exceptions import APIError
 
@@ -44,11 +44,14 @@ def list_iocs(
         APIError: If the API request fails
     """
     url = (
-        f"{client.base_url}/{client.instance_id}/legacy:legacySearchEnterpriseWideIoCs"
+        f"{client.base_url}/{client.instance_id}"
+        "/legacy:legacySearchEnterpriseWideIoCs"
     )
 
     params = {
-        "timestampRange.startTime": start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+        "timestampRange.startTime": start_time.strftime(
+            "%Y-%m-%dT%H:%M:%S.%fZ"
+        ),
         "timestampRange.endTime": end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
         "maxMatchesToReturn": max_matches,
         "addMandiantAttributes": add_mandiant_attributes,
@@ -88,7 +91,8 @@ def list_iocs(
 
                 # Process associations
                 if "associationIdentifier" in match:
-                    # Remove duplicate associations (some have same name but different regionCode)
+                    # Remove duplicate associations
+                    # (some have same name but different regionCode)
                     seen = set()
                     unique_associations = []
                     for assoc in match["associationIdentifier"]:
@@ -101,4 +105,4 @@ def list_iocs(
         return data
 
     except Exception as e:
-        raise APIError(f"Failed to process IoCs response: {str(e)}")
+        raise APIError(f"Failed to process IoCs response: {str(e)}") from e

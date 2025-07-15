@@ -137,7 +137,9 @@ class FileMetadataAndProperties:
 
 @dataclass
 class EntitySummary:
-    """Complete entity summary response, potentially combining multiple API calls."""
+    """
+    Complete entity summary response, potentially combining multiple API calls.
+    """
 
     primary_entity: Optional[Entity] = None
     related_entities: List[Entity] = field(default_factory=list)
@@ -195,7 +197,8 @@ class SoarPlatformInfo:
     def from_dict(cls, data: dict) -> "SoarPlatformInfo":
         """Create from API response dict."""
         return cls(
-            case_id=data.get("caseId"), platform_type=data.get("responsePlatformType")
+            case_id=data.get("caseId"),
+            platform_type=data.get("responsePlatformType"),
         )
 
 
@@ -204,7 +207,7 @@ class Case:
 
     def __init__(
         self,
-        id: str,
+        id: str,  # pylint: disable=redefined-builtin
         display_name: str,
         stage: str,
         priority: str,
@@ -264,5 +267,7 @@ class CaseList:
     @classmethod
     def from_dict(cls, data: dict) -> "CaseList":
         """Create from API response dict."""
-        cases = [Case.from_dict(case_data) for case_data in data.get("cases", [])]
+        cases = [
+            Case.from_dict(case_data) for case_data in data.get("cases", [])
+        ]
         return cls(cases)
