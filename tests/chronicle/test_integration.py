@@ -82,6 +82,7 @@ order:
             end_time=end_time,
             max_events=10,  # Limit results for testing
             max_values=10,  # Limit field values for testing
+            timeout=60 # Short Timeout
         )
 
         assert "columns" in result

@@ -332,6 +332,7 @@ class ChronicleClient:
         start_time: datetime,
         end_time: datetime,
         max_values: int = 60,
+        timeout: int = 120,
         max_events: int = 10000,
         case_insensitive: bool = True,
         max_attempts: int = 30,
@@ -343,6 +344,7 @@ class ChronicleClient:
             start_time: Search start time
             end_time: Search end time
             max_values: Maximum number of values to return per field
+            timeout: Timeout in seconds for each API request (default: 120)
             max_events: Maximum number of events to process
             case_insensitive: Whether to perform case-insensitive search
             max_attempts: Maximum number of polling attempts (deprecated)
@@ -362,6 +364,7 @@ class ChronicleClient:
             start_time,
             end_time,
             max_values,
+            timeout,
             max_events,
             case_insensitive,
             max_attempts,
