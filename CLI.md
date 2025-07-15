@@ -133,6 +133,15 @@ outcome:
   \$count = count(metadata.id)
 order:
   \$count desc" --time-window 24
+
+# Invoke with custom timeout
+secops stats --query "metadata.event_type = \"NETWORK_CONNECTION\"
+match:
+  target.hostname
+outcome:
+  \$count = count(metadata.id)
+order:
+  \$count desc" --time-window 24 --timeout 200
 ```
 
 ### Entity Information
