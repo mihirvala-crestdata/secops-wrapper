@@ -521,7 +521,8 @@ order:
     start_time=start_time,
     end_time=end_time,
     max_events=1000,
-    max_values=10
+    max_values=10,
+    timeout=180
 )
 
 # Example response:
