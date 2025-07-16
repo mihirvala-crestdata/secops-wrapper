@@ -11,7 +11,7 @@ on:
 
 jobs:
   tox:
-    name: Run Tests with Tox
+    name: Run Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
