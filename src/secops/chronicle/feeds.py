@@ -1,3 +1,20 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+"""
+Provides ingestion feed management functionality for Chronicle.
+"""
 from secops.exceptions import APIError
 from dataclasses import dataclass, asdict
 from typing import Dict, Any, List, TypedDict, Optional, Union, Annotated
@@ -24,7 +41,8 @@ class CreateFeedModel:
 
     Args:
         display_name: Display name for the feed
-        details: Feed details as either a JSON string or dict. If string, will be parsed as JSON.
+        details: Feed details as either a JSON string or dict.
+            If string, will be parsed as JSON.
     """
 
     display_name: Annotated[str, "Display name for the feed"]
@@ -38,7 +56,7 @@ class CreateFeedModel:
             try:
                 self.details = json.loads(self.details)
             except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON string for details: {e}")
+                raise ValueError(f"Invalid JSON string for details: {e}") from e
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -51,10 +69,13 @@ class UpdateFeedModel:
 
     Args:
         display_name: Optional display name for the feed
-        details: Optional feed details as either a JSON string or dict. If string, will be parsed as JSON.
+        details: Optional feed details as either a JSON string or dict.
+            If string, will be parsed as JSON.
     """
 
-    display_name: Annotated[Optional[str], "Optional display name for the feed"] = None
+    display_name: Annotated[
+        Optional[str], "Optional display name for the feed"
+    ] = None
     details: Annotated[
         Optional[Union[str, Dict[str, Any]]],
         "Optional feed details as JSON string or dict",
@@ -66,7 +87,7 @@ class UpdateFeedModel:
             try:
                 self.details = json.loads(self.details)
             except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON string for details: {e}")
+                raise ValueError(f"Invalid JSON string for details: {e}") from e
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -102,7 +123,9 @@ class FeedSecret(TypedDict):
     secret: str
 
 
-def list_feeds(client, page_size: int = 100, page_token: str = None) -> List[Feed]:
+def list_feeds(
+    client, page_size: int = 100, page_token: str = None
+) -> List[Feed]:
     """List feeds.
 
     Args:
@@ -214,7 +237,9 @@ def update_feed(
     if update_mask:
         params = {"updateMask": ",".join(update_mask)}
 
-    response = client.session.patch(url, params=params, json=feed_config.to_dict())
+    response = client.session.patch(
+        url, params=params, json=feed_config.to_dict()
+    )
     if response.status_code != 200:
         raise APIError(f"Failed to update feed: {response.text}")
 
@@ -275,7 +300,7 @@ def enable_feed(client, feed_id: str) -> Feed:
     response = client.session.post(url)
     if response.status_code != 200:
         raise APIError(f"Failed to enable feed: {response.text}")
-    
+
     return response.json()
 
 
@@ -292,7 +317,9 @@ def generate_secret(client, feed_id: str) -> FeedSecret:
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/feeds/{feed_id}:generateSecret"
+    url = (
+        f"{client.base_url}/{client.instance_id}/feeds/{feed_id}:generateSecret"
+    )
     response = client.session.post(url)
     if response.status_code != 200:
         raise APIError(f"Failed to generate secret: {response.text}")

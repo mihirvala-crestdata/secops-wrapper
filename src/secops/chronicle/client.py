@@ -96,8 +96,9 @@ from secops.chronicle.feeds import (
     disable_feed as _disable_feed,
     generate_secret as _generate_secret,
     CreateFeedModel,
-    UpdateFeedModel
+    UpdateFeedModel,
 )
+
 # Import rule functions
 from secops.chronicle.rule import create_rule as _create_rule
 from secops.chronicle.rule import delete_rule as _delete_rule
@@ -768,12 +769,23 @@ class ChronicleClient:
     def get_feed(self, feed_id: str) -> Dict[str, Any]:
         return _get_feed(self, feed_id)
 
-    def create_feed(self, display_name: str, details: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
-        feed_config = CreateFeedModel(display_name=display_name, details=details)
+    def create_feed(
+        self, display_name: str, details: Union[str, Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        feed_config = CreateFeedModel(
+            display_name=display_name, details=details
+        )
         return _create_feed(self, feed_config)
 
-    def update_feed(self, feed_id: str, display_name: Optional[str] = None, details: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        feed_config = UpdateFeedModel(display_name=display_name, details=details)
+    def update_feed(
+        self,
+        feed_id: str,
+        display_name: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        feed_config = UpdateFeedModel(
+            display_name=display_name, details=details
+        )
         return _update_feed(self, feed_id, feed_config)
 
     def enable_feed(self, feed_id: str) -> Dict[str, Any]:
