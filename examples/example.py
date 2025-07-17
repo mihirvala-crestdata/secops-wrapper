@@ -95,6 +95,7 @@ order:
             end_time=end_time,
             max_events=1000,
             max_values=10,
+            timeout=180,
         )
         print("\nTop hostnames by event count:")
         rows = stats.get("rows", [])

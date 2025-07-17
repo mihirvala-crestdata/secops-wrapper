@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Provides entity search, analysis and summarization functionality for Chronicle."""
+"""
+Provides entity search, analysis and summarization functionality for Chronicle.
+"""
 import re
 import ipaddress
 from datetime import datetime
 from typing import Any, List, Optional, Tuple
 
-from google.auth.transport import requests as google_auth_requests
 from secops.exceptions import APIError
 from secops.chronicle.models import (
     Entity,
@@ -37,7 +38,9 @@ from secops.chronicle.models import (
 )
 
 
-def _detect_value_type_for_query(value: str) -> Tuple[Optional[str], Optional[str]]:
+def _detect_value_type_for_query(
+    value: str,
+) -> Tuple[Optional[str], Optional[str]]:
     """Detect query fragment and preferred entity type from input value.
 
     Args:
@@ -63,7 +66,7 @@ def _detect_value_type_for_query(value: str) -> Tuple[Optional[str], Optional[st
 
     # Try domain name
     if re.match(
-        r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+$",
+        r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+$",  # pylint: disable=line-too-long
         value,
     ):
         return f'domain = "{value}"', "DOMAIN_NAME"
@@ -100,7 +103,9 @@ def _parse_entity(entity_data: dict) -> Entity:
             interval["startTime"].replace("Z", "+00:00")
         )
     if interval.get("endTime"):
-        end_time = datetime.fromisoformat(interval["endTime"].replace("Z", "+00:00"))
+        end_time = datetime.fromisoformat(
+            interval["endTime"].replace("Z", "+00:00")
+        )
 
     metric_data = entity_data.get("metric", {})
     first_seen = None
@@ -188,8 +193,9 @@ def _summarize_entity_by_id(
         return response.json()
     except Exception as e:
         raise APIError(
-            f"Error parsing entity summary response for ID {entity_id}: {str(e)}"
-        )
+            "Error parsing entity summary response for "
+            f"ID {entity_id}: {str(e)}"
+        ) from e
 
 
 def summarize_entity(
@@ -204,8 +210,8 @@ def summarize_entity(
 ) -> EntitySummary:
     """Get comprehensive summary information about an entity.
 
-    Performs entity search, identifies the primary entity, and retrieves detailed
-    information including alerts, timeline, and prevalence data.
+    Performs entity search, identifies the primary entity, and retrieves
+    detailed information including alerts, timeline, and prevalence data.
 
     Args:
         client: Authenticated ChronicleClient instance.
@@ -224,7 +230,9 @@ def summarize_entity(
         APIError: If API request fails.
         ValueError: If input value cannot be mapped to a query.
     """
-    query_fragment, auto_detected_preferred_type = _detect_value_type_for_query(value)
+    query_fragment, auto_detected_preferred_type = _detect_value_type_for_query(
+        value
+    )
 
     if not query_fragment:
         raise ValueError(f"Could not determine how to query for value: {value}")
@@ -232,7 +240,9 @@ def summarize_entity(
     final_preferred_type = preferred_entity_type or auto_detected_preferred_type
 
     # Query for entities
-    query_url = f"{client.base_url}/{client.instance_id}:summarizeEntitiesFromQuery"
+    query_url = (
+        f"{client.base_url}/{client.instance_id}:summarizeEntitiesFromQuery"
+    )
     query_params = {
         "query": query_fragment,
         "timeRange.startTime": start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
@@ -241,12 +251,16 @@ def summarize_entity(
 
     query_response = client.session.get(query_url, params=query_params)
     if query_response.status_code != 200:
-        raise APIError(f"Error querying entity summaries: {query_response.text}")
+        raise APIError(
+            f"Error querying entity summaries: {query_response.text}"
+        )
 
     try:
         query_data = query_response.json()
     except Exception as e:
-        raise APIError(f"Error parsing entity summaries query response: {str(e)}")
+        raise APIError(
+            f"Error parsing entity summaries query response: {str(e)}"
+        ) from e
 
     # Identify primary entity and collect all entities
     all_entities: List[Entity] = []
@@ -294,10 +308,14 @@ def summarize_entity(
         alert_counts_data = details_data.get("alertCounts", [])
         if alert_counts_data:
             combined_summary.alert_counts = [
-                AlertCount(rule=ac.get("rule", ""), count=int(ac.get("count", 0)))
+                AlertCount(
+                    rule=ac.get("rule", ""), count=int(ac.get("count", 0))
+                )
                 for ac in alert_counts_data
             ]
-        combined_summary.has_more_alerts = details_data.get("hasMoreAlerts", False)
+        combined_summary.has_more_alerts = details_data.get(
+            "hasMoreAlerts", False
+        )
         combined_summary.next_page_token = details_data.get("nextPageToken")
 
         # Parse timeline
@@ -342,10 +360,12 @@ def summarize_entity(
                     )
                 )
 
-            combined_summary.file_metadata_and_properties = FileMetadataAndProperties(
-                metadata=metadata_list,
-                properties=properties_list,
-                query_state=file_meta_prop_data.get("queryState"),
+            combined_summary.file_metadata_and_properties = (
+                FileMetadataAndProperties(
+                    metadata=metadata_list,
+                    properties=properties_list,
+                    query_state=file_meta_prop_data.get("queryState"),
+                )
             )
 
         # Update primary entity if details returned a different version
@@ -367,7 +387,11 @@ def summarize_entity(
         # For IP values, try to find the IP_ADDRESS entity ID
         if is_ip_value:
             ip_entity = next(
-                (e for e in all_entities if e.metadata.entity_type == "IP_ADDRESS"),
+                (
+                    e
+                    for e in all_entities
+                    if e.metadata.entity_type == "IP_ADDRESS"
+                ),
                 None,
             )
             if ip_entity:
@@ -402,7 +426,9 @@ def summarize_entity(
                     for p in prevalence_result
                 ]
 
-            tpd_prevalence_result = prevalence_data.get("tpdPrevalenceResult", [])
+            tpd_prevalence_result = prevalence_data.get(
+                "tpdPrevalenceResult", []
+            )
             if tpd_prevalence_result:
                 combined_summary.tpd_prevalence = [
                     PrevalenceData(
@@ -416,7 +442,8 @@ def summarize_entity(
         except APIError as e:
             # If prevalence call fails, proceed without prevalence data
             print(
-                f"Warning: Failed to retrieve prevalence data for {entity_id_for_prevalence}: {str(e)}"
+                "Warning: Failed to retrieve prevalence data for "
+                f"{entity_id_for_prevalence}: {str(e)}"
             )
             combined_summary.prevalence = None
             combined_summary.tpd_prevalence = None

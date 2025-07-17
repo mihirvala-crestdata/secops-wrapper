@@ -1,10 +1,12 @@
 """Data table functionality for Chronicle."""
 
-import sys
-import re
 import ipaddress
+import re
+import sys
 from itertools import islice
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
+
+from secops.exceptions import APIError, SecOpsError
 
 # Use built-in StrEnum if Python 3.11+, otherwise create a compatible version
 if sys.version_info >= (3, 11):
@@ -18,8 +20,6 @@ else:
         def __str__(self) -> str:
             return self.value
 
-
-from secops.exceptions import APIError, SecOpsError
 
 # Regular expression for validating reference list and data table IDs
 REF_LIST_DATA_TABLE_ID_REGEX = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,254}$")
@@ -40,12 +40,15 @@ def validate_cidr_entries(entries: List[str]) -> None:
     for entry in entries:
         try:
             ipaddress.ip_network(entry, strict=False)
-        except ValueError:
-            raise SecOpsError(f"Invalid CIDR entry: {entry}")
+        except ValueError as e:
+            raise SecOpsError(f"Invalid CIDR entry: {entry}") from e
 
 
 class DataTableColumnType(StrEnum):
-    """DataTableColumnType denotes the type of the column to be referenced in the rule."""
+    """
+    DataTableColumnType denotes the type of the column to be referenced in
+    the rule.
+    """
 
     UNSPECIFIED = "DATA_TABLE_COLUMN_TYPE_UNSPECIFIED"
     """The default Data Table Column Type."""
@@ -88,8 +91,8 @@ def create_data_table(
     if not REF_LIST_DATA_TABLE_ID_REGEX.match(name):
         raise SecOpsError(
             f"Invalid data table name: {name}.\n"
-            f"Ensure the name starts with a letter, contains only letters, numbers, and underscores, "
-            f"and has length < 256 characters."
+            "Ensure the name starts with a letter, contains only letters, "
+            "numbers, and underscores, and has length < 256 characters."
         )
 
     # Validate CIDR entries before creating the table
@@ -121,7 +124,8 @@ def create_data_table(
 
     if response.status_code != 200:
         raise APIError(
-            f"Failed to create data table '{name}': {response.status_code} {response.text}"
+            f"Failed to create data table '{name}': {response.status_code} "
+            f"{response.text}"
         )
 
     created_table_data = response.json()
@@ -131,7 +135,7 @@ def create_data_table(
         try:
             row_creation_responses = create_data_table_rows(client, name, rows)
             created_table_data["rowCreationResponses"] = row_creation_responses
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Report the error but don't fail the whole operation
             created_table_data["rowCreationError"] = str(e)
 
@@ -171,7 +175,9 @@ def create_data_table_rows(
             temp_chunk_for_next_iter = chunk[half_len:]
             chunk = chunk[:half_len]
             row_iter = iter(temp_chunk_for_next_iter + list(row_iter))
-            current_chunk_size_bytes = sum(sys.getsizeof("".join(r)) for r in chunk)
+            current_chunk_size_bytes = sum(
+                sys.getsizeof("".join(r)) for r in chunk
+            )
 
         if not chunk:  # If chunk became empty
             continue
@@ -179,7 +185,8 @@ def create_data_table_rows(
         # If a single row is too large
         if current_chunk_size_bytes > 4000000 and len(chunk) == 1:
             raise SecOpsError(
-                f"Single row is too large to process (>{current_chunk_size_bytes} bytes): {chunk[0][:100]}..."
+                "Single row is too large to process "
+                f"(>{current_chunk_size_bytes} bytes): {chunk[0][:100]}..."
             )
 
         responses.append(_create_data_table_rows(client, name, chunk))
@@ -196,7 +203,8 @@ def _create_data_table_rows(
         client: ChronicleClient instance
         name: The name of the data table
         rows: Data table rows to create. A maximum of 1000 rows can be created
-              in a single request. Total size of the rows should be less than 4MB.
+              in a single request. Total size of the rows should be
+              less than 4MB.
 
     Returns:
         Dictionary containing the created data table rows
@@ -204,14 +212,19 @@ def _create_data_table_rows(
     Raises:
         APIError: If the API request fails
     """
+    url = (
+        f"{client.base_url}/{client.instance_id}/dataTables/{name}"
+        "/dataTableRows:bulkCreate"
+    )
     response = client.session.post(
-        f"{client.base_url}/{client.instance_id}/dataTables/{name}/dataTableRows:bulkCreate",
+        url,
         json={"requests": [{"data_table_row": {"values": x}} for x in rows]},
     )
 
     if response.status_code != 200:
         raise APIError(
-            f"Failed to create data table rows for '{name}': {response.status_code} {response.text}"
+            f"Failed to create data table rows for '{name}': "
+            f"{response.status_code} {response.text}"
         )
 
     return response.json()
@@ -227,8 +240,9 @@ def delete_data_table(
     Args:
         client: ChronicleClient instance
         name: The name of the data table to delete
-        force: If set to true, any rows under this data table will also be deleted.
-               (Otherwise, the request will only work if the data table has no rows).
+        force: If set to true, any rows under this data table will also be
+            deleted. (Otherwise, the request will only work if
+            the data table has no rows).
 
     Returns:
         Dictionary containing the deleted data table or empty dict
@@ -246,12 +260,13 @@ def delete_data_table(
         if response.text:
             try:
                 return response.json()
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 return {"status": "success", "statusCode": response.status_code}
         return {}
 
     raise APIError(
-        f"Failed to delete data table '{name}': {response.status_code} {response.text}"
+        f"Failed to delete data table '{name}': {response.status_code} "
+        f"{response.text}"
     )
 
 
@@ -298,19 +313,21 @@ def _delete_data_table_row(
         APIError: If the API request fails
     """
     response = client.session.delete(
-        f"{client.base_url}/{client.instance_id}/dataTables/{table_id}/dataTableRows/{row_guid}"
+        f"{client.base_url}/{client.instance_id}/dataTables/{table_id}"
+        f"/dataTableRows/{row_guid}"
     )
 
     if response.status_code == 200 or response.status_code == 204:
         if response.text:
             try:
                 return response.json()
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 return {"status": "success", "statusCode": response.status_code}
         return {"status": "success", "statusCode": response.status_code}
 
     raise APIError(
-        f"Failed to delete data table row '{row_guid}' from '{table_id}': {response.status_code} {response.text}"
+        f"Failed to delete data table row '{row_guid}' from '{table_id}': "
+        f"{response.status_code} {response.text}"
     )
 
 
@@ -336,7 +353,8 @@ def get_data_table(
 
     if response.status_code != 200:
         raise APIError(
-            f"Failed to get data table '{name}': {response.status_code} {response.text}"
+            f"Failed to get data table '{name}': {response.status_code} "
+            f"{response.text}"
         )
 
     return response.json()
@@ -373,7 +391,8 @@ def list_data_tables(
 
         if response.status_code != 200:
             raise APIError(
-                f"Failed to list data tables: {response.status_code} {response.text}"
+                f"Failed to list data tables: {response.status_code} "
+                f"{response.text}"
             )
 
         resp_json = response.json()
@@ -415,13 +434,15 @@ def list_data_table_rows(
 
     while True:
         response = client.session.get(
-            f"{client.base_url}/{client.instance_id}/dataTables/{name}/dataTableRows",
+            f"{client.base_url}/{client.instance_id}/dataTables"
+            f"/{name}/dataTableRows",
             params=params,
         )
 
         if response.status_code != 200:
             raise APIError(
-                f"Failed to list data table rows for '{name}': {response.status_code} {response.text}"
+                f"Failed to list data table rows for '{name}': "
+                f"{response.status_code} {response.text}"
             )
 
         resp_json = response.json()

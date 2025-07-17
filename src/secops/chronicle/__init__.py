@@ -14,7 +14,11 @@
 #
 """Chronicle API specific functionality."""
 
-from secops.chronicle.client import ChronicleClient, _detect_value_type, ValueType
+from secops.chronicle.client import (
+    ChronicleClient,
+    _detect_value_type,
+    ValueType,
+)
 from secops.chronicle.udm_search import fetch_udm_search_csv
 from secops.chronicle.validate import validate_query
 from secops.chronicle.stats import get_stats
@@ -97,10 +101,14 @@ from secops.chronicle.gemini import (
 
 # Import data table and reference list classes
 from secops.chronicle.data_table import DataTableColumnType
-from secops.chronicle.reference_list import ReferenceListSyntaxType, ReferenceListView
+from secops.chronicle.reference_list import (
+    ReferenceListSyntaxType,
+    ReferenceListView,
+)
 
 __all__ = [
     # Client
+    "_detect_value_type",
     "ChronicleClient",
     "ValueType",
     # UDM and Search
@@ -148,7 +156,7 @@ __all__ = [
     "update_rule",
     "delete_rule",
     "enable_rule",
-    "search_rules"
+    "search_rules",
     # Rule alert operations
     "get_alert",
     "update_alert",

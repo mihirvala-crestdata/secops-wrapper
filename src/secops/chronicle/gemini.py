@@ -16,21 +16,21 @@
 
 Provides access to Chronicle's Gemini conversational AI interface.
 """
-from typing import Dict, Any, List, Optional, Union
-from datetime import datetime
+from typing import Dict, Any, List, Optional
 from secops.exceptions import APIError
-import json
 import re
 
 
 class Block:
     """Represents a block in the Gemini response.
 
-    Blocks are discrete chunks of content with different types (text, code, HTML, etc.)
-    returned in a Gemini conversation response.
+    Blocks are discrete chunks of content with different types
+    (text, code, HTML, etc.) returned in a Gemini conversation response.
     """
 
-    def __init__(self, block_type: str, content: str, title: Optional[str] = None):
+    def __init__(
+        self, block_type: str, content: str, title: Optional[str] = None
+    ):
         """Initialize a response block.
 
         Args:
@@ -46,7 +46,8 @@ class Block:
         """Return string representation of the block.
 
         Returns:
-            String representation of the block with its type and title if present
+            String representation of the block with its type
+            and title if present
         """
         if self.title:
             return f"Block(type={self.block_type}, title={self.title})"
@@ -102,7 +103,10 @@ class SuggestedAction:
         Returns:
             String representation with action type and display text
         """
-        return f"SuggestedAction(type={self.action_type}, text={self.display_text})"
+        return (
+            f"SuggestedAction(type={self.action_type}, "
+            f"text={self.display_text})"
+        )
 
 
 class GeminiResponse:
@@ -146,7 +150,10 @@ class GeminiResponse:
         Returns:
             String representation with key details
         """
-        return f"GeminiResponse(blocks={len(self.blocks)}, actions={len(self.suggested_actions)})"
+        return (
+            f"GeminiResponse(blocks={len(self.blocks)}, "
+            f"actions={len(self.suggested_actions)})"
+        )
 
     @classmethod
     def from_api_response(cls, response: Dict[str, Any]) -> "GeminiResponse":
@@ -207,7 +214,9 @@ class GeminiResponse:
                         "privateDoNotAccessOrElseSafeHtmlWrappedValue", ""
                     )
 
-                references.append(Block(block_type=ref_block_type, content=ref_content))
+                references.append(
+                    Block(block_type=ref_block_type, content=ref_content)
+                )
 
             # Process groundings
             groundings.extend(resp.get("groundings", []))
@@ -217,7 +226,9 @@ class GeminiResponse:
                 navigation = None
                 if "navigation" in action_data:
                     navigation = NavigationAction(
-                        target_uri=action_data["navigation"].get("targetUri", "")
+                        target_uri=action_data["navigation"].get(
+                            "targetUri", ""
+                        )
                     )
 
                 suggested_actions.append(
@@ -243,7 +254,8 @@ class GeminiResponse:
     def get_text_content(self) -> str:
         """Get concatenated content from all TEXT and HTML blocks.
 
-        For HTML blocks, HTML tags are stripped to extract just the text content.
+        For HTML blocks, HTML tags are stripped to extract just
+        the text content.
 
         Returns:
             A string with all text content concatenated
@@ -316,7 +328,10 @@ def create_conversation(client, display_name: str = "New chat") -> str:
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}/users/me/conversations"
+    url = (
+        f"{client.base_url}/projects/{client.project_id}/locations/"
+        f"{client.region}/instances/{client.customer_id}/users/me/conversations"
+    )
 
     # Include the required request body with displayName
     payload = {"displayName": display_name}
@@ -336,7 +351,7 @@ def create_conversation(client, display_name: str = "New chat") -> str:
             error_message += (
                 f" - Status: {e.response.status_code}, Body: {e.response.text}"
             )
-        raise APIError(error_message)
+        raise APIError(error_message) from e
 
 
 def opt_in_to_gemini(client) -> bool:
@@ -355,7 +370,10 @@ def opt_in_to_gemini(client) -> bool:
         APIError: If the API request fails (except for permission errors)
     """
     # Construct the URL for updating the user's preference set
-    url = f"{client.base_url}/projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}/users/me/preferenceSet"
+    url = (
+        f"{client.base_url}/projects/{client.project_id}/locations/"
+        f"{client.region}/instances/{client.customer_id}/users/me/preferenceSet"
+    )
 
     # Set up the request body to enable Duet AI chat
     payload = {"ui_preferences": {"enable_duet_ai_chat": True}}
@@ -368,23 +386,27 @@ def opt_in_to_gemini(client) -> bool:
         response.raise_for_status()
         return True
     except Exception as e:
-        # For permission errors, we'll log but not raise to allow graceful fallback
+        # For permission errors, we'll log but not raise to allow
+        # graceful fallback
         if (
             hasattr(e, "response")
             and e.response is not None
             and e.response.status_code in [403, 401]
         ):
-            error_message = f"Unable to opt in to Gemini due to permissions: {str(e)}"
+            error_message = (
+                f"Unable to opt in to Gemini due to permissions: {str(e)}"
+            )
             print(f"Warning: {error_message}")
             return False
 
-        # For other errors, raise so the calling function can handle appropriately
+        # For other errors, raise so the calling function can handle
+        # appropriately
         error_message = f"Failed to opt in to Gemini: {str(e)}"
         if hasattr(e, "response") and e.response is not None:
             error_message += (
                 f" - Status: {e.response.status_code}, Body: {e.response.text}"
             )
-        raise APIError(error_message)
+        raise APIError(error_message) from e
 
 
 def query_gemini(
@@ -400,10 +422,12 @@ def query_gemini(
     Args:
         client: The Chronicle client instance
         query: The text query to send to Gemini
-        conversation_id: Optional conversation ID. If not provided, a new conversation will be created
+        conversation_id: Optional conversation ID. If not provided,
+            a new conversation will be created
         context_uri: URI context for the query (default: "/search")
         context_body: Optional additional context as a dictionary
-        attempt_opt_in: Whether to attempt to opt-in to Gemini if the request fails due to opt-in requirements
+        attempt_opt_in: Whether to attempt to opt-in to Gemini
+            if the request fails due to opt-in requirements
 
     Returns:
         A GeminiResponse object with the structured response
@@ -414,14 +438,20 @@ def query_gemini(
     # Check if the client has a flag tracking if we've attempted opt-in
     # If not, add this attribute to the client instance
     if not hasattr(client, "_gemini_opt_in_attempted"):
-        client._gemini_opt_in_attempted = False
+        client._gemini_opt_in_attempted = (  # pylint: disable=protected-access
+            False
+        )
 
     try:
         # Create a new conversation if one wasn't provided
         if not conversation_id:
             conversation_id = create_conversation(client)
 
-        url = f"{client.base_url}/projects/{client.project_id}/locations/{client.region}/instances/{client.customer_id}/users/me/conversations/{conversation_id}/messages"
+        url = (
+            f"{client.base_url}/projects/{client.project_id}/locations/"
+            f"{client.region}/instances/{client.customer_id}/users/me/"
+            f"conversations/{conversation_id}/messages"
+        )
 
         payload = {
             "input": {
@@ -443,28 +473,34 @@ def query_gemini(
         if hasattr(e, "response") and e.response is not None:
             error_response_body = e.response.text
             error_message += (
-                f" - Status: {e.response.status_code}, Body: {error_response_body}"
+                f" - Status: {e.response.status_code}, "
+                f"Body: {error_response_body}"
             )
 
-        # Check if this is an opt-in required error and we haven't tried to opt-in yet
+        # Check if this is an opt-in required error and
+        # we haven't tried to opt-in yet
         if (
             attempt_opt_in
-            and not client._gemini_opt_in_attempted
+            and not client._gemini_opt_in_attempted  # pylint: disable=protected-access
             and "opt-in" in error_message.lower()
             or (
                 "error_response_body"
-                and "users must opt-in before using Gemini" in error_response_body
+                and "users must opt-in before using Gemini"
+                in error_response_body
             )
         ):
 
             # Mark that we've attempted opt-in to avoid infinite loops
-            client._gemini_opt_in_attempted = True
+            client._gemini_opt_in_attempted = (  # pylint: disable=protected-access
+                True
+            )
 
             # Try to opt in
             successful = opt_in_to_gemini(client)
 
             if successful:
-                # Try the query again with attempt_opt_in=False to avoid recursion
+                # Try the query again with attempt_opt_in=False to
+                # avoid recursion
                 return query_gemini(
                     client,
                     query,
@@ -474,6 +510,6 @@ def query_gemini(
                     attempt_opt_in=False,  # Prevent infinite recursion
                 )
 
-        # If we get here, either the error wasn't an opt-in error, opt-in failed,
-        # or this is our second attempt after trying to opt-in
-        raise APIError(error_message)
+        # If we get here, either the error wasn't an opt-in error,
+        # opt-in failed, or this is our second attempt after trying to opt-in.
+        raise APIError(error_message) from e

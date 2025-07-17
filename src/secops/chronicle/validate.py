@@ -28,7 +28,8 @@ def validate_query(client, query: str) -> Dict[str, Any]:
     Returns:
         Dictionary containing query validation results, including:
         - isValid: Boolean indicating if the query is valid
-        - queryType: Type of query (e.g., QUERY_TYPE_UDM_QUERY, QUERY_TYPE_STATS_QUERY)
+        - queryType: Type of query
+            (e.g., QUERY_TYPE_UDM_QUERY, QUERY_TYPE_STATS_QUERY)
         - validationMessage: Error message if the query is invalid
 
     Raises:

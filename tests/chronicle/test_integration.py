@@ -39,7 +39,7 @@ def test_chronicle_search():
     start_time = end_time - timedelta(hours=1)
 
     result = chronicle.fetch_udm_search_csv(
-        query='metadata.event_type = "NETWORK_CONNECTION"',
+        query='ip != ""',
         start_time=start_time,
         end_time=end_time,
         fields=["timestamp", "user", "hostname", "process name"],
@@ -82,6 +82,7 @@ order:
             end_time=end_time,
             max_events=10,  # Limit results for testing
             max_values=10,  # Limit field values for testing
+            timeout=60 # Short Timeout
         )
 
         assert "columns" in result

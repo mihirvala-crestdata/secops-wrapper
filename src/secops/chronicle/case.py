@@ -17,7 +17,7 @@
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from secops.exceptions import APIError
-from secops.chronicle.models import CaseList, Case, SoarPlatformInfo
+from secops.chronicle.models import CaseList, Case
 
 
 def get_cases(
@@ -57,10 +57,14 @@ def get_cases(
         params["pageToken"] = page_token
 
     if start_time:
-        params["createTime.startTime"] = start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        params["createTime.startTime"] = start_time.strftime(
+            "%Y-%m-%dT%H:%M:%S.%fZ"
+        )
 
     if end_time:
-        params["createTime.endTime"] = end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        params["createTime.endTime"] = end_time.strftime(
+            "%Y-%m-%dT%H:%M:%S.%fZ"
+        )
 
     if case_ids:
         for case_id in case_ids:
@@ -86,7 +90,7 @@ def get_cases(
             "next_page_token": data.get("nextPageToken", ""),
         }
     except ValueError as e:
-        raise APIError(f"Failed to parse cases response: {str(e)}")
+        raise APIError(f"Failed to parse cases response: {str(e)}") from e
 
 
 def get_cases_from_list(client, case_ids: List[str]) -> CaseList:

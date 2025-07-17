@@ -1,2 +1,9 @@
 pytest
 pytest-cov
+build
+black
+packaging
+pathspec
+protobuf
+pylint
+twine

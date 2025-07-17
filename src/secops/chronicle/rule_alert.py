@@ -146,11 +146,11 @@ def update_alert(
         raise ValueError(f"verdict must be one of {verdict_values}")
 
     # Validate score ranges
-    if confidence_score is not None and not (0 <= confidence_score <= 100):
+    if confidence_score is not None and not 0 <= confidence_score <= 100:
         raise ValueError("confidence_score must be between 0 and 100")
-    if risk_score is not None and not (0 <= risk_score <= 100):
+    if risk_score is not None and not 0 <= risk_score <= 100:
         raise ValueError("risk_score must be between 0 and 100")
-    if severity is not None and not (0 <= severity <= 100):
+    if severity is not None and not 0 <= severity <= 100:
         raise ValueError("severity must be between 0 and 100")
 
     # Build feedback dictionary with only provided values
@@ -180,7 +180,9 @@ def update_alert(
 
     # Check if at least one property is provided
     if not feedback:
-        raise ValueError("At least one alert property must be specified for update")
+        raise ValueError(
+            "At least one alert property must be specified for update"
+        )
 
     payload = {
         "alert_id": alert_id,
@@ -273,7 +275,8 @@ def search_rule_alerts(
         client: ChronicleClient instance
         start_time: Start time for the search (inclusive)
         end_time: End time for the search (exclusive)
-        rule_status: Filter by rule status (deprecated - not currently supported by the API)
+        rule_status: Filter by rule status
+            (deprecated - not currently supported by the API)
         page_size: Maximum number of alerts to return
 
     Returns:
@@ -298,7 +301,10 @@ def search_rule_alerts(
                                     ]
                                 }
                             },
-                            "timeWindow": { "startTime": "timestamp", "endTime": "timestamp" }
+                            "timeWindow": {
+                                "startTime": "timestamp",
+                                "endTime": "timestamp"
+                            }
                         }
                     ],
                     "ruleMetadata": {
@@ -317,7 +323,12 @@ def search_rule_alerts(
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/legacy:legacySearchRulesAlerts"
+    # Unused argument. Kept for backward compatibility.
+    _ = (rule_status,)
+
+    url = (
+        f"{client.base_url}/{client.instance_id}/legacy:legacySearchRulesAlerts"
+    )
 
     # Build request parameters
     params = {
