@@ -476,3 +476,64 @@ def test_feed_create_minimal_details():
     else:
         print("No valid feed configuration found. All tested configurations failed.")
         pytest.skip("No valid feed source type found in test configurations")
+
+
+@pytest.mark.integration
+def test_feed_create_and_generate_secret():
+    """Test creating and deleting a feed with real API."""
+    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+
+    # Generate unique feed name
+    unique_id = str(uuid.uuid4())[:8]
+    display_name = f"Test Feed {unique_id}"
+
+    # Feed details for a simple syslog feed
+    feed_details = {
+        "httpsPushAmazonKinesisFirehoseSettings":{
+            "splitDelimiter":""
+        },
+        "feedSourceType":"HTTPS_PUSH_AMAZON_KINESIS_FIREHOSE",
+        "logType":f"projects/{CHRONICLE_CONFIG['project_id']}/locations/{CHRONICLE_CONFIG['region']}/instances/{CHRONICLE_CONFIG['customer_id']}/logTypes/OKTA"
+    }
+    
+
+    created_feed = None
+
+    try:
+        # Create the feed
+        print(f"Creating feed: {display_name}")
+        created_feed = chronicle.create_feed(
+            display_name=display_name, details=feed_details
+        )
+
+        assert created_feed is not None
+        assert "name" in created_feed
+        assert created_feed.get("displayName") == display_name
+        print(f"Feed created successfully: {created_feed['name']}")
+
+        # Wait a moment for the feed to be fully created
+        time.sleep(2)
+
+        feed_id = created_feed["name"].split("/")[-1]
+        # Generate secret for the feed
+        print(f"Generating secret for feed: {display_name}")
+        secret_result = chronicle.generate_secret(feed_id)
+        assert 'secret' in secret_result
+        assert secret_result['secret']
+        print(f"Secret generated successfully: {secret_result}")
+
+    except APIError as e:
+        print(f"Feed creation failed: {str(e)}")
+        pytest.skip(f"Feed creation test skipped due to API error: {str(e)}")
+
+    finally:
+        # Clean up: delete the feed if it was created
+        if created_feed:
+            try:
+                feed_id = created_feed["name"].split("/")[-1]
+                print(f"Deleting feed: {feed_id}")
+                chronicle.delete_feed(feed_id)
+                print("Feed deleted successfully")
+            except APIError as e:
+                print(f"Warning: Failed to delete test feed: {str(e)}")

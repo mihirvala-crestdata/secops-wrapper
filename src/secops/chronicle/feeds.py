@@ -237,12 +237,15 @@ def delete_feed(client, feed_id: str) -> None:
         raise APIError(f"Failed to delete feed: {response.text}")
 
 
-def disable_feed(client, feed_id: str) -> None:
+def disable_feed(client, feed_id: str) -> Feed:
     """Disable a feed.
 
     Args:
         client: ChronicleClient instance
         feed_id: Feed ID
+
+    Returns:
+        Disabled feed dictionary
 
     Raises:
         APIError: If the API request fails
@@ -252,13 +255,18 @@ def disable_feed(client, feed_id: str) -> None:
     if response.status_code != 200:
         raise APIError(f"Failed to disable feed: {response.text}")
 
+    return response.json()
 
-def enable_feed(client, feed_id: str) -> None:
+
+def enable_feed(client, feed_id: str) -> Feed:
     """Enable a feed.
 
     Args:
         client: ChronicleClient instance
         feed_id: Feed ID
+
+    Returns:
+        Enabled feed dictionary
 
     Raises:
         APIError: If the API request fails
@@ -267,6 +275,8 @@ def enable_feed(client, feed_id: str) -> None:
     response = client.session.post(url)
     if response.status_code != 200:
         raise APIError(f"Failed to enable feed: {response.text}")
+    
+    return response.json()
 
 
 def generate_secret(client, feed_id: str) -> FeedSecret:

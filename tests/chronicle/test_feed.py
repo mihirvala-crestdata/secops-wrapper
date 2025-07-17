@@ -333,7 +333,7 @@ def test_enable_feed(chronicle_client, mock_response):
         mock_post.assert_called_once_with(
             f"{chronicle_client.base_url}/{chronicle_client.instance_id}/feeds/{feed_id}:enable"
         )
-        assert result is None
+        assert feed_id in f"{result}"
 
 
 def test_enable_feed_error(chronicle_client, mock_error_response):
@@ -364,7 +364,7 @@ def test_disable_feed(chronicle_client, mock_response):
         mock_post.assert_called_once_with(
             f"{chronicle_client.base_url}/{chronicle_client.instance_id}/feeds/{feed_id}:disable"
         )
-        assert result is None
+        assert feed_id in f"{result}"
 
 
 def test_disable_feed_error(chronicle_client, mock_error_response):
