@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [ main ]
     types: [ opened, synchronize, reopened ]
-  # Optional: Run on push to main as well to ensure main stays clean
+  # Run on push to main as well to ensure main stays clean
   push:
     branches: [ main ]
 

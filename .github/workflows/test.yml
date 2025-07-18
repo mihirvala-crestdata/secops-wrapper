@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [ main ]
     types: [ opened, synchronize, reopened ]
-  # Optional: Run on push to main as well
+  # Run on push to main as well
   push:
     branches: [ main ]
 
