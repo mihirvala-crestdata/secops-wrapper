@@ -7,3 +7,4 @@ pathspec
 protobuf
 pylint
 twine
+python-dotenv
