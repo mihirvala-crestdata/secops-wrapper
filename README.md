@@ -21,7 +21,8 @@ secops config set --customer-id "your-instance-id" --project-id "your-project-id
 secops search --query "metadata.event_type = \"NETWORK_CONNECTION\""
 ```
 
-For detailed CLI documentation and examples, see the [CLI Documentation](CLI.md).
+For detailed CLI documentation and examples, see the [CLI Documentation](https://github.com/google/secops-wrapper/blob/main/CLI.md).
+
 
 ## Authentication
 
@@ -149,7 +150,7 @@ chronicle = client.chronicle(
     region="us"                               # Chronicle API region 
 )
 ```
-[See available regions](regions.md)
+[See available regions](https://github.com/google/secops-wrapper/blob/main/regions.md)
 
 ### Log Ingestion
 
@@ -1765,4 +1766,4 @@ You can optionally provide a `preferred_entity_type` hint to `summarize_entity` 
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
+This project is licensed under the Apache License 2.0 - [see the LICENSE file for details.](https://github.com/google/secops-wrapper/blob/main/LICENSE)
