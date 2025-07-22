@@ -57,4 +57,7 @@ markers = [
 ]
 
 [project.scripts]
-secops = "secops.cli:main" 
+secops = "secops.cli:main"
+
+[tool.hatch.build]
+sources = ["src"]
