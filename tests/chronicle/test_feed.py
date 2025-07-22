@@ -35,7 +35,13 @@ from secops.exceptions import APIError
 @pytest.fixture
 def chronicle_client():
     """Create a Chronicle client for testing."""
-    return ChronicleClient(customer_id="test-customer", project_id="test-project")
+    with patch("secops.auth.SecOpsAuth") as mock_auth:
+        mock_session = Mock()
+        mock_session.headers = {}
+        mock_auth.return_value.session = mock_session
+        return ChronicleClient(
+            customer_id="test-customer", project_id="test-project"
+        )
 
 
 @pytest.fixture
@@ -158,7 +164,9 @@ def test_get_feed_error(chronicle_client, mock_error_response):
 def test_list_feeds(chronicle_client, mock_response):
     """Test list_feeds function."""
     # Arrange
-    mock_response.json.return_value = {"feeds": [{"name": "feed1"}, {"name": "feed2"}]}
+    mock_response.json.return_value = {
+        "feeds": [{"name": "feed1"}, {"name": "feed2"}]
+    }
 
     with patch.object(
         chronicle_client.session, "get", return_value=mock_response
@@ -190,10 +198,14 @@ def test_list_feeds_with_pagination(chronicle_client, mock_response):
     second_response.json.return_value = {"feeds": [{"name": "feed2"}]}
 
     with patch.object(
-        chronicle_client.session, "get", side_effect=[first_response, second_response]
+        chronicle_client.session,
+        "get",
+        side_effect=[first_response, second_response],
     ) as mock_get:
         # Act
-        result = list_feeds(chronicle_client, page_size=50, page_token="token123")
+        result = list_feeds(
+            chronicle_client, page_size=50, page_token="token123"
+        )
 
         # Assert
         assert mock_get.call_count == 2
@@ -261,7 +273,9 @@ def test_update_feed_with_custom_mask(chronicle_client, mock_response):
         chronicle_client.session, "patch", return_value=mock_response
     ) as mock_patch:
         # Act
-        result = update_feed(chronicle_client, feed_id, feed_config, update_mask)
+        result = update_feed(
+            chronicle_client, feed_id, feed_config, update_mask
+        )
 
         # Assert
         mock_patch.assert_called_once_with(
