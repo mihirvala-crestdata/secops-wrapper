@@ -1,6 +1,8 @@
 # Google SecOps SDK for Python
 
+[![LICENSE](https://img.shields.io/badge/License-Apache%202.0-blue?logo=apache)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI version](https://img.shields.io/pypi/v/secops.svg)](https://pypi.org/project/secops/)
+
 
 A Python SDK for interacting with Google Security Operations products, currently supporting Chronicle/SecOps SIEM.
 This wraps the API for common use cases, including UDM searches, entity lookups, IoCs, alert management, case management, and detection rule management.
