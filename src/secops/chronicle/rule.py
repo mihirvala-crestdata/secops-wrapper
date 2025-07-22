@@ -87,11 +87,10 @@ def list_rules(client) -> Dict[str, Any]:
     """
     more = True
     rules = {"rules": []}
+    params = {"pageSize": 1000, "view": "FULL"}
 
     while more:
         url = f"{client.base_url}/{client.instance_id}/rules"
-
-        params = {"pageSize": 1000, "view": "FULL"}
 
         response = client.session.get(url, params=params)
 
@@ -102,8 +101,8 @@ def list_rules(client) -> Dict[str, Any]:
 
         rules["rules"].extend(data["rules"])
 
-        if "next_page_token" in data:
-            params["pageToken"] = data["next_page_token"]
+        if "nextPageToken" in data:
+            params["pageToken"] = data["nextPageToken"]
         else:
             more = False
 
