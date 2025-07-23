@@ -2072,14 +2072,14 @@ def setup_data_table_command(subparsers):
         required=True,
         help=(
             "Header definition in JSON format. "
-            "Example: {'col1':'STRING','col2':'CIDR'}"
+            'Example: \'{"col1":"STRING","col2":"CIDR"}\''
         ),
     )
     create_parser.add_argument(
         "--rows",
         help=(
-            'Rows in JSON format. Example: [["value1","192.168.1.0/24"],'
-            '["value2","10.0.0.0/8"]]'
+            'Rows in JSON format. Example: \'[["value1","192.168.1.0/24"],'
+            '["value2","10.0.0.0/8"]]\''
         ),
     )
     create_parser.add_argument(
