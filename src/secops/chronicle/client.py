@@ -13,13 +13,10 @@
 # limitations under the License.
 #
 """Chronicle API client."""
-import dis
 import ipaddress
-from optparse import Option
 import re
 from datetime import datetime
 from enum import Enum
-from turtle import up
 from typing import Any, Dict, Iterator, List, Literal, Optional, Union
 
 from google.auth.transport import requests as google_auth_requests
@@ -53,6 +50,15 @@ from secops.chronicle.data_table import (
 from secops.chronicle.data_table import list_data_tables as _list_data_tables
 from secops.chronicle.entity import _detect_value_type_for_query
 from secops.chronicle.entity import summarize_entity as _summarize_entity
+from secops.chronicle.feeds import CreateFeedModel, UpdateFeedModel
+from secops.chronicle.feeds import create_feed as _create_feed
+from secops.chronicle.feeds import delete_feed as _delete_feed
+from secops.chronicle.feeds import disable_feed as _disable_feed
+from secops.chronicle.feeds import enable_feed as _enable_feed
+from secops.chronicle.feeds import generate_secret as _generate_secret
+from secops.chronicle.feeds import get_feed as _get_feed
+from secops.chronicle.feeds import list_feeds as _list_feeds
+from secops.chronicle.feeds import update_feed as _update_feed
 from secops.chronicle.gemini import GeminiResponse
 from secops.chronicle.gemini import opt_in_to_gemini as _opt_in_to_gemini
 from secops.chronicle.gemini import query_gemini as _query_gemini
@@ -87,19 +93,6 @@ from secops.chronicle.reference_list import (
 )
 from secops.chronicle.reference_list import (
     update_reference_list as _update_reference_list,
-)
-
-from secops.chronicle.feeds import (
-    list_feeds as _list_feeds,
-    get_feed as _get_feed,
-    create_feed as _create_feed,
-    update_feed as _update_feed,
-    delete_feed as _delete_feed,
-    enable_feed as _enable_feed,
-    disable_feed as _disable_feed,
-    generate_secret as _generate_secret,
-    CreateFeedModel,
-    UpdateFeedModel,
 )
 
 # Import rule functions
@@ -148,15 +141,19 @@ from .parser import delete_parser as _delete_parser
 from .parser import get_parser as _get_parser
 from .parser import list_parsers as _list_parsers
 from .parser import run_parser as _run_parser
+from .rule_exclusion import UpdateRuleDeployment
 from .rule_exclusion import (
-    list_rule_exclusions as _list_rule_exclusions,
-    get_rule_exclusion as _get_rule_exclusion,
-    create_rule_exclusion as _create_rule_exclusion,
-    patch_rule_exclusion as _patch_rule_exclusion,
     compute_rule_exclusion_activity as _compute_rule_exclusion_activity,
+)
+from .rule_exclusion import create_rule_exclusion as _create_rule_exclusion
+from .rule_exclusion import get_rule_exclusion as _get_rule_exclusion
+from .rule_exclusion import (
     get_rule_exclusion_deployment as _get_rule_exclusion_deployment,
+)
+from .rule_exclusion import list_rule_exclusions as _list_rule_exclusions
+from .rule_exclusion import patch_rule_exclusion as _patch_rule_exclusion
+from .rule_exclusion import (
     update_rule_exclusion_deployment as _update_rule_exclusion_deployment,
-    UpdateRuleDeployment,
 )
 from .rule_validation import validate_rule as _validate_rule
 

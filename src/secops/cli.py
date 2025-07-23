@@ -2603,8 +2603,6 @@ def handle_rule_exclusion_patch_command(args, chronicle):
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
 
 
 def handle_rule_exclusion_activity_command(args, chronicle):
@@ -2640,7 +2638,9 @@ def handle_rule_exclusion_update_deployment_command(args, chronicle):
             exclusion_id=args.id,
             enabled=args.enabled,
             archived=args.archived,
-            detection_exclusion_application=args.detection_exclusion_application,
+            detection_exclusion_application=(
+                args.detection_exclusion_application
+            ),
             update_mask=args.update_mask,
         )
         output_formatter(result, args.output)
