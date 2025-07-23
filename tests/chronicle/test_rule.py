@@ -147,9 +147,11 @@ def test_get_rule_error(chronicle_client, mock_error_response):
 
 
 def test_list_rules(chronicle_client, mock_response):
-    """Test list_rules function."""
+    """Test list_rules function with single page."""
     # Arrange
-    mock_response.json.return_value = {"rules": [{"name": "rule1"}, {"name": "rule2"}]}
+    mock_response.json.return_value = {
+        "rules": [{"name": "rule1"}, {"name": "rule2"}]
+    }
 
     with patch.object(
         chronicle_client.session, "get", return_value=mock_response
@@ -164,6 +166,52 @@ def test_list_rules(chronicle_client, mock_response):
         )
         assert result == mock_response.json.return_value
         assert len(result["rules"]) == 2
+
+
+def test_list_rules_pagination(chronicle_client):
+    """Test list_rules function with pagination."""
+
+    # Arrange
+    def get_mock_response(url, **kwargs):
+        params = kwargs.get("params", {})
+        if "pageToken" not in params:
+            # First page response
+            response = Mock()
+            response.status_code = 200
+            response.json.return_value = {
+                "rules": [{"name": "rule1"}, {"name": "rule2"}],
+                "nextPageToken": "page2token",
+            }
+            return response
+        elif params["pageToken"] == "page2token":
+            # Second page response
+            response = Mock()
+            response.status_code = 200
+            response.json.return_value = {
+                "rules": [{"name": "rule3"}, {"name": "rule4"}],
+            }
+            return response
+        else:
+            raise ValueError(f"Unexpected pageToken: {params.get('pageToken')}")
+
+    # Setup session.get to use our dynamic mock response function
+    with patch.object(chronicle_client.session, "get") as mock_get:
+        mock_get.side_effect = get_mock_response
+
+        # Act
+        result = list_rules(chronicle_client)
+
+        # Assert
+        assert mock_get.call_count == 2
+
+        # Verify the combined results
+        assert len(result["rules"]) == 4
+        assert [rule["name"] for rule in result["rules"]] == [
+            "rule1",
+            "rule2",
+            "rule3",
+            "rule4",
+        ]
 
 
 def test_list_rules_error(chronicle_client, mock_error_response):
