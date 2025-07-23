@@ -2125,8 +2125,8 @@ def setup_data_table_command(subparsers):
         "--rows",
         required=True,
         help=(
-            'Rows in JSON format. Example: [["value1","192.168.1.0/24"],'
-            '["value2","10.0.0.0/8"]]'
+            'Rows in JSON format. Example: \'[["value1","192.168.1.0/24"],'
+            '["value2","10.0.0.0/8"]]\''
         ),
     )
     add_rows_parser.set_defaults(func=handle_dt_add_rows_command)
