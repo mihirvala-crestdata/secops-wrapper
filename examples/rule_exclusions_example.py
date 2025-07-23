@@ -64,7 +64,7 @@ def example_create_rule_exclusion(chronicle):
         exclusion_id = new_exclusion["name"].split("/")[-1]
         print(f"Created rule exclusion with ID: {exclusion_id}")
         return exclusion_id
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error creating rule exclusion: {e}")
         return None
 
@@ -80,11 +80,11 @@ def example_get_rule_exclusion(chronicle, exclusion_id):
 
     try:
         exclusion_details = chronicle.get_rule_exclusion(exclusion_id)
-        print(f"\nRule exclusion details:")
+        print("\nRule exclusion details:")
         print(f"Name: {exclusion_details.get('name')}")
         print(f"Display Name: {exclusion_details.get('display_name')}")
         print(f"Query: {exclusion_details.get('query')}")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error getting rule exclusion: {e}")
 
 
@@ -104,7 +104,7 @@ def example_list_rule_exclusions(chronicle):
         )
         for exclusion in exclusions.get("findingsRefinements", []):
             print(f"- {exclusion.get('display_name')}: {exclusion.get('name')}")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error listing rule exclusions: {e}")
 
 
@@ -127,7 +127,7 @@ def example_update_rule_exclusion(chronicle, exclusion_id):
         )
         print(f"Updated display name: {updated_exclusion.get('display_name')}")
         print(f"Updated query: {updated_exclusion.get('query')}")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error updating rule exclusion: {e}")
 
 
@@ -145,7 +145,7 @@ def example_get_deployment_status(chronicle, exclusion_id):
         print("\nDeployment status:")
         print(f"Enabled: {deployment.get('enabled', False)}")
         print(f"Archived: {deployment.get('archived', False)}")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error getting deployment status: {e}")
 
 
@@ -172,7 +172,7 @@ def example_update_deployment(chronicle, exclusion_id):
         )
         print(f"Enabled: {updated_deployment.get('enabled', False)}")
         print(f"Archived: {updated_deployment.get('archived', False)}")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error updating deployment: {e}")
 
 
@@ -189,12 +189,12 @@ def example_compute_activity(chronicle, exclusion_id):
         end_time = datetime.utcnow()
         start_time = end_time - timedelta(days=7)
 
-        print(f"\nComputing activity for last 7 days...")
+        print("\nComputing activity for last 7 days...")
         activity = chronicle.compute_rule_exclusion_activity(
             exclusion_id, start_time=start_time, end_time=end_time
         )
         print(f"Activity statistics: {activity}")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error computing activity: {e}")
 
 
@@ -227,7 +227,9 @@ def main():
     parser.add_argument(
         "--example",
         "-e",
-        help="Example number to run (1-7). If not specified, runs all examples.",
+        help=(
+            "Example number to run (1-7). If not specified, runs all examples."
+        ),
     )
 
     args = parser.parse_args()
@@ -241,7 +243,8 @@ def main():
     if args.example:
         if args.example not in EXAMPLES:
             print(
-                f"Invalid example number. Available examples: {', '.join(EXAMPLES.keys())}"
+                "Invalid example number. "
+                f"Available examples: {', '.join(EXAMPLES.keys())}"
             )
             return
 
