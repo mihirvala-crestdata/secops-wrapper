@@ -1,6 +1,5 @@
 # Google SecOps SDK for Python
 
-[![LICENSE](https://img.shields.io/badge/License-Apache%202.0-blue?logo=apache)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI version](https://img.shields.io/pypi/v/secops.svg)](https://pypi.org/project/secops/)
 
 
