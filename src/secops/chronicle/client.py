@@ -141,7 +141,7 @@ from .parser import delete_parser as _delete_parser
 from .parser import get_parser as _get_parser
 from .parser import list_parsers as _list_parsers
 from .parser import run_parser as _run_parser
-from .rule_exclusion import UpdateRuleDeployment
+from .rule_exclusion import RuleExclusionType, UpdateRuleDeployment
 from .rule_exclusion import (
     compute_rule_exclusion_activity as _compute_rule_exclusion_activity,
 )
@@ -2030,7 +2030,7 @@ class ChronicleClient:
         return _create_rule_exclusion(
             self,
             display_name=display_name,
-            refinement_type=refinement_type,
+            refinement_type=RuleExclusionType[refinement_type],
             query=query,
         )
 
@@ -2064,7 +2064,9 @@ class ChronicleClient:
             self,
             exclusion_id=exclusion_id,
             display_name=display_name,
-            refinement_type=refinement_type,
+            refinement_type=(
+                RuleExclusionType[refinement_type] if refinement_type else None
+            ),
             query=query,
             update_mask=update_mask,
         )
@@ -2125,7 +2127,6 @@ class ChronicleClient:
 
         Args:
             exclusion_id: Id of the rule exclusion
-            enabled: Whether the rule exclusion should be enabled
             enabled: Whether the rule exclusion should be enabled
             archived: Whether the rule exclusion should be archived
             detection_exclusion_application: The resources which the detection

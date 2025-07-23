@@ -2444,6 +2444,7 @@ def setup_rule_exclusion_command(subparsers):
     create_parser.add_argument(
         "--type",
         dest="refinement_type",
+        choices=["DETECTION_EXCLUSION", "FINDINGS_REFINEMENT_TYPE_UNSPECIFIED"],
         required=True,
         help="Rule exclusion refinement type",
     )
@@ -2486,6 +2487,7 @@ def setup_rule_exclusion_command(subparsers):
     update_parser.add_argument(
         "--type",
         dest="refinement_type",
+        choices=["DETECTION_EXCLUSION", "FINDINGS_REFINEMENT_TYPE_UNSPECIFIED"],
         help="Rule exclusion refinement type",
     )
     update_parser.add_argument("--query", help="Rule exclusion query")
