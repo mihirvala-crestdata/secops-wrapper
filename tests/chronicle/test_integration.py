@@ -450,6 +450,29 @@ rule test_rule {
 
 
 @pytest.mark.integration
+def test_chronicle_rule_pagination():
+    """Test pagination when listing rules with real API."""
+    client = SecOpsClient()
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+
+    # Create multiple test rules to ensure we have enough for pagination
+    created_rules = []
+
+    try:
+        # List all rules with a small page size to force pagination
+        fetched_rules = chronicle.list_rules(page_size=1)
+
+        # Checking if only 1 rule is fetched
+        assert len(fetched_rules.get("rules", [])) == 1
+
+        print(
+            f"Successfully verified {len(created_rules)} test rules in paginated results"
+        )
+
+    except APIError as e:
+        pytest.fail(f"API Error during rule pagination test: {str(e)}")
+
+@pytest.mark.integration
 def test_chronicle_search_rules():
     """Test Chronicle rule search functionality with real API."""
     client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)

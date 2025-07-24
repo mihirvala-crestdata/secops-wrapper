@@ -752,6 +752,34 @@ def test_cli_rule_list(cli_env, common_args):
 
 
 @pytest.mark.integration
+def test_cli_rule_list_with_pagination(cli_env, common_args):
+    """Test the rule list command."""
+    # Execute the CLI command
+    cmd = (
+        [
+            "secops",
+        ]
+        + common_args
+        + ["rule", "list"]
+        + ["--page-size", "1"]
+    )
+
+    result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
+
+    # Check that the command executed successfully
+    assert result.returncode == 0
+
+    # Try to parse the output as JSON
+    try:
+        output = json.loads(result.stdout)
+        assert "rules" in output
+        assert len(output.get("rules")) == 1
+    except json.JSONDecodeError:
+        # If not valid JSON, check for expected error messages
+        assert "Error:" not in result.stdout
+
+
+@pytest.mark.integration
 def test_cli_rule_search(cli_env, common_args):
     """Test the rule search command."""
     # Execute the CLI command

@@ -1059,6 +1059,10 @@ for rule in rules.get("rules", []):
     enabled = rule.get("deployment", {}).get("enabled", False)
     print(f"Rule ID: {rule_id}, Enabled: {enabled}")
 
+# List paginated rules and `REVISION_METADATA_ONLY` view
+rules = chronicle.list_rules(view="REVISION_METADATA_ONLY",page_size=50)
+print(f"Fetched {len(rules.get("rules"))} rules")
+
 # Get specific rule
 rule = chronicle.get_rule(rule_id)
 print(f"Rule content: {rule.get('text')}")

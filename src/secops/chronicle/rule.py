@@ -14,7 +14,7 @@
 #
 """Rule management functionality for Chronicle."""
 
-from typing import Dict, Any, Iterator
+from typing import Dict, Any, Iterator, Optional
 from datetime import datetime, timezone
 import json
 from secops.exceptions import APIError, SecOpsError
@@ -73,11 +73,25 @@ def get_rule(client, rule_id: str) -> Dict[str, Any]:
     return response.json()
 
 
-def list_rules(client) -> Dict[str, Any]:
+def list_rules(
+    client,
+    view: Optional[str] = "FULL",
+    page_size: Optional[int] = None,
+    page_token: Optional[str] = None,
+) -> Dict[str, Any]:
     """Gets a list of rules.
 
     Args:
         client: ChronicleClient instance
+        view: Scope of fields to populate for the rules being returned.
+            allowed values are:
+            - "BASIC"
+            - "FULL"
+            - "REVISION_METADATA_ONLY"
+            - "RULE_VIEW_UNSPECIFIED"
+            Defaults to "FULL".
+        page_size: Maximum number of rules to return per page.
+        page_token: Token for the next page of results, if available.
 
     Returns:
         Dictionary containing information about rules
@@ -87,12 +101,12 @@ def list_rules(client) -> Dict[str, Any]:
     """
     more = True
     rules = {"rules": []}
+    params = {"pageSize": 1000 if not page_size else page_size, "view": view}
+    if page_token:
+        params["pageToken"] = page_token
 
     while more:
         url = f"{client.base_url}/{client.instance_id}/rules"
-
-        params = {"pageSize": 1000, "view": "FULL"}
-
         response = client.session.get(url, params=params)
 
         if response.status_code != 200:
@@ -100,11 +114,20 @@ def list_rules(client) -> Dict[str, Any]:
 
         data = response.json()
 
-        rules["rules"].extend(data["rules"])
+        # If Page size is provided return fetched rules as user expects
+        # only that many rules in the response
+        if page_size:
+            rules.update(**data)
+            more = False
+            break
+        else:  # Else auto fetch rest pages (Backward Compatibility)
+            rules["rules"].extend(data["rules"])
 
-        if "next_page_token" in data:
-            params["pageToken"] = data["next_page_token"]
+        if "nextPageToken" in data:
+            params["pageToken"] = data["nextPageToken"]
         else:
+            if "pageToken" in params:
+                del params["pageToken"]
             more = False
 
     return rules

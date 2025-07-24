@@ -1359,6 +1359,32 @@ def setup_rule_command(subparsers):
 
     # List rules command
     list_parser = rule_subparsers.add_parser("list", help="List rules")
+    list_parser.add_argument(
+        "--page-size",
+        "--page_size",
+        dest="page_size",
+        type=int,
+        help="Page size for results",
+    )
+    list_parser.add_argument(
+        "--page-token",
+        "--page_token",
+        dest="page_token",
+        type=str,
+        help="A page token, received from a previous `list` call.",
+    )
+    list_parser.add_argument(
+        "--view",
+        type=str,
+        choices=[
+            "BASIC",
+            "FULL",
+            "REVISION_METADATA_ONLY",
+            "RULE_VIEW_UNSPECIFIED",
+        ],
+        default="FULL",
+        help="The scope of fields to populate when returning the rules",
+    )
     list_parser.set_defaults(func=handle_rule_list_command)
 
     # Get rule command
@@ -1442,7 +1468,9 @@ def setup_rule_command(subparsers):
 def handle_rule_list_command(args, chronicle):
     """Handle rule list command."""
     try:
-        result = chronicle.list_rules()
+        result = chronicle.list_rules(
+            view=args.view, page_size=args.page_size, page_token=args.page_token
+        )
         output_formatter(result, args.output)
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
