@@ -50,7 +50,7 @@ class ParserExtensionConfig:
             decoded = base64.b64decode(text)
             decoded.decode("utf-8")  # Validate it's valid UTF-8 when decoded
             return text  # Return valid base64 string
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             # If not base64 encoded, encode it
             return base64.b64encode(text.encode("utf-8")).decode("utf-8")
 
@@ -66,14 +66,18 @@ class ParserExtensionConfig:
                 try:
                     self.field_extractors = json.loads(self.field_extractors)
                 except json.JSONDecodeError as e:
-                    raise ValueError(f"Invalid JSON for field_extractors: {e}")
+                    raise ValueError(
+                        f"Invalid JSON for field_extractors: {e}"
+                    ) from e
 
         if self.dynamic_parsing:
             if isinstance(self.dynamic_parsing, str):
                 try:
                     self.dynamic_parsing = json.loads(self.dynamic_parsing)
                 except json.JSONDecodeError as e:
-                    raise ValueError(f"Invalid JSON for dynamic_parsing: {e}")
+                    raise ValueError(
+                        f"Invalid JSON for dynamic_parsing: {e}"
+                    ) from e
 
     def validate(self) -> None:
         """Validate configuration.
@@ -147,7 +151,7 @@ def create_parser_extension(
         try:
             extension_config = ParserExtensionConfig(**extension_config)
         except (ValueError, TypeError) as e:
-            raise ValueError(f"Invalid extension configuration: {e}")
+            raise ValueError(f"Invalid extension configuration: {e}") from e
 
     url = (
         f"{client.base_url}/{client.instance_id}/logTypes/"

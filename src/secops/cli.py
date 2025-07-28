@@ -2624,7 +2624,8 @@ def handle_parser_extension_create_command(args, chronicle):
         field_extractors = args.field_extractors
         dynamic_parsing = args.dynamic_parsing
 
-        # Validate that exactly one of parser_config, field_extractors, or dynamic_parsing is provided
+        # Validate that exactly one of parser_config, field_extractors,
+        # or dynamic_parsing is provided
         options = [parser_config, field_extractors, dynamic_parsing]
         if sum(1 for opt in options if opt is not None) != 1:
             print(
