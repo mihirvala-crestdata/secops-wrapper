@@ -50,6 +50,15 @@ from secops.chronicle.data_table import (
 from secops.chronicle.data_table import list_data_tables as _list_data_tables
 from secops.chronicle.entity import _detect_value_type_for_query
 from secops.chronicle.entity import summarize_entity as _summarize_entity
+from secops.chronicle.feeds import CreateFeedModel, UpdateFeedModel
+from secops.chronicle.feeds import create_feed as _create_feed
+from secops.chronicle.feeds import delete_feed as _delete_feed
+from secops.chronicle.feeds import disable_feed as _disable_feed
+from secops.chronicle.feeds import enable_feed as _enable_feed
+from secops.chronicle.feeds import generate_secret as _generate_secret
+from secops.chronicle.feeds import get_feed as _get_feed
+from secops.chronicle.feeds import list_feeds as _list_feeds
+from secops.chronicle.feeds import update_feed as _update_feed
 from secops.chronicle.gemini import GeminiResponse
 from secops.chronicle.gemini import opt_in_to_gemini as _opt_in_to_gemini
 from secops.chronicle.gemini import query_gemini as _query_gemini
@@ -69,6 +78,22 @@ from secops.chronicle.log_types import search_log_types as _search_log_types
 from secops.chronicle.models import CaseList, EntitySummary
 from secops.chronicle.nl_search import nl_search as _nl_search
 from secops.chronicle.nl_search import translate_nl_to_udm
+from secops.chronicle.parser_extension import ParserExtensionConfig
+from secops.chronicle.parser_extension import (
+    activate_parser_extension as _activate_parser_extension,
+)
+from secops.chronicle.parser_extension import (
+    create_parser_extension as _create_parser_extension,
+)
+from secops.chronicle.parser_extension import (
+    delete_parser_extension as _delete_parser_extension,
+)
+from secops.chronicle.parser_extension import (
+    get_parser_extension as _get_parser_extension,
+)
+from secops.chronicle.parser_extension import (
+    list_parser_extensions as _list_parser_extensions,
+)
 from secops.chronicle.reference_list import (
     ReferenceListSyntaxType,
     ReferenceListView,
@@ -84,19 +109,6 @@ from secops.chronicle.reference_list import (
 )
 from secops.chronicle.reference_list import (
     update_reference_list as _update_reference_list,
-)
-
-from secops.chronicle.feeds import (
-    list_feeds as _list_feeds,
-    get_feed as _get_feed,
-    create_feed as _create_feed,
-    update_feed as _update_feed,
-    delete_feed as _delete_feed,
-    enable_feed as _enable_feed,
-    disable_feed as _disable_feed,
-    generate_secret as _generate_secret,
-    CreateFeedModel,
-    UpdateFeedModel,
 )
 
 # Import rule functions
@@ -696,6 +708,128 @@ class ChronicleClient:
         json_str = re.sub(r",\s*]", "]", json_str)
 
         return json_str
+
+    def create_parser_extension(
+        self,
+        log_type: str,
+        log: Optional[str] = None,
+        parser_config: Optional[str] = None,
+        field_extractors: Optional[Union[str, Dict[str, Any]]] = None,
+        dynamic_parsing: Optional[Union[str, Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """Create a new parser extension.
+
+        Args:
+            log_type: The log type for which to create the parser extension
+            log: Optional sample log string
+                (will be base64 encoded if provided in string)
+            parser_config: Parser configuration(CBN code snippet)
+                (mutually exclusive with field_extractors and dynamic_parsing)
+                (will be base64 encoded if provided in string)
+            field_extractors: Optional field extractors configuration
+                (mutually exclusive with cbn_snippet and dynamic_parsing)
+                Example: {
+                    "extractors": [
+                        {
+                            "precondition_path": "path_value",
+                            "precondition_value": "precondition",
+                            "precondition_op": "EQUALS", // or NOT_EQUALS
+                            "field_path": "field_path_value",
+                            "destination_path": "destination_path_value",
+                            "value": "value_to_map",
+                        }
+                    ]
+                }
+            dynamic_parsing: Optional dynamic parsing configuration
+                (mutually exclusive with cbn_snippet and field_extractors)
+                Example: {
+                    "opted_fields": [
+                        {
+                            "path": "path_value_1",
+                            "sample_value": "sample_value_1"
+                        },
+                        {
+                            "path": "path_value_2",
+                            "sample_value": "sample_value_2"
+                        }
+                    ]
+                }
+
+        Returns:
+            Dict containing the created parser extension details
+
+        Raises:
+            APIError: If the API request fails
+            ValueError: If configuration is invalid
+                (must provide exactly one of cbn_snippet, field_extractors,
+                or dynamic_parsing)
+        """
+        config = ParserExtensionConfig(
+            log=log,
+            parser_config=parser_config,
+            field_extractors=field_extractors,
+            dynamic_parsing=dynamic_parsing,
+        )
+
+        return _create_parser_extension(self, log_type, config)
+
+    def get_parser_extension(
+        self, log_type: str, extension_id: str
+    ) -> Dict[str, Any]:
+        """Get details of a parser extension.
+
+        Args:
+            log_type: The log type of the parser extension
+            extension_id: The ID of the parser extension
+
+        Returns:
+            Dict containing the parser extension details
+        """
+        return _get_parser_extension(self, log_type, extension_id)
+
+    def list_parser_extensions(
+        self,
+        log_type: str,
+        page_size: Optional[int] = None,
+        page_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """List parser extensions.
+
+        Args:
+            log_type: The log type to list parser extensions for
+            page_size: Maximum number of parser extensions to return
+            page_token: Token for pagination
+
+        Returns:
+            Dict containing list of parser extensions and next page token if any
+        """
+        return _list_parser_extensions(self, log_type, page_size, page_token)
+
+    def activate_parser_extension(
+        self, log_type: str, extension_id: str
+    ) -> None:
+        """Activate a parser extension.
+
+        Args:
+            log_type: The log type of the parser extension
+            extension_id: The ID of the parser extension to activate
+
+        Returns:
+            None
+        """
+        _activate_parser_extension(self, log_type, extension_id)
+
+    def delete_parser_extension(self, log_type: str, extension_id: str) -> None:
+        """Delete a parser extension.
+
+        Args:
+            log_type: The log type of the parser extension
+            extension_id: The ID of the parser extension to delete
+
+        Returns:
+            None
+        """
+        _delete_parser_extension(self, log_type, extension_id)
 
     # pylint: disable=function-redefined
     def _detect_value_type(
