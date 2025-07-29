@@ -317,7 +317,11 @@ Error messages are detailed and help identify issues:
 List detection rules:
 
 ```bash
+# List all rules
 secops rule list
+
+# List rule with pagination and specified view scope
+secops rule list --page-size 50 --view 'REVISION_METADATA_ONLY'
 ```
 
 Get rule details:

@@ -810,8 +810,24 @@ class ChronicleClient:
     def delete_feed(self, feed_id: str) -> Dict[str, Any]:
         return _delete_feed(self, feed_id)
 
-    def list_rules(self) -> Dict[str, Any]:
+    def list_rules(
+        self,
+        view: Optional[str] = "FULL",
+        page_size: Optional[int] = None,
+        page_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Gets a list of rules.
+
+        Args:
+            view: Scope of fields to populate for the rules being returned.
+                allowed values are:
+                - "BASIC"
+                - "FULL"
+                - "REVISION_METADATA_ONLY"
+                - "RULE_VIEW_UNSPECIFIED"
+                Defaults to "FULL".
+            page_size: Maximum number of rules to return per page.
+            page_token: Token for the next page of results, if available.
 
         Returns:
             Dictionary containing information about rules
@@ -819,7 +835,9 @@ class ChronicleClient:
         Raises:
             APIError: If the API request fails
         """
-        return _list_rules(self)
+        return _list_rules(
+            self, view=view, page_size=page_size, page_token=page_token
+        )
 
     def update_rule(self, rule_id: str, rule_text: str) -> Dict[str, Any]:
         """Updates a rule.
