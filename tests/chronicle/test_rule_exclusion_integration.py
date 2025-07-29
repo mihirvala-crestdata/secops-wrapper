@@ -37,7 +37,6 @@ def test_rule_exclusion_lifecycle():
     3. Listing rule exclusions
     4. Getting deployment information
     5. Updating deployment (enabling/disabling)
-    6. Computing rule exclusion activity
     7. Cleanup by archiving the rule exclusion
     """
     client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
@@ -112,20 +111,6 @@ def test_rule_exclusion_lifecycle():
         print(
             f"Successfully toggled enabled state to {not initial_enabled_state}"
         )
-
-        # 6. Compute rule exclusion activity
-        print(">>> Computing rule exclusion activity")
-        # end_time = datetime.now(timezone.utc)
-        # start_time = end_time - timedelta(hours=1)
-
-        # activity_result = chronicle.compute_rule_exclusion_activity(
-        #     exclusion_id=exclusion_name,
-        #     start_time=start_time,
-        #     end_time=end_time,
-        # )
-
-        # assert activity_result is not None
-        # print("Successfully retrieved rule exclusion activity")
 
     except Exception as e:
         print(f"Error in rule exclusion lifecycle test: {e}")
