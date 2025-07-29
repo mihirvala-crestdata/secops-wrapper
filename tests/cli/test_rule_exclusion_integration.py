@@ -192,40 +192,6 @@ def test_cli_rule_exclusion_lifecycle(cli_env, common_args):
         expected_enabled = toggle_enabled == "true"
         assert updated_deployment_data["enabled"] == expected_enabled
 
-        # 6. Compute activity (might not have activity if newly created)
-        # today = datetime.now()
-        # yesterday = today - timedelta(days=1)
-
-        # activity_cmd = (
-        #     [
-        #         "secops",
-        #     ]
-        #     + common_args
-        #     + [
-        #         "rule-exclusion",
-        #         "compute-activity",
-        #         "--id",
-        #         exclusion_id,
-        #         "--start-time",
-        #         yesterday.strftime("%Y-%m-%dT00:00:00Z"),
-        #         "--end-time",
-        #         today.strftime("%Y-%m-%dT23:59:59Z"),
-        #     ]
-        # )
-
-        # print(f"\nComputing activity for: {exclusion_id}")
-        # activity_result = subprocess.run(
-        #     activity_cmd, env=cli_env, capture_output=True, text=True
-        # )
-
-        # # We don't assert success here since new exclusions might not have activity data
-        # # Just verify we can run the command without errors
-        # print(f"Activity command exit code: {activity_result.returncode}")
-        # if activity_result.returncode != 0:
-        #     print(
-        #         f"Activity command error (expected for new exclusions): {activity_result.stderr}"
-        #     )
-
     finally:
         # Clean up: Archive the rule exclusion
         if exclusion_id:
