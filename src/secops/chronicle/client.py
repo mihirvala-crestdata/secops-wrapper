@@ -155,8 +155,8 @@ from secops.chronicle.rule_retrohunt import (
 )
 from secops.chronicle.rule_retrohunt import get_retrohunt as _get_retrohunt
 from secops.chronicle.rule_set import (
-    batch_update_curated_rule_set_deployments as _batch_update_curated_rule_set_deployments,
-)  # pylint: disable=line-too-long
+    batch_update_curated_rule_set_deployments as _batch_update_curated_rule_set_deployments,  # pylint: disable=line-too-long
+)
 from secops.chronicle.rule_validation import validate_rule as _validate_rule
 from secops.chronicle.search import search_udm as _search_udm
 from secops.chronicle.stats import get_stats as _get_stats
@@ -2283,10 +2283,7 @@ class ChronicleClient:
         use_array_bracket_notation: Optional[bool] = None,
         compress_array_fields: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Generate key-value mappings for a UDM field using Chronicle V1alpha API.
-
-        This function retrieves all unique values for the specified UDM field
-        and returns a dictionary mapping each value to its frequency.
+        """Generate UDM key-value mappings for provided row log
 
         Args:
             log_format: The format of the log (JSON, CSV, XML)
