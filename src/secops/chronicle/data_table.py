@@ -50,10 +50,6 @@ class DataTableColumnType(StrEnum):
     the rule.
     """
 
-    # API does not support UNSPECIFIED column type
-    # UNSPECIFIED = "DATA_TABLE_COLUMN_TYPE_UNSPECIFIED"
-    # """The default Data Table Column Type."""
-
     STRING = "STRING"
     """Denotes the type of the column as STRING."""
 
