@@ -72,7 +72,7 @@ def setup_config_command(subparsers):
         "config", help="Manage CLI configuration"
     )
     config_subparsers = config_parser.add_subparsers(
-        dest="config_command", help="Config command"
+        help="Config command", required=True
     )
 
     # Set config command
