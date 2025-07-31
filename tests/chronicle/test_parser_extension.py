@@ -151,7 +151,7 @@ class TestParserExtensionConfig:
     def test_validate_with_no_config(self):
         """Test validation with no configuration."""
         config = ParserExtensionConfig()
-        with pytest.raises(ValueError, match="Exactly one of cbn_snippet"):
+        with pytest.raises(ValueError, match="Exactly one of parser_config"):
             config.validate()
 
     def test_validate_with_multiple_configs(self):
@@ -159,7 +159,7 @@ class TestParserExtensionConfig:
         config = ParserExtensionConfig(
             parser_config="code", field_extractors={"field": "value"}
         )
-        with pytest.raises(ValueError, match="Exactly one of cbn_snippet"):
+        with pytest.raises(ValueError, match="Exactly one of parser_config"):
             config.validate()
 
     def test_to_dict_with_log_and_cbn(self):
