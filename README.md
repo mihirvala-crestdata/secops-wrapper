@@ -1409,13 +1409,14 @@ data_table = chronicle.create_data_table(
     description="Known suspicious IP addresses with context",
     header={
         "ip_address": DataTableColumnType.CIDR,
+        "port": DataTableColumnType.NUMBER,
         "severity": DataTableColumnType.STRING,
         "description": DataTableColumnType.STRING
     },
     # Optional: Add initial rows
     rows=[
-        ["192.168.1.100", "High", "Scanning activity"],
-        ["10.0.0.5", "Medium", "Suspicious login attempts"]
+        ["192.168.1.100", 3232, "High", "Scanning activity"],
+        ["10.0.0.5", 9000, "Medium", "Suspicious login attempts"]
     ]
 )
 

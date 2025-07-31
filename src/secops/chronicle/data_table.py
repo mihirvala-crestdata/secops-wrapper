@@ -50,9 +50,6 @@ class DataTableColumnType(StrEnum):
     the rule.
     """
 
-    UNSPECIFIED = "DATA_TABLE_COLUMN_TYPE_UNSPECIFIED"
-    """The default Data Table Column Type."""
-
     STRING = "STRING"
     """Denotes the type of the column as STRING."""
 
@@ -61,6 +58,9 @@ class DataTableColumnType(StrEnum):
 
     CIDR = "CIDR"
     """Denotes the type of the column as CIDR."""
+
+    NUMBER = "NUMBER"
+    """Denotes the type of the column as NUMBER."""
 
 
 def create_data_table(
