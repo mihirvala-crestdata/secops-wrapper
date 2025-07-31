@@ -61,23 +61,21 @@ class ParserExtensionConfig:
         if self.parser_config:
             self.encoded_cbn_snippet = self.encode_base64(self.parser_config)
 
-        if self.field_extractors:
-            if isinstance(self.field_extractors, str):
-                try:
-                    self.field_extractors = json.loads(self.field_extractors)
-                except json.JSONDecodeError as e:
-                    raise ValueError(
-                        f"Invalid JSON for field_extractors: {e}"
-                    ) from e
+        if self.field_extractors and isinstance(self.field_extractors, str):
+            try:
+                self.field_extractors = json.loads(self.field_extractors)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON for field_extractors: {e}"
+                ) from e
 
-        if self.dynamic_parsing:
-            if isinstance(self.dynamic_parsing, str):
-                try:
-                    self.dynamic_parsing = json.loads(self.dynamic_parsing)
-                except json.JSONDecodeError as e:
-                    raise ValueError(
-                        f"Invalid JSON for dynamic_parsing: {e}"
-                    ) from e
+        if self.dynamic_parsing and isinstance(self.dynamic_parsing, str):
+            try:
+                self.dynamic_parsing = json.loads(self.dynamic_parsing)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON for dynamic_parsing: {e}"
+                ) from e
 
     def validate(self) -> None:
         """Validate configuration.
@@ -98,7 +96,7 @@ class ParserExtensionConfig:
 
         if config_count != 1:
             raise ValueError(
-                "Exactly one of cbn_snippet, field_extractors, or "
+                "Exactly one of parser_config, field_extractors, or "
                 "dynamic_parsing must be specified"
             )
 
