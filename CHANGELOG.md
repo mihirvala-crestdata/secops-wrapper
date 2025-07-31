@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Listing parser extensions
   - Activating parser extension
   - Deleting parser extension
+### Fixed
+- Sub command required for config command in CLI
+- `DataTableColumnType` enum to have valid types
 
 ## [0.9.0] - 2025-07-29
 ### Added
