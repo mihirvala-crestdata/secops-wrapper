@@ -21,6 +21,20 @@ from secops.chronicle.client import (
     ValueType,
     _detect_value_type,
 )
+from secops.chronicle.dashboard import (
+    DashboardAccessType,
+    DashboardView,
+    InputInterval,
+    TileType,
+    add_chart,
+    create_dashboard,
+    delete_dashboard,
+    duplicate_dashboard,
+    execute_query,
+    get_dashboard,
+    list_dashboards,
+    update_dashboard,
+)
 from secops.chronicle.data_export import (
     AvailableLogType,
     cancel_data_export,
@@ -185,6 +199,15 @@ __all__ = [
     "get_retrohunt",
     # Rule set operations
     "batch_update_curated_rule_set_deployments",
+    # Native Dashboard
+    "add_chart",
+    "create_dashboard",
+    "delete_dashboard",
+    "duplicate_dashboard",
+    "execute_query",
+    "get_dashboard",
+    "list_dashboards",
+    "update_dashboard",
     # Models
     "Entity",
     "EntityMetadata",
@@ -206,6 +229,10 @@ __all__ = [
     "SuggestedAction",
     "NavigationAction",
     "UpdateRuleDeployment",
+    "DashboardAccessType",
+    "DashboardView",
+    "InputInterval",
+    "TileType",
     # Data Table and Reference List
     "DataTableColumnType",
     "ReferenceListSyntaxType",
