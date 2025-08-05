@@ -325,6 +325,50 @@ Error messages are detailed and help identify issues:
 - Size limit violations
 - API-specific errors
 
+### Parser Extension Management
+
+Parser extensions provide a flexible way to extend the capabilities of existing default (or custom) parsers without replacing them.
+
+#### List Parser Extensions
+```bash
+secops parser-extension list --log-type OKTA
+
+# Provide pagination parameters
+secops parser-extension list --log-type OKTA --page-size 50 --page-token "token"
+```
+
+#### Create new parser extension
+```bash
+# With sample log and parser config file (CBN Snippet)
+secops parser-extension create --log-type OKTA \
+--log /path/to/sample.log \
+--parser-config-file /path/to/parser-config.conf
+
+# With parser config file (CBN Snippet) string
+secops parser-extension create --log-type OKTA \
+--log '{\"sample\":{}}'
+--parser-config 'filter {}'
+
+# With field extractor config file
+secops parser-extension create --log-type OKTA \
+--field-extractor '{\"extractors\":[{}],\"logFormat\":\"JSON\",\"appendRepeatedFields\":true}'
+```
+
+#### Get parser extension details
+```bash
+secops parser-extension get --log-type OKTA --id "1234567890"
+```
+
+#### Activate parser extension
+```bash
+secops parser-extension activate --log-type OKTA --id "1234567890"
+```
+
+#### Delete parser extension
+```bash
+secops parser-extension delete --log-type OKTA --id "1234567890"
+```
+
 ### Rule Management
 
 List detection rules:

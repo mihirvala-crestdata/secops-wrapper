@@ -1035,6 +1035,81 @@ This workflow is useful for:
 - Re-processing logs with updated parsers
 - Debugging parsing issues
 
+## Parser Extension
+
+Parser extensions provide a flexible way to extend the capabilities of existing default (or custom) parsers without replacing them. The extensions let you customize the parser pipeline by adding new parsing logic, extracting and transforming fields, and updating or removing UDM field mappings.
+
+The SDK provides comprehensive support for managing Chronicle parser extensions:
+
+### List Parser Extensions
+
+List parser extensions for a log type:
+
+```python
+log_type = "OKTA"
+
+extensions = chronicle.list_parser_extensions(log_type)
+print(f"Found {len(extensions["parserExtensions"])} parser extensions for log type: {log_type}")
+```
+
+### Create a new parser extension
+
+Create new parser extension using either CBN snippet, field extractor or dynamic parsing:
+
+```python
+log_type = "OKTA"
+field_extractor = {
+    "extractors": [
+        {
+            "preconditionPath": "severity",
+            "preconditionValue": "Info",
+            "preconditionOp": "EQUALS",
+            "fieldPath": "displayMessage",
+            "destinationPath": "udm.metadata.description",
+        }
+    ],
+    "logFormat": "JSON",
+    "appendRepeatedFields": True,
+}
+
+chronicle.create_parser_extension(log_type, field_extractor=field_extractor)
+```
+
+### Get parser extension
+
+Get parser extension details:
+
+```python
+log_type = "OKTA"
+extension_id = "1234567890"
+
+extension = chronicle.get_parser_extension(log_type, extension_id)
+
+print(extension)
+```
+
+### Activate Parser Extension
+
+Activate parser extension:
+
+```python
+log_type = "OKTA"
+extension_id = "1234567890"
+
+chronicle.activate_parser_extension(log_type, extension_id)
+```
+
+### Delete Parser Extension
+
+Delete parser extension:
+
+```python
+log_type = "OKTA"
+extension_id = "1234567890"
+
+chronicle.delete_parser_extension(log_type, extension_id)
+```
+
 ## Rule Management
 
 The SDK provides comprehensive support for managing Chronicle detection rules:
@@ -1429,13 +1504,14 @@ data_table = chronicle.create_data_table(
     description="Known suspicious IP addresses with context",
     header={
         "ip_address": DataTableColumnType.CIDR,
+        "port": DataTableColumnType.NUMBER,
         "severity": DataTableColumnType.STRING,
         "description": DataTableColumnType.STRING
     },
     # Optional: Add initial rows
     rows=[
-        ["192.168.1.100", "High", "Scanning activity"],
-        ["10.0.0.5", "Medium", "Suspicious login attempts"]
+        ["192.168.1.100", 3232, "High", "Scanning activity"],
+        ["10.0.0.5", 9000, "Medium", "Suspicious login attempts"]
     ]
 )
 
