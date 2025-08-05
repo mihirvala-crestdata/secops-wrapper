@@ -33,6 +33,7 @@ from secops.chronicle.dashboard import (
     execute_query,
     get_dashboard,
     list_dashboards,
+    remove_chart,
     update_dashboard,
 )
 from secops.chronicle.data_export import (
@@ -207,6 +208,7 @@ __all__ = [
     "execute_query",
     "get_dashboard",
     "list_dashboards",
+    "remove_chart",
     "update_dashboard",
     # Models
     "Entity",

@@ -385,6 +385,48 @@ def add_chart(
     return response.json()
 
 
+def remove_chart(
+    client,
+    dashboard_id: str,
+    chart_id: str,
+) -> Dict[str, Any]:
+    """Remove a chart from a dashboard.
+
+    Args:
+        client: ChronicleClient instance
+        dashboard_id: ID of the dashboard containing the chart
+        chart_id: ID of the chart to remove
+
+    Returns:
+        Dictionary containing the updated dashboard
+
+    Raises:
+        APIError: If the API request fails
+    """
+    if dashboard_id.startswith("projects/"):
+        dashboard_id = dashboard_id.split("projects/")[-1]
+
+    if not chart_id.startswith("projects/"):
+        chart_id = f"{client.instance_id}/dashboardCharts/{chart_id}"
+
+    url = (
+        f"{client.base_url}/{client.instance_id}/"
+        f"nativeDashboards/{dashboard_id}:removeChart"
+    )
+
+    payload = {"dashboardChart": chart_id}
+
+    response = client.session.post(url, json=payload)
+
+    if response.status_code != 200:
+        raise APIError(
+            f"Failed to remove chart: Status {response.status_code}, "
+            f"Response: {response.text}"
+        )
+
+    return response.json()
+
+
 def execute_query(
     client,
     query: str,

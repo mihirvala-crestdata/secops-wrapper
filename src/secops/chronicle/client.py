@@ -36,6 +36,7 @@ from secops.chronicle.dashboard import delete_dashboard as _delete_dashboard
 from secops.chronicle.dashboard import (
     duplicate_dashboard as _duplicate_dashboard,
 )
+from secops.chronicle.dashboard import remove_chart as _remove_chart
 from secops.chronicle.dashboard import execute_query as _execute_dashboard_query
 from secops.chronicle.dashboard import get_dashboard as _get_dashboard
 from secops.chronicle.dashboard import list_dashboards as _list_dashboards
@@ -2652,4 +2653,27 @@ class ChronicleClient:
             display_name=display_name,
             access_type=access_type,
             description=description,
+        )
+
+    def remove_chart(
+        self,
+        dashboard_id: str,
+        chart_id: str,
+    ) -> Dict[str, Any]:
+        """Remove a chart from a dashboard.
+
+        Args:
+            dashboard_id: ID of the dashboard containing the chart
+            chart_id: ID of the chart to remove
+
+        Returns:
+            Dictionary containing the updated dashboard
+
+        Raises:
+            APIError: If the API request fails
+        """
+        return _remove_chart(
+            self,
+            dashboard_id=dashboard_id,
+            chart_id=chart_id,
         )
