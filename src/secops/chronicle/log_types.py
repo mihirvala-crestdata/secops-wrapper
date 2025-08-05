@@ -14,9 +14,9 @@
 #
 """Chronicle log type utilities for raw log ingestion.
 
-This module provides functions to help users select the correct Chronicle 
-log type for raw log ingestion. It includes functionality to search for 
-log types, validate log types, and suggest appropriate log types based on 
+This module provides functions to help users select the correct Chronicle
+log type for raw log ingestion. It includes functionality to search for
+log types, validate log types, and suggest appropriate log types based on
 product or vendor.
 """
 
