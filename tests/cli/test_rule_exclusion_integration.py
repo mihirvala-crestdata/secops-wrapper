@@ -70,7 +70,7 @@ def test_cli_rule_exclusion_lifecycle(cli_env, common_args):
         print(f"Created rule exclusion with ID: {exclusion_id}")
 
         # Wait briefly for the rule exclusion to be fully created
-        time.sleep(2)
+        time.sleep(5)
 
         # 2. Get the rule exclusion
         get_cmd = (
