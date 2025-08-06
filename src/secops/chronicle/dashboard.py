@@ -113,16 +113,16 @@ def create_dashboard(
             filters = json.loads(filters)
             if not isinstance(filters, list):
                 filters = [filters]
-        except ValueError:
-            raise APIError("Invalid filters JSON")
+        except ValueError as e:
+            raise APIError("Invalid filters JSON") from e
 
     if charts and isinstance(charts, str):
         try:
             charts = json.loads(charts)
             if not isinstance(charts, list):
                 charts = [charts]
-        except ValueError:
-            raise APIError("Invalid charts JSON")
+        except ValueError as e:
+            raise APIError("Invalid charts JSON") from e
 
     payload = {
         "displayName": display_name,
@@ -260,16 +260,16 @@ def update_dashboard(
             filters = json.loads(filters)
             if not isinstance(filters, list):
                 filters = [filters]
-        except ValueError:
-            raise APIError("Invalid filters JSON")
+        except ValueError as e:
+            raise APIError("Invalid filters JSON") from e
 
     if charts and isinstance(charts, str):
         try:
             charts = json.loads(charts)
             if not isinstance(charts, list):
                 charts = [charts]
-        except ValueError:
-            raise APIError("Invalid charts JSON")
+        except ValueError as e:
+            raise APIError("Invalid charts JSON") from e
 
     if display_name is not None:
         payload["displayName"] = display_name
@@ -391,7 +391,7 @@ def add_chart(
     except ValueError as e:
         raise APIError(
             f"Failed to parse JSON. Must be a valid JSON string: {e}"
-        )
+        ) from e
 
     payload = {
         "dashboardChart": {
@@ -510,7 +510,7 @@ def execute_query(
     except ValueError as e:
         raise APIError(
             f"Failed to parse JSON. Must be a valid JSON string: {e}"
-        )
+        ) from e
 
     if isinstance(interval, dict):
         interval = InputInterval.from_dict(interval)

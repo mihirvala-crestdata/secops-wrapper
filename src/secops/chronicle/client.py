@@ -2517,8 +2517,8 @@ class ChronicleClient:
         """
         try:
             access_type = DashboardAccessType[access_type.upper()]
-        except ValueError:
-            raise SecOpsError(f"Invalid access type: {access_type}")
+        except ValueError as e:
+            raise SecOpsError(f"Invalid access type: {access_type}") from e
 
         return _create_dashboard(
             self,
@@ -2567,8 +2567,8 @@ class ChronicleClient:
         if view:
             try:
                 view = DashboardView[view.upper()]
-            except ValueError:
-                raise SecOpsError(f"Invalid view: {view}")
+            except ValueError as e:
+                raise SecOpsError(f"Invalid view: {view}") from e
 
         return _get_dashboard(
             self,
@@ -2652,8 +2652,8 @@ class ChronicleClient:
         if tile_type:
             try:
                 tile_type = TileType[tile_type.upper()]
-            except ValueError:
-                raise SecOpsError(f"Invalid tile type: {tile_type}")
+            except ValueError as e:
+                raise SecOpsError(f"Invalid tile type: {tile_type}") from e
 
         return _add_chart(
             self,
@@ -2714,8 +2714,8 @@ class ChronicleClient:
         """
         try:
             access_type = DashboardAccessType[access_type.upper()]
-        except ValueError:
-            raise SecOpsError(f"Invalid access type: {access_type}")
+        except ValueError as e:
+            raise SecOpsError(f"Invalid access type: {access_type}") from e
 
         return _duplicate_dashboard(
             self,

@@ -3,10 +3,8 @@ Command line handlers and helpers for SecOps CLI
 """
 
 import argparse
-from ast import arg
 import base64
 import json
-from random import choices
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
