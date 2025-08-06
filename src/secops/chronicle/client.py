@@ -96,6 +96,17 @@ from secops.chronicle.log_types import search_log_types as _search_log_types
 from secops.chronicle.models import CaseList, EntitySummary
 from secops.chronicle.nl_search import nl_search as _nl_search
 from secops.chronicle.nl_search import translate_nl_to_udm
+from secops.chronicle.parser import activate_parser as _activate_parser
+from secops.chronicle.parser import (
+    activate_release_candidate_parser as _activate_release_candidate_parser,
+)
+from secops.chronicle.parser import copy_parser as _copy_parser
+from secops.chronicle.parser import create_parser as _create_parser
+from secops.chronicle.parser import deactivate_parser as _deactivate_parser
+from secops.chronicle.parser import delete_parser as _delete_parser
+from secops.chronicle.parser import get_parser as _get_parser
+from secops.chronicle.parser import list_parsers as _list_parsers
+from secops.chronicle.parser import run_parser as _run_parser
 from secops.chronicle.parser_extension import ParserExtensionConfig
 from secops.chronicle.parser_extension import (
     activate_parser_extension as _activate_parser_extension,
@@ -148,15 +159,45 @@ from secops.chronicle.rule_alert import (
 from secops.chronicle.rule_alert import update_alert as _update_alert
 from secops.chronicle.rule_detection import list_detections as _list_detections
 from secops.chronicle.rule_detection import list_errors as _list_errors
+from secops.chronicle.rule_exclusion import (
+    RuleExclusionType,
+    UpdateRuleDeployment,
+)
+from secops.chronicle.rule_exclusion import (
+    compute_rule_exclusion_activity as _compute_rule_exclusion_activity,
+)
+from secops.chronicle.rule_exclusion import (
+    create_rule_exclusion as _create_rule_exclusion,
+)
+from secops.chronicle.rule_exclusion import (
+    get_rule_exclusion as _get_rule_exclusion,
+)
+from secops.chronicle.rule_exclusion import (
+    get_rule_exclusion_deployment as _get_rule_exclusion_deployment,
+)
+from secops.chronicle.rule_exclusion import (
+    list_rule_exclusions as _list_rule_exclusions,
+)
+from secops.chronicle.rule_exclusion import (
+    patch_rule_exclusion as _patch_rule_exclusion,
+)
+from secops.chronicle.rule_exclusion import (
+    update_rule_exclusion_deployment as _update_rule_exclusion_deployment,
+)
 from secops.chronicle.rule_retrohunt import (
     create_retrohunt as _create_retrohunt,
 )
 from secops.chronicle.rule_retrohunt import get_retrohunt as _get_retrohunt
 from secops.chronicle.rule_set import (
-    batch_update_curated_rule_set_deployments as _batch_update_curated_rule_set_deployments,
-)  # pylint: disable=line-too-long
+    batch_update_curated_rule_set_deployments as _batch_update_curated_rule_set_deployments,  # pylint: disable=line-too-long
+)
+from secops.chronicle.rule_validation import validate_rule as _validate_rule
 from secops.chronicle.search import search_udm as _search_udm
 from secops.chronicle.stats import get_stats as _get_stats
+from secops.chronicle.udm_mapping import RowLogFormat
+from secops.chronicle.udm_mapping import (
+    generate_udm_key_value_mappings as _generate_udm_key_value_mappings,
+)
 
 # Import functions from the new modules
 from secops.chronicle.udm_search import (
@@ -2418,6 +2459,36 @@ class ChronicleClient:
             SecOpsError: If no description or entries are provided to be updated
         """
         return _update_reference_list(self, name, description, entries)
+
+    def generate_udm_key_value_mappings(
+        self,
+        log_format: str,
+        log: str,
+        use_array_bracket_notation: Optional[bool] = None,
+        compress_array_fields: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """Generate UDM key-value mappings for provided row log
+
+        Args:
+            log_format: The format of the log (JSON, CSV, XML)
+            log: The log to retrieve unique values from
+            use_array_bracket_notation: Whether to use array bracket notation
+            compress_array_fields: Whether to compress array fields
+
+        Returns:
+            Dictionary containing the generated key-value mappings
+
+        Raises:
+            APIError: If the API request fails
+        """
+
+        return _generate_udm_key_value_mappings(
+            self,
+            RowLogFormat(log_format),
+            log,
+            use_array_bracket_notation,
+            compress_array_fields,
+        )
 
     # Dashboard Methods
     def create_dashboard(
