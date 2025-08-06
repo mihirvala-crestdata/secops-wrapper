@@ -5,6 +5,7 @@ This module provides functions to
 create, list, retrieve, update, delete dashboards, and manage dashboard charts.
 """
 
+import json
 import sys
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
@@ -86,8 +87,8 @@ def create_dashboard(
     display_name: str,
     access_type: DashboardAccessType,
     description: Optional[str] = None,
-    filters: Optional[List[Dict[str, Any]]] = None,
-    charts: Optional[List[Dict[str, Any]]] = None,
+    filters: Optional[Union[List[Dict[str, Any]], str]] = None,
+    charts: Optional[Union[List[Dict[str, Any]], str]] = None,
 ) -> Dict[str, Any]:
     """Create a new native dashboard.
 
@@ -106,6 +107,22 @@ def create_dashboard(
         APIError: If the API request fails
     """
     url = f"{client.base_url}/{client.instance_id}/nativeDashboards"
+
+    if filters and isinstance(filters, str):
+        try:
+            filters = json.loads(filters)
+            if not isinstance(filters, list):
+                filters = [filters]
+        except ValueError:
+            raise APIError("Invalid filters JSON")
+
+    if charts and isinstance(charts, str):
+        try:
+            charts = json.loads(charts)
+            if not isinstance(charts, list):
+                charts = [charts]
+        except ValueError:
+            raise APIError("Invalid charts JSON")
 
     payload = {
         "displayName": display_name,
@@ -211,8 +228,8 @@ def update_dashboard(
     dashboard_id: str,
     display_name: Optional[str] = None,
     description: Optional[str] = None,
-    filters: Optional[List[Dict[str, Any]]] = None,
-    charts: Optional[List[Dict[str, Any]]] = None,
+    filters: Optional[Union[List[Dict[str, Any]], str]] = None,
+    charts: Optional[Union[List[Dict[str, Any]], str]] = None,
 ) -> Dict[str, Any]:
     """Update an existing dashboard.
 
@@ -237,6 +254,22 @@ def update_dashboard(
 
     payload = {"definition": {}}
     update_mask = []
+
+    if filters and isinstance(filters, str):
+        try:
+            filters = json.loads(filters)
+            if not isinstance(filters, list):
+                filters = [filters]
+        except ValueError:
+            raise APIError("Invalid filters JSON")
+
+    if charts and isinstance(charts, str):
+        try:
+            charts = json.loads(charts)
+            if not isinstance(charts, list):
+                charts = [charts]
+        except ValueError:
+            raise APIError("Invalid charts JSON")
 
     if display_name is not None:
         payload["displayName"] = display_name
@@ -294,19 +327,21 @@ def delete_dashboard(client, dashboard_id: str) -> Dict[str, Any]:
             f"Response: {response.text}"
         )
 
+    return {"status": "success", "code": response.status_code}
+
 
 def add_chart(
     client,
     dashboard_id: str,
     display_name: str,
-    chart_layout: Dict[str, Any],
+    chart_layout: Union[Dict[str, Any], str],
     tile_type: Optional[TileType] = None,
-    chart_datasource: Optional[Dict[str, Any]] = None,
-    visualization: Optional[Dict[str, Any]] = None,
-    drill_down_config: Optional[Dict[str, Any]] = None,
+    chart_datasource: Optional[Union[Dict[str, Any], str]] = None,
+    visualization: Optional[Union[Dict[str, Any], str]] = None,
+    drill_down_config: Optional[Union[Dict[str, Any], str]] = None,
     description: Optional[str] = None,
     query: Optional[str] = None,
-    interval: Optional[Union[InputInterval, Dict[str, Any]]] = None,
+    interval: Optional[Union[InputInterval, Dict[str, Any], str]] = None,
     **kwargs,
 ) -> Dict[str, Any]:
     """Add a chart to a dashboard.
@@ -340,6 +375,23 @@ def add_chart(
     )
 
     tile_type = TileType.VISUALIZATION if tile_type is None else tile_type
+
+    # Convert JSON string to dictionary
+    try:
+        if isinstance(chart_layout, str):
+            chart_layout = json.loads(chart_layout)
+        if chart_datasource and isinstance(chart_datasource, str):
+            chart_datasource = json.loads(chart_datasource)
+        if visualization and isinstance(visualization, str):
+            visualization = json.loads(visualization)
+        if drill_down_config and isinstance(drill_down_config, str):
+            drill_down_config = json.loads(drill_down_config)
+        if interval and isinstance(interval, str):
+            interval = json.loads(interval)
+    except ValueError as e:
+        raise APIError(
+            f"Failed to parse JSON. Must be a valid JSON string: {e}"
+        )
 
     payload = {
         "dashboardChart": {
@@ -430,8 +482,8 @@ def remove_chart(
 def execute_query(
     client,
     query: str,
-    interval: Union[InputInterval, Dict[str, Any]],
-    filters: Optional[List[Dict[str, Any]]] = None,
+    interval: Union[InputInterval, Dict[str, Any], str],
+    filters: Optional[Union[List[Dict[str, Any]], str]] = None,
     clear_cache: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Execute a dashboard query and retrieve results.
@@ -447,6 +499,18 @@ def execute_query(
         Dictionary containing query results
     """
     url = f"{client.base_url}/{client.instance_id}/dashboardQueries:execute"
+
+    try:
+        if isinstance(interval, str):
+            interval = json.loads(interval)
+        if filters and isinstance(filters, str):
+            filters = json.loads(filters)
+            if not isinstance(filters, list):
+                filters = [filters]
+    except ValueError as e:
+        raise APIError(
+            f"Failed to parse JSON. Must be a valid JSON string: {e}"
+        )
 
     if isinstance(interval, dict):
         interval = InputInterval.from_dict(interval)

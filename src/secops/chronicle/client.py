@@ -2495,8 +2495,8 @@ class ChronicleClient:
         display_name: str,
         access_type: str,
         description: Optional[str] = None,
-        filters: Optional[List[Dict[str, Any]]] = None,
-        charts: Optional[List[Dict[str, Any]]] = None,
+        filters: Optional[Union[List[Dict[str, Any]], str]] = None,
+        charts: Optional[Union[List[Dict[str, Any]], str]] = None,
     ) -> Dict[str, Any]:
         """Create a new native dashboard.
 
@@ -2505,7 +2505,9 @@ class ChronicleClient:
             access_type: Access type for the dashboard (Public or Private)
             description: Description for the dashboard
             filters: List of filters to apply to the dashboard
+                (JSON or JSON string)
             charts: List of charts to include in the dashboard
+                (JSON or JSON string)
 
         Returns:
             Dictionary containing the created dashboard details
@@ -2579,8 +2581,8 @@ class ChronicleClient:
         dashboard_id: str,
         display_name: Optional[str] = None,
         description: Optional[str] = None,
-        filters: Optional[List[Dict[str, Any]]] = None,
-        charts: Optional[List[Dict[str, Any]]] = None,
+        filters: Optional[Union[List[Dict[str, Any]], str]] = None,
+        charts: Optional[Union[List[Dict[str, Any]], str]] = None,
     ) -> Dict[str, Any]:
         """Update an existing dashboard.
 
@@ -2608,9 +2610,6 @@ class ChronicleClient:
 
         Args:
             dashboard_id: ID of the dashboard to delete
-
-        Returns:
-            Dictionary containing the deleted dashboard details
         """
         return _delete_dashboard(self, dashboard_id=dashboard_id)
 
@@ -2618,14 +2617,14 @@ class ChronicleClient:
         self,
         dashboard_id: str,
         display_name: str,
-        chart_layout: Dict[str, Any],
+        chart_layout: Union[Dict[str, Any], str],
         tile_type: Optional[str] = None,
-        chart_datasource: Optional[Dict[str, Any]] = None,
-        visualization: Optional[Dict[str, Any]] = None,
-        drill_down_config: Optional[Dict[str, Any]] = None,
+        chart_datasource: Optional[Union[Dict[str, Any], str]] = None,
+        visualization: Optional[Union[Dict[str, Any], str]] = None,
+        drill_down_config: Optional[Union[Dict[str, Any], str]] = None,
         description: Optional[str] = None,
         query: Optional[str] = None,
-        interval: Optional[Union[InputInterval, Dict[str, Any]]] = None,
+        interval: Optional[Union[InputInterval, Dict[str, Any], str]] = None,
         **kwargs,
     ) -> Dict[str, Any]:
         """Add a chart to an existing dashboard.
@@ -2674,8 +2673,8 @@ class ChronicleClient:
     def execute_dashboard_query(
         self,
         query: str,
-        interval: Union[InputInterval, Dict[str, Any]],
-        filters: Optional[List[Dict[str, Any]]] = None,
+        interval: Union[InputInterval, Dict[str, Any], str],
+        filters: Optional[Union[List[Dict[str, Any]], str]] = None,
         clear_cache: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """Execute a query for a dashboard.
