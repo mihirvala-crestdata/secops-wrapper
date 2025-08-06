@@ -36,11 +36,10 @@ from secops.chronicle.dashboard import delete_dashboard as _delete_dashboard
 from secops.chronicle.dashboard import (
     duplicate_dashboard as _duplicate_dashboard,
 )
-from secops.chronicle.dashboard import edit_chart as _edit_chart
-from secops.chronicle.dashboard import remove_chart as _remove_chart
 from secops.chronicle.dashboard import execute_query as _execute_dashboard_query
 from secops.chronicle.dashboard import get_dashboard as _get_dashboard
 from secops.chronicle.dashboard import list_dashboards as _list_dashboards
+from secops.chronicle.dashboard import remove_chart as _remove_chart
 from secops.chronicle.dashboard import update_dashboard as _update_dashboard
 from secops.chronicle.data_export import (
     cancel_data_export as _cancel_data_export,
@@ -2725,45 +2724,6 @@ class ChronicleClient:
             display_name=display_name,
             access_type=access_type,
             description=description,
-        )
-
-    def edit_chart(
-        self,
-        dashboard_id: str,
-        chart_id: str,
-        display_name: Optional[str] = None,
-        chart_datasource: Optional[Dict[str, Any]] = None,
-        visualization: Optional[Dict[str, Any]] = None,
-        description: Optional[str] = None,
-        query: Optional[str] = None,
-        interval: Optional[Union[InputInterval, Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
-        """Edit an existing chart in a dashboard.
-
-        Args:
-            dashboard_id: ID of the dashboard containing the chart
-            chart_id: ID of the chart to edit
-            display_name: New display name for the chart
-            chart_datasource: New chart datasource configuration
-            visualization: New visualization configuration
-            description: New description for the chart
-            query: New search query for the chart
-            interval: New time interval for the query
-
-        Returns:
-            Dictionary containing the updated dashboard with edited chart
-        """
-
-        return _edit_chart(
-            self,
-            dashboard_id=dashboard_id,
-            chart_id=chart_id,
-            display_name=display_name,
-            chart_datasource=chart_datasource,
-            visualization=visualization,
-            description=description,
-            query=query,
-            interval=interval,
         )
 
     def remove_chart(

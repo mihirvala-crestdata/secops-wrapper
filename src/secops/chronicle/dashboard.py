@@ -6,7 +6,7 @@ create, list, retrieve, update, delete dashboards, and manage dashboard charts.
 """
 
 import sys
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
 from secops.exceptions import APIError
@@ -513,92 +513,6 @@ def duplicate_dashboard(
     if response.status_code != 200:
         raise APIError(
             f"Failed to duplicate dashboard: Status {response.status_code}, "
-            f"Response: {response.text}"
-        )
-
-    return response.json()
-
-
-def edit_chart(
-    client,
-    dashboard_id: str,
-    chart_id: str,
-    display_name: Optional[str] = None,
-    chart_datasource: Optional[Dict[str, Any]] = None,
-    visualization: Optional[Dict[str, Any]] = None,
-    description: Optional[str] = None,
-    query: Optional[str] = None,
-    interval: Optional[Union[InputInterval, Dict[str, Any]]] = None,
-) -> Dict[str, Any]:
-    """Edit an existing chart in a dashboard.
-
-    Args:
-        client: ChronicleClient instance
-        dashboard_id: ID of the dashboard containing the chart
-        chart_id: ID of the chart to edit
-        display_name: New display name for the chart
-        chart_datasource: New chart datasource configuration
-        visualization: New visualization configuration
-        description: New description for the chart
-        query: New search query for the chart
-        interval: New time interval for the query
-    Returns:
-        Dictionary containing the updated dashboard with edited chart
-    """
-    if dashboard_id.startswith("projects/"):
-        dashboard_id = dashboard_id.split("projects/")[-1]
-
-    if not chart_id.startswith("projects/"):
-        chart_id = f"{client.instance_id}/dashboardCharts/{chart_id}"
-
-    url = (
-        f"{client.base_url}/{client.instance_id}/"
-        f"nativeDashboards/{dashboard_id}:editChart"
-    )
-    payload = {"dashboardQuery": {"name": chart_id}, "dashboardChart": {}}
-
-    # Track update mask fields
-    update_mask = []
-
-    if display_name:
-        payload["dashboardChart"]["displayName"] = display_name
-        update_mask.append("dashboard_chart.display_name")
-
-    if description:
-        payload["dashboardChart"]["description"] = description
-        update_mask.append("dashboard_chart.description")
-
-    if chart_datasource:
-        payload["dashboardChart"]["chartDatasource"] = chart_datasource
-        update_mask.append("dashboard_chart.chart_datasource.data_sources")
-
-    if visualization:
-        payload["dashboardChart"]["visualization"] = visualization
-        update_mask.append("dashboard_chart.visualization")
-
-    # Handle query and interval if provided
-    if query and interval:
-        if isinstance(interval, dict):
-            interval = InputInterval.from_dict(interval)
-
-        payload["dashboardQuery"].update(
-            {
-                "query": query,
-                "input": interval.to_dict(),
-            }
-        )
-        update_mask.append("dashboard_query.query")
-        update_mask.append("dashboard_query.input")
-
-    # Add update mask query parameter
-    if update_mask:
-        payload["editMask"] = ",".join(update_mask)
-
-    response = client.session.post(url, json=payload)
-
-    if response.status_code != 200:
-        raise APIError(
-            f"Failed to edit chart: Status {response.status_code}, "
             f"Response: {response.text}"
         )
 
