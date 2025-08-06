@@ -1888,6 +1888,183 @@ The Feed API supports different feed types such as HTTP, HTTPS Push, and S3 buck
 
 > **Note**: Secret generation is only available for certain feed types that require authentication.
 
+## Chronicle Dashboard
+
+The Chronicle Dashboard API provides methods to manage native dashboards, and execute query dashboards in Chronicle.
+
+### Create Dashboard
+```python
+# Create a dashboard
+dashboard = client.create_dashboard(
+    display_name="Security Overview",
+    description="Dashboard showing security metrics",
+    access_type="PRIVATE"  # "PRIVATE" or "PUBLIC"
+)
+dashboard_id = dashboard["name"].split("/")[-1]
+print(f"Created dashboard with ID: {dashboard_id}")
+```
+
+### Get Specific Dashboard Details
+```python
+# Get a specific dashboard
+dashboard = client.get_dashboard(
+    dashboard_id="dashboard-id-here",
+    view="FULL"  # Optional: "BASIC" or "FULL" 
+)
+print(f"Dashboard Details: {dashboard}")
+```
+
+### List Dashboards with pagination
+```python
+# List dashboards (first page)
+dashboards = client.list_dashboards(page_size=10)
+for dashboard in dashboards.get("nativeDashboards", []):
+    print(f"- {dashboard.get('displayName')}")
+
+# Get next page if available
+if "nextPageToken" in dashboards:
+    next_page = client.list_dashboards(
+        page_size=10,
+        page_token=dashboards["nextPageToken"]
+    )
+```
+
+### Update existing dashboard details
+```python
+filters = [
+    {
+        "id": "GlobalTimeFilter",
+        "dataSource": "GLOBAL",
+        "filterOperatorAndFieldValues": [
+            {"filterOperator": "PAST", "fieldValues": ["7", "DAY"]}
+        ],
+        "displayName": "Global Time Filter",
+        "chartIds": [],
+        "isStandardTimeRangeFilter": True,
+        "isStandardTimeRangeFilterEnabled": True,
+    }
+]
+charts = [
+    {
+        "dashboardChart": "projects/<project_id>/locations/<location>/instances/<instacne_id>/dashboardCharts/<chart_id>",
+        "chartLayout": {"startX": 0, "spanX": 48, "startY": 0, "spanY": 26},
+        "filtersIds": ["GlobalTimeFilter"],
+    }
+]
+# Update a dashboard
+updated_dashboard = client.update_dashboard(
+    dashboard_id="dashboard-id-here",
+    display_name="Updated Security Dashboard",
+    filters=filters,
+    charts=charts,
+)
+print(f"Updated dashboard: {updated_dashboard['displayName']}")
+```
+
+### Duplicate existing dashboard
+```python
+# Duplicate a dashboard
+duplicate = client.duplicate_dashboard(
+    dashboard_id="dashboard-id-here",
+    display_name="Copy of Security Dashboard",
+    access_type="PRIVATE"
+)
+duplicate_id = duplicate["name"].split("/")[-1]
+print(f"Created duplicate dashboard with ID: {duplicate_id}")
+```
+
+### Add Chart to existing dashboard
+```python
+# Define chart configuration
+query = """
+metadata.event_type = "NETWORK_DNS"
+match:
+  principal.hostname
+outcome:
+  $dns_query_count = count(metadata.id)
+order:
+  principal.hostname asc
+"""
+
+# Chart layout and configuration
+chart_layout = {
+    "startX": 0, 
+    "spanX": 12, 
+    "startY": 0, 
+    "spanY": 8
+}
+
+chart_datasource = {
+    "dataSources": ["UDM"]
+}
+
+interval = {
+    "relativeTime": {
+        "timeUnit": "DAY",
+        "startTimeVal": "1"
+    }
+}
+
+# Add chart to dashboard
+chart = client.add_chart(
+    dashboard_id="dashboard-id-here",
+    display_name="DNS Query Metrics",
+    query=query,
+    chart_layout=chart_layout,
+    chart_datasource=chart_datasource,
+    interval=interval,
+    tile_type="VISUALIZATION" # Option: "VISUALIZATION" or "BUTTOn"
+)
+```
+
+### Execute Dashboard Query
+```python
+# Define query and time interval
+query = """
+metadata.event_type = "USER_LOGIN"
+match:
+  principal.user.userid
+outcome:
+  $logon_count = count(metadata.id)
+order:
+  $logon_count desc
+limit: 10
+"""
+
+interval = {
+    "relativeTime": {
+        "timeUnit": "DAY",
+        "startTimeVal": "7"
+    }
+}
+
+# Execute the query
+results = client.execute_dashboard_query(
+    query=query,
+    interval=interval
+)
+
+# Process results
+for result in results.get("results", []):
+    print(result)
+```
+
+### Remove Chart from existing dashboard
+```python
+# Remove chart from dashboard
+client.remove_chart(
+    dashboard_id="dashboard-id-here",
+    chart_id="chart-id-here"
+)
+```
+
+### Delete existing dashboard
+```python
+# Delete a dashboard
+client.delete_dashboard(dashboard_id="dashboard-id-here")
+print("Dashboard deleted successfully")
+```
+
 ## Error Handling
 
 The SDK defines several custom exceptions:
