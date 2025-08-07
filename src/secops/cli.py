@@ -3033,15 +3033,27 @@ def setup_dashboard_command(subparsers):
         required=True,
         help="Dashboard access type",
     )
-    create_parser.add_argument(
+    filters_group = create_parser.add_mutually_exclusive_group()
+    filters_group.add_argument(
         "--filters",
         "--filters",
         help="List of filters to apply to the dashboard",
     )
-    create_parser.add_argument(
+    filters_group.add_argument(
+        "--filters-file",
+        "--filters_file",
+        help="File containing list of filters to apply to the dashboard",
+    )
+    charts_group = create_parser.add_mutually_exclusive_group()
+    charts_group.add_argument(
         "--charts",
         "--charts",
         help="List of charts to include in the dashboard",
+    )
+    charts_group.add_argument(
+        "--charts-file",
+        "--charts_file",
+        help="File containing list of charts to include in the dashboard",
     )
     create_parser.set_defaults(func=handle_dashboard_create_command)
 
@@ -3061,15 +3073,27 @@ def setup_dashboard_command(subparsers):
         help="Updated Dashboard display name",
     )
     create_parser.add_argument("--description", help="Dashboard description")
-    create_parser.add_argument(
+    update_filters_group = create_parser.add_mutually_exclusive_group()
+    update_filters_group.add_argument(
         "--filters",
         "--filters",
         help="List of filters to apply to the dashboard",
     )
-    create_parser.add_argument(
+    update_filters_group.add_argument(
+        "--filters-file",
+        "--filters_file",
+        help="File containing list of filters to apply to the dashboard",
+    )
+    update_charts_group = create_parser.add_mutually_exclusive_group()
+    update_charts_group.add_argument(
         "--charts",
         "--charts",
         help="List of charts to include in the dashboard",
+    )
+    update_charts_group.add_argument(
+        "--charts-file",
+        "--charts_file",
+        help="File containing list of charts to include in the dashboard",
     )
     create_parser.set_defaults(func=handle_dashboard_update_command)
 
@@ -3124,11 +3148,18 @@ def setup_dashboard_command(subparsers):
         help="Chart display name",
     )
     add_chart_parser.add_argument("--description", help="Chart description")
-    add_chart_parser.add_argument(
+    chart_layout_group = add_chart_parser.add_mutually_exclusive_group(
+        required=True
+    )
+    chart_layout_group.add_argument(
         "--chart-layout",
         "--chart_layout",
         help="Chart layout in JSON string",
-        required=True,
+    )
+    chart_layout_group.add_argument(
+        "--chart-layout-file",
+        "--chart_layout_file",
+        help="File containing chart layout in JSON string",
     )
     query_group = add_chart_parser.add_mutually_exclusive_group()
     query_group.add_argument("--query", help="Query for the chart")
@@ -3147,20 +3178,38 @@ def setup_dashboard_command(subparsers):
         help="Tile type for the chart",
         required=True,
     )
-    add_chart_parser.add_argument(
+    chart_datasource_group = add_chart_parser.add_mutually_exclusive_group()
+    chart_datasource_group.add_argument(
         "--chart-datasource",
         "--chart_datasource",
         help="Chart datasource JSON string",
     )
-    add_chart_parser.add_argument(
+    chart_datasource_group.add_argument(
+        "--chart-datasource-file",
+        "--chart_datasource_file",
+        help="File containing chart datasource JSON string",
+    )
+    visualization_group = add_chart_parser.add_mutually_exclusive_group()
+    visualization_group.add_argument(
         "--visualization",
         "--visualization",
         help="Visualization for the chart in JSON string",
     )
-    add_chart_parser.add_argument(
+    visualization_group.add_argument(
+        "--visualization-file",
+        "--visualization_file",
+        help="File containing visualization for the chart in JSON string",
+    )
+    drill_down_config_group = add_chart_parser.add_mutually_exclusive_group()
+    drill_down_config_group.add_argument(
         "--drill-down-config",
         "--drill_down_config",
         help="Drill down configuration for the chart in JSON string",
+    )
+    drill_down_config_group.add_argument(
+        "--drill-down-config-file",
+        "--drill_down_config_file",
+        help="File containing drill down configuration for the chart in JSON string",
     )
     add_chart_parser.set_defaults(func=handle_dashboard_add_chart_command)
 
@@ -3189,7 +3238,13 @@ def setup_dashboard_command(subparsers):
         required=True,
         help="Time interval JSON string",
     )
-    execute_query_parser.add_argument(
+    eq_filters_group = execute_query_parser.add_mutually_exclusive_group()
+    eq_filters_group.add_argument(
+        "--filters-file",
+        "--filters_file",
+        help="File containing filters for the query in JSON string",
+    )
+    eq_filters_group.add_argument(
         "--filters",
         "--filters",
         help="Filters for the query in JSON string",
@@ -3238,12 +3293,22 @@ def handle_dashboard_get_command(args, chronicle):
 def handle_dashboard_create_command(args, chronicle):
     """Handle create dashboard command."""
     try:
+        filters = args.filters if args.filters else None
+        charts = args.charts if args.charts else None
+        if args.filters_file:
+            with open(args.filters_file, "r") as f:
+                filters = f.read()
+
+        if args.charts_file:
+            with open(args.charts_file, "r") as f:
+                charts = f.read()
+
         result = chronicle.create_dashboard(
             display_name=args.display_name,
             access_type=args.access_type,
             description=args.description,
-            filters=args.filters,
-            charts=args.charts,
+            filters=filters,
+            charts=charts,
         )
         output_formatter(result, args.output)
     except APIError as e:
@@ -3257,12 +3322,30 @@ def handle_dashboard_create_command(args, chronicle):
 def handle_dashboard_update_command(args, chronicle):
     """Handle update dashboard command."""
     try:
+        filters = args.filters if args.filters else None
+        charts = args.charts if args.charts else None
+        if args.filters_file:
+            try:
+                with open(args.filters_file, "r", encoding="utf-8") as f:
+                    filters = f.read()
+            except IOError as e:
+                print(f"Error reading filters file: {e}", file=sys.stderr)
+                sys.exit(1)
+
+        if args.charts_file:
+            try:
+                with open(args.charts_file, "r", encoding="utf-8") as f:
+                    charts = f.read()
+            except IOError as e:
+                print(f"Error reading charts file: {e}", file=sys.stderr)
+                sys.exit(1)
+
         result = chronicle.update_dashboard(
             dashboard_id=args.dashboard_id,
             display_name=args.display_name,
             description=args.description,
-            filters=args.filters,
-            charts=args.charts,
+            filters=filters,
+            charts=charts,
         )
         output_formatter(result, args.output)
     except APIError as e:
@@ -3308,7 +3391,7 @@ def handle_dashboard_add_chart_command(args, chronicle):
     """Handle add chart to dashboard command."""
     try:
         # Process query from file or argument
-        query = None
+        query = args.query if args.query else None
         if args.query_file:
             try:
                 with open(args.query_file, "r", encoding="utf-8") as f:
@@ -3316,17 +3399,64 @@ def handle_dashboard_add_chart_command(args, chronicle):
             except IOError as e:
                 print(f"Error reading query file: {e}", file=sys.stderr)
                 sys.exit(1)
-        if args.query:
-            query = args.query
+        chart_layout = args.chart_layout if args.chart_layout else None
+        if args.chart_layout_file:
+            try:
+                with open(args.chart_layout_file, "r", encoding="utf-8") as f:
+                    chart_layout = f.read()
+            except IOError as e:
+                print(f"Error reading chart layout file: {e}", file=sys.stderr)
+                sys.exit(1)
+
+        visualization = args.visualization if args.visualization else None
+        if args.visualization_file:
+            try:
+                with open(args.visualization_file, "r", encoding="utf-8") as f:
+                    visualization = f.read()
+            except IOError as e:
+                print(f"Error reading visualization file: {e}", file=sys.stderr)
+                sys.exit(1)
+
+        drill_down_config = (
+            args.drill_down_config if args.drill_down_config else None
+        )
+        if args.drill_down_config_file:
+            try:
+                with open(
+                    args.drill_down_config_file, "r", encoding="utf-8"
+                ) as f:
+                    drill_down_config = f.read()
+            except IOError as e:
+                print(
+                    f"Error reading drill down config file: {e}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+        chart_datasource = (
+            args.chart_datasource if args.chart_datasource else None
+        )
+        if args.chart_datasource_file:
+            try:
+                with open(
+                    args.chart_datasource_file, "r", encoding="utf-8"
+                ) as f:
+                    chart_datasource = f.read()
+            except IOError as e:
+                print(
+                    f"Error reading chart datasource file: {e}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
 
         result = chronicle.add_chart(
             dashboard_id=args.dashboard_id,
             display_name=args.display_name,
-            chart_layout=args.chart_layout,
+            chart_layout=chart_layout,
             tile_type=args.tile_type,
-            chart_datasource=args.chart_datasource,
-            visualization=args.visualization,
-            drill_down_config=args.drill_down_config,
+            chart_datasource=chart_datasource,
+            visualization=visualization,
+            drill_down_config=drill_down_config,
             description=args.description,
             query=query,
             interval=args.interval,
@@ -3366,7 +3496,8 @@ def handle_dashboard_execute_query_command(args, chronicle):
                 file=sys.stderr,
             )
             sys.exit(1)
-        query = None
+
+        query = args.query if args.query else None
         if args.query_file:
             try:
                 with open(args.query_file, "r", encoding="utf-8") as f:
@@ -3374,9 +3505,8 @@ def handle_dashboard_execute_query_command(args, chronicle):
             except IOError as e:
                 print(f"Error reading query file: {e}", file=sys.stderr)
                 sys.exit(1)
-        elif args.query:
-            query = args.query
-        else:
+
+        if not query:
             print("Error: No query provided", file=sys.stderr)
             sys.exit(1)
 
