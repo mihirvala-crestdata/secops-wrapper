@@ -2,12 +2,13 @@
 Module for managing Google SecOps Native Dashboards.
 
 This module provides functions to 
-create, list, retrieve, update, delete dashboards, and manage dashboard charts.
+create, list, retrieve, update, duplicate, delete dashboards, 
+and manage dashboard charts.
 """
 
 import json
 import sys
-from dataclasses import dataclass
+from secops.chronicle.models import InputInterval
 from typing import Any, Dict, List, Optional, Union
 
 from secops.exceptions import APIError
@@ -44,42 +45,6 @@ class TileType(StrEnum):
 
     VISUALIZATION = "TILE_TYPE_VISUALIZATION"
     BUTTON = "TILE_TYPE_BUTTON"
-
-
-@dataclass
-class InputInterval:
-    """Input interval values to query for chart."""
-
-    time_window: Optional[Dict[str, Any]] = None
-    relative_time: Optional[Dict[str, Any]] = None
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]):
-        """Create from a dictionary."""
-        return cls(
-            time_window=data.get("time_window") or data.get("timeWindow"),
-            relative_time=data.get("relative_time") or data.get("relativeTime"),
-        )
-
-    def __post_init__(self):
-        """Validate that only one of `time_window` or `relative_time` is set."""
-        if self.time_window is not None and self.relative_time is not None:
-            raise ValueError(
-                "Only one of `time_window` or `relative_time` can be set."
-            )
-        if self.time_window is None and self.relative_time is None:
-            raise ValueError(
-                "One of `time_window` or `relative_time` must be set."
-            )
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to a dictionary."""
-        result = {}
-        if self.time_window:
-            result["timeWindow"] = self.time_window
-        if self.relative_time:
-            result["relativeTime"] = self.relative_time
-        return result
 
 
 def create_dashboard(
@@ -330,6 +295,56 @@ def delete_dashboard(client, dashboard_id: str) -> Dict[str, Any]:
     return {"status": "success", "code": response.status_code}
 
 
+def duplicate_dashboard(
+    client,
+    dashboard_id: str,
+    display_name: str,
+    access_type: DashboardAccessType,
+    description: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Duplicate a existing dashboard.
+
+    Args:
+        client: ChronicleClient instance
+        dashboard_id: ID of the dashboard to duplicate
+        display_name: New name for the duplicated dashboard
+        access_type: Access type for the duplicated dashboard
+                    (DashboardAccessType.PRIVATE or DashboardAccessType.PUBLIC)
+        description: Description for the duplicated dashboard
+
+    Returns:
+        Dictionary containing the duplicated dashboard details
+    """
+    if dashboard_id.startswith("projects/"):
+        dashboard_id = dashboard_id.split("projects/")[-1]
+
+    url = (
+        f"{client.base_url}/{client.instance_id}/"
+        f"nativeDashboards/{dashboard_id}:duplicate"
+    )
+
+    payload = {
+        "nativeDashboard": {
+            "displayName": display_name,
+            "access": access_type.value,
+            "type": "CUSTOM",
+        }
+    }
+
+    if description:
+        payload["nativeDashboard"]["description"] = description
+
+    response = client.session.post(url, json=payload)
+
+    if response.status_code != 200:
+        raise APIError(
+            f"Failed to duplicate dashboard: Status {response.status_code}, "
+            f"Response: {response.text}"
+        )
+
+    return response.json()
+
+
 def add_chart(
     client,
     dashboard_id: str,
@@ -437,6 +452,30 @@ def add_chart(
     return response.json()
 
 
+def get_chart(client, chart_id: str) -> Dict[str, Any]:
+    """Get detail for dashboard chart.
+
+    Args:
+        client: ChronicleClient instance
+        chart_id: ID of the chart
+
+    Returns:
+        Dict[str, Any]: Dictionary containing chart details
+    """
+    if chart_id.startswith("projects/"):
+        chart_id = chart_id.split("/")[-1]
+
+    url = f"{client.base_url}/{client.instance_id}/dashboardCharts/{chart_id}"
+    response = client.session.get(url)
+
+    if response.status_code != 200:
+        raise APIError(
+            f"Failed to get chart details: Status {response.status_code}, "
+            f"Response: {response.text}"
+        )
+    return response.json()
+
+
 def remove_chart(
     client,
     dashboard_id: str,
@@ -473,110 +512,6 @@ def remove_chart(
     if response.status_code != 200:
         raise APIError(
             f"Failed to remove chart: Status {response.status_code}, "
-            f"Response: {response.text}"
-        )
-
-    return response.json()
-
-
-def execute_query(
-    client,
-    query: str,
-    interval: Union[InputInterval, Dict[str, Any], str],
-    filters: Optional[Union[List[Dict[str, Any]], str]] = None,
-    clear_cache: Optional[bool] = None,
-) -> Dict[str, Any]:
-    """Execute a dashboard query and retrieve results.
-
-    Args:
-        client: ChronicleClient instance
-        query: The UDM search query to execute
-        interval: The time interval for the query
-        filters: Filters to apply to the query
-        clear_cache: Flag to read from database instead of cache
-
-    Returns:
-        Dictionary containing query results
-    """
-    url = f"{client.base_url}/{client.instance_id}/dashboardQueries:execute"
-
-    try:
-        if isinstance(interval, str):
-            interval = json.loads(interval)
-        if filters and isinstance(filters, str):
-            filters = json.loads(filters)
-            if not isinstance(filters, list):
-                filters = [filters]
-    except ValueError as e:
-        raise APIError(
-            f"Failed to parse JSON. Must be a valid JSON string: {e}"
-        ) from e
-
-    if isinstance(interval, dict):
-        interval = InputInterval.from_dict(interval)
-
-    payload = {"query": {"query": query, "input": interval.to_dict()}}
-
-    if clear_cache is not None:
-        payload["clearCache"] = clear_cache
-    if filters:
-        payload["filters"] = filters
-
-    response = client.session.post(url, json=payload)
-
-    if response.status_code != 200:
-        raise APIError(
-            f"Failed to execute query: Status {response.status_code}, "
-            f"Response: {response.text}"
-        )
-
-    return response.json()
-
-
-def duplicate_dashboard(
-    client,
-    dashboard_id: str,
-    display_name: str,
-    access_type: DashboardAccessType,
-    description: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Duplicate a existing dashboard.
-
-    Args:
-        client: ChronicleClient instance
-        dashboard_id: ID of the dashboard to duplicate
-        display_name: New name for the duplicated dashboard
-        access_type: Access type for the duplicated dashboard
-                    (DashboardAccessType.PRIVATE or DashboardAccessType.PUBLIC)
-        description: Description for the duplicated dashboard
-
-    Returns:
-        Dictionary containing the duplicated dashboard details
-    """
-    if dashboard_id.startswith("projects/"):
-        dashboard_id = dashboard_id.split("projects/")[-1]
-
-    url = (
-        f"{client.base_url}/{client.instance_id}/"
-        f"nativeDashboards/{dashboard_id}:duplicate"
-    )
-
-    payload = {
-        "nativeDashboard": {
-            "displayName": display_name,
-            "access": access_type.value,
-            "type": "CUSTOM",
-        }
-    }
-
-    if description:
-        payload["nativeDashboard"]["description"] = description
-
-    response = client.session.post(url, json=payload)
-
-    if response.status_code != 200:
-        raise APIError(
-            f"Failed to duplicate dashboard: Status {response.status_code}, "
             f"Response: {response.text}"
         )
 

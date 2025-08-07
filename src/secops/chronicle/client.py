@@ -36,11 +36,17 @@ from secops.chronicle.dashboard import delete_dashboard as _delete_dashboard
 from secops.chronicle.dashboard import (
     duplicate_dashboard as _duplicate_dashboard,
 )
-from secops.chronicle.dashboard import execute_query as _execute_dashboard_query
+from secops.chronicle.dashboard import get_chart as _get_chart
 from secops.chronicle.dashboard import get_dashboard as _get_dashboard
 from secops.chronicle.dashboard import list_dashboards as _list_dashboards
 from secops.chronicle.dashboard import remove_chart as _remove_chart
 from secops.chronicle.dashboard import update_dashboard as _update_dashboard
+from secops.chronicle.dashboard_query import (
+    execute_query as _execute_dashboard_query,
+)
+from secops.chronicle.dashboard_query import (
+    get_execute_query as _get_execute_query,
+)
 from secops.chronicle.data_export import (
     cancel_data_export as _cancel_data_export,
 )
@@ -188,8 +194,8 @@ from secops.chronicle.rule_retrohunt import (
 )
 from secops.chronicle.rule_retrohunt import get_retrohunt as _get_retrohunt
 from secops.chronicle.rule_set import (
-    batch_update_curated_rule_set_deployments as _batch_update_curated_rule_set_deployments,  # pylint: disable=line-too-long
-)
+    batch_update_curated_rule_set_deployments as _batch_update_curated_rule_set_deployments,
+)  # pylint: disable=line-too-long
 from secops.chronicle.rule_validation import validate_rule as _validate_rule
 from secops.chronicle.search import search_udm as _search_udm
 from secops.chronicle.stats import get_stats as _get_stats
@@ -2670,30 +2676,6 @@ class ChronicleClient:
             **kwargs,
         )
 
-    def execute_dashboard_query(
-        self,
-        query: str,
-        interval: Union[InputInterval, Dict[str, Any], str],
-        filters: Optional[Union[List[Dict[str, Any]], str]] = None,
-        clear_cache: Optional[bool] = None,
-    ) -> Dict[str, Any]:
-        """Execute a query for a dashboard.
-
-        Args:
-            dashboard_id: Id of the dashboard to execute the query for
-            query: Query to execute
-
-        Returns:
-            Dictionary containing the query results
-        """
-        return _execute_dashboard_query(
-            self,
-            query=query,
-            interval=interval,
-            filters=filters,
-            clear_cache=clear_cache,
-        )
-
     def duplicate_dashboard(
         self,
         dashboard_id: str,
@@ -2747,3 +2729,52 @@ class ChronicleClient:
             dashboard_id=dashboard_id,
             chart_id=chart_id,
         )
+
+    def get_chart(self, chart_id: str) -> Dict[str, Any]:
+        """Get information about a specific chart.
+
+        Args:
+            chart_id: ID of the chart to retrieve
+
+        Returns:
+            Dictionary containing chart details
+        """
+        return _get_chart(self, chart_id)
+
+    def execute_dashboard_query(
+        self,
+        query: str,
+        interval: Union[InputInterval, Dict[str, Any], str],
+        filters: Optional[Union[List[Dict[str, Any]], str]] = None,
+        clear_cache: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """Execute a query for a dashboard.
+
+        Args:
+            dashboard_id: Id of the dashboard to execute the query for
+            query: Query to execute
+            interval: The time interval for the query
+            filters: Filters to apply to the query
+            clear_cache: Flag to read from database instead of cache
+
+        Returns:
+            Dictionary containing the query results
+        """
+        return _execute_dashboard_query(
+            self,
+            query=query,
+            interval=interval,
+            filters=filters,
+            clear_cache=clear_cache,
+        )
+
+    def get_dashboard_query(self, query_id: str) -> Dict[str, Any]:
+        """Get the dashboard query details.
+
+        Args:
+            query_id: Id of the dashboard query
+
+        Returns:
+            Dictionary containing the query details
+        """
+        return _get_execute_query(self, query_id=query_id)

@@ -14,7 +14,6 @@
 #
 """Tests for the Dashboard module."""
 
-import json
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
@@ -22,11 +21,8 @@ import pytest
 
 from secops.chronicle import dashboard
 from secops.chronicle.client import ChronicleClient
-from secops.chronicle.dashboard import (
-    DashboardAccessType,
-    DashboardView,
-    InputInterval,
-)
+from secops.chronicle.dashboard import DashboardAccessType, DashboardView
+from secops.chronicle.models import InputInterval
 from secops.exceptions import APIError
 
 
@@ -735,153 +731,6 @@ class TestAddChart:
             )
 
 
-class TestExecuteQuery:
-    """Test the execute_query function."""
-
-    @pytest.fixture
-    def interval(self) -> dashboard.InputInterval:
-        """Create a sample interval for testing.
-
-        Returns:
-            An InputInterval instance.
-        """
-        return dashboard.InputInterval(
-            relative_time={"timeUnit": "DAY", "startTimeVal": "1"}
-        )
-
-    def test_execute_query_success(
-        self,
-        chronicle_client: ChronicleClient,
-        response_mock: Mock,
-        interval: dashboard.InputInterval,
-    ) -> None:
-        """Test execute_query function with successful response."""
-        response_mock.json.return_value = {
-            "results": [{"value": "test-result"}]
-        }
-        chronicle_client.session.post.return_value = response_mock
-        query = 'udm.metadata.event_type = "PROCESS_LAUNCH"'
-
-        result = dashboard.execute_query(
-            chronicle_client, query=query, interval=interval
-        )
-
-        chronicle_client.session.post.assert_called_once()
-        url = (
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/"
-            "dashboardQueries:execute"
-        )
-        payload = {
-            "query": {
-                "query": 'udm.metadata.event_type = "PROCESS_LAUNCH"',
-                "input": interval.to_dict(),
-            }
-        }
-        chronicle_client.session.post.assert_called_with(url, json=payload)
-
-        assert "results" in result
-        assert result["results"][0]["value"] == "test-result"
-
-    def test_execute_query_with_filters(
-        self,
-        chronicle_client: ChronicleClient,
-        response_mock: Mock,
-        interval: dashboard.InputInterval,
-    ) -> None:
-        """Test execute_query with filters parameter."""
-        response_mock.json.return_value = {"results": []}
-        chronicle_client.session.post.return_value = response_mock
-        query = 'udm.metadata.event_type = "PROCESS_LAUNCH"'
-        filters = [{"field": "hostname", "value": "test-host"}]
-
-        result = dashboard.execute_query(
-            chronicle_client, query=query, interval=interval, filters=filters
-        )
-
-        chronicle_client.session.post.assert_called_once()
-        url = (
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/"
-            "dashboardQueries:execute"
-        )
-        payload = {
-            "query": {"query": query, "input": interval.to_dict()},
-            "filters": filters,
-        }
-        chronicle_client.session.post.assert_called_with(url, json=payload)
-
-        assert "results" in result
-
-    def test_execute_query_with_clear_cache(
-        self,
-        chronicle_client: ChronicleClient,
-        response_mock: Mock,
-        interval: dashboard.InputInterval,
-    ) -> None:
-        """Test execute_query with clear_cache parameter."""
-        response_mock.json.return_value = {"results": []}
-        chronicle_client.session.post.return_value = response_mock
-        query = 'udm.metadata.event_type = "PROCESS_LAUNCH"'
-
-        result = dashboard.execute_query(
-            chronicle_client, query=query, interval=interval, clear_cache=True
-        )
-
-        chronicle_client.session.post.assert_called_once()
-        url = (
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/"
-            "dashboardQueries:execute"
-        )
-        payload = {
-            "query": {"query": query, "input": interval.to_dict()},
-            "clearCache": True,
-        }
-        chronicle_client.session.post.assert_called_with(url, json=payload)
-
-        assert "results" in result
-
-    def test_execute_query_with_string_json(
-        self, chronicle_client: ChronicleClient, response_mock: Mock
-    ) -> None:
-        """Test execute_query with string JSON interval."""
-        response_mock.json.return_value = {"results": []}
-        chronicle_client.session.post.return_value = response_mock
-        query = 'udm.metadata.event_type = "PROCESS_LAUNCH"'
-        interval_str = (
-            '{"relativeTime": {"timeUnit": "DAY", "startTimeVal": "1"}}'
-        )
-
-        result = dashboard.execute_query(
-            chronicle_client, query=query, interval=interval_str
-        )
-
-        chronicle_client.session.post.assert_called_once()
-        url = (
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/"
-            "dashboardQueries:execute"
-        )
-        payload = {"query": {"query": query, "input": json.loads(interval_str)}}
-        chronicle_client.session.post.assert_called_with(url, json=payload)
-
-        assert "results" in result
-
-    def test_execute_query_error(
-        self,
-        chronicle_client: ChronicleClient,
-        response_mock: Mock,
-        interval: dashboard.InputInterval,
-    ) -> None:
-        """Test execute_query function with error response."""
-        response_mock.status_code = 400
-        response_mock.text = "Invalid Query"
-        chronicle_client.session.post.return_value = response_mock
-        query = "invalid query syntax"
-
-        with pytest.raises(APIError, match="Failed to execute query"):
-            dashboard.execute_query(
-                chronicle_client, query=query, interval=interval
-            )
-
-
 class TestDuplicateDashboard:
     """Test the duplicate_dashboard function."""
 
@@ -1009,3 +858,82 @@ class TestDuplicateDashboard:
                 display_name=display_name,
                 access_type=access_type,
             )
+
+
+class TestGetChart:
+    """Test the get_chart function."""
+
+    def test_get_chart_success(
+        self, chronicle_client: ChronicleClient, response_mock: Mock
+    ) -> None:
+        """Test get_chart function with successful response."""
+        # Setup mock response
+        response_mock.json.return_value = {
+            "name": "projects/test-project/locations/test-location/dashboardCharts/test-chart",
+            "displayName": "Test Chart",
+            "visualization": {"type": "BAR_CHART"},
+        }
+        chronicle_client.session.get.return_value = response_mock
+        chart_id = "test-chart"
+
+        # Call function
+        result = dashboard.get_chart(chronicle_client, chart_id)
+
+        # Verify API call
+        chronicle_client.session.get.assert_called_once()
+        url = (
+            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/"
+            f"dashboardCharts/{chart_id}"
+        )
+        chronicle_client.session.get.assert_called_with(url)
+
+        # Verify result
+        assert result["name"].endswith("/test-chart")
+        assert result["displayName"] == "Test Chart"
+
+    def test_get_chart_with_full_id(
+        self, chronicle_client: ChronicleClient, response_mock: Mock
+    ) -> None:
+        """Test get_chart with full project path chart ID."""
+        # Setup mock response
+        response_mock.json.return_value = {
+            "name": "projects/test-project/locations/test-location/dashboardCharts/test-chart",
+            "displayName": "Test Chart",
+            "visualization": {"type": "BAR_CHART"},
+        }
+        chronicle_client.session.get.return_value = response_mock
+
+        # Full project path chart ID
+        chart_id = "projects/test-project/locations/test-location/dashboardCharts/test-chart"
+        expected_id = "test-chart"
+
+        # Call function
+        result = dashboard.get_chart(chronicle_client, chart_id)
+
+        # Verify API call uses the extracted ID
+        chronicle_client.session.get.assert_called_once()
+        url = (
+            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/"
+            f"dashboardCharts/{expected_id}"
+        )
+        chronicle_client.session.get.assert_called_with(url)
+
+        # Verify result
+        assert result["displayName"] == "Test Chart"
+
+    def test_get_chart_error(
+        self, chronicle_client: ChronicleClient, response_mock: Mock
+    ) -> None:
+        """Test get_chart function with error response."""
+        # Setup error response
+        response_mock.status_code = 404
+        response_mock.text = "Chart not found"
+        chronicle_client.session.get.return_value = response_mock
+        chart_id = "nonexistent-chart"
+
+        # Verify the function raises an APIError
+        with pytest.raises(APIError, match="Failed to get chart details"):
+            dashboard.get_chart(chronicle_client, chart_id)
+
+        # Verify API call
+        chronicle_client.session.get.assert_called_once()

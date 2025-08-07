@@ -30,12 +30,13 @@ from secops.chronicle.dashboard import (
     create_dashboard,
     delete_dashboard,
     duplicate_dashboard,
-    execute_query,
+    get_chart,
     get_dashboard,
     list_dashboards,
     remove_chart,
     update_dashboard,
 )
+from secops.chronicle.dashboard_query import execute_query, get_execute_query
 from secops.chronicle.data_export import (
     AvailableLogType,
     cancel_data_export,
@@ -126,12 +127,12 @@ from secops.chronicle.rule_set import batch_update_curated_rule_set_deployments
 from secops.chronicle.rule_validation import ValidationResult
 from secops.chronicle.search import search_udm
 from secops.chronicle.stats import get_stats
+from secops.chronicle.udm_mapping import (
+    RowLogFormat,
+    generate_udm_key_value_mappings,
+)
 from secops.chronicle.udm_search import fetch_udm_search_csv
 from secops.chronicle.validate import validate_query
-from secops.chronicle.udm_mapping import (
-    generate_udm_key_value_mappings,
-    RowLogFormat,
-)
 
 __all__ = [
     # Client
@@ -211,11 +212,14 @@ __all__ = [
     "create_dashboard",
     "delete_dashboard",
     "duplicate_dashboard",
-    "execute_query",
+    "get_chart",
     "get_dashboard",
     "list_dashboards",
     "remove_chart",
     "update_dashboard",
+    # Dashboard Queries
+    "execute_query",
+    "get_execute_query",
     # Models
     "Entity",
     "EntityMetadata",

@@ -3228,39 +3228,12 @@ def setup_dashboard_command(subparsers):
     )
     remove_chart_parser.set_defaults(func=handle_dashboard_remove_chart_command)
 
-    # Execute query
-    execute_query_parser = dashboard_subparsers.add_parser(
-        "execute-query", help="Execute a dashboard query"
+    # Get chart
+    get_chart_parser = dashboard_subparsers.add_parser(
+        "get-chart", help="Get a chart from a dashboard"
     )
-    execute_query_parser.add_argument("--query", help="Query to execute")
-    execute_query_parser.add_argument(
-        "--query-file", "--query_file", help="File containing query to execute"
-    )
-    execute_query_parser.add_argument(
-        "--interval",
-        required=True,
-        help="Time interval JSON string",
-    )
-    eq_filters_group = execute_query_parser.add_mutually_exclusive_group()
-    eq_filters_group.add_argument(
-        "--filters-file",
-        "--filters_file",
-        help="File containing filters for the query in JSON string",
-    )
-    eq_filters_group.add_argument(
-        "--filters",
-        "--filters",
-        help="Filters for the query in JSON string",
-    )
-    execute_query_parser.add_argument(
-        "--clear-cache",
-        "--clear_cache",
-        choices=["true", "false"],
-        help="Clear cache for the query",
-    )
-    execute_query_parser.set_defaults(
-        func=handle_dashboard_execute_query_command
-    )
+    get_chart_parser.add_argument("--id", help="Chart ID to get")
+    get_chart_parser.set_defaults(func=handle_dashboard_get_chart_command)
 
 
 def handle_dashboard_list_command(args, chronicle):
@@ -3489,7 +3462,73 @@ def handle_dashboard_remove_chart_command(args, chronicle):
         sys.exit(1)
 
 
-def handle_dashboard_execute_query_command(args, chronicle):
+def handle_dashboard_get_chart_command(args, chronicle):
+    """Handle get chart command."""
+    try:
+        result = chronicle.get_chart(chart_id=args.id)
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error getting chart: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def setup_dashboard_query_command(subparsers):
+    """Set up dashboard query command."""
+    dashboard_query_parser = subparsers.add_parser(
+        "dashboard-query", help="Manage Chronicle dashboard queries"
+    )
+    dashboard_query_subparsers = dashboard_query_parser.add_subparsers(
+        dest="dashboard_query_command",
+        help="Dashboard query command to execute",
+        required=True,
+    )
+
+    # Execute query
+    execute_query_parser = dashboard_query_subparsers.add_parser(
+        "execute", help="Execute a dashboard query"
+    )
+    execute_query_parser.add_argument("--query", help="Query to execute")
+    execute_query_parser.add_argument(
+        "--query-file", "--query_file", help="File containing query to execute"
+    )
+    execute_query_parser.add_argument(
+        "--interval",
+        required=True,
+        help="Time interval JSON string",
+    )
+    eq_filters_group = execute_query_parser.add_mutually_exclusive_group()
+    eq_filters_group.add_argument(
+        "--filters-file",
+        "--filters_file",
+        help="File containing filters for the query in JSON string",
+    )
+    eq_filters_group.add_argument(
+        "--filters",
+        "--filters",
+        help="Filters for the query in JSON string",
+    )
+    execute_query_parser.add_argument(
+        "--clear-cache",
+        "--clear_cache",
+        choices=["true", "false"],
+        help="Clear cache for the query",
+    )
+    execute_query_parser.set_defaults(
+        func=handle_dashboard_query_execute_command
+    )
+
+    # Get query
+    get_query_parser = dashboard_query_subparsers.add_parser(
+        "get", help="Get a dashboard query"
+    )
+    get_query_parser.add_argument("--id", required=True, help="Query ID")
+    get_query_parser.set_defaults(func=handle_dashboard_query_get_command)
+
+
+def handle_dashboard_query_execute_command(args, chronicle):
     """Handle execute dashboard query command."""
     try:
         # Process query from file or argument
@@ -3528,6 +3567,19 @@ def handle_dashboard_execute_query_command(args, chronicle):
         sys.exit(1)
 
 
+def handle_dashboard_query_get_command(args, chronicle):
+    """Handle get dashboard query command."""
+    try:
+        result = chronicle.get_dashboard_query(query_id=args.id)
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error getting query: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(description="Google SecOps CLI")
@@ -3561,6 +3613,7 @@ def main() -> None:
     setup_config_command(subparsers)
     setup_help_command(subparsers)
     setup_dashboard_command(subparsers)
+    setup_dashboard_query_command(subparsers)
 
     # Parse arguments
     args = parser.parse_args()
