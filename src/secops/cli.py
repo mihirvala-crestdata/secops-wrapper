@@ -3209,7 +3209,10 @@ def setup_dashboard_command(subparsers):
     drill_down_config_group.add_argument(
         "--drill-down-config-file",
         "--drill_down_config_file",
-        help="File containing drill down configuration for the chart in JSON string",
+        help=(
+            "File containing drill down configuration for "
+            "the chart in JSON string"
+        ),
     )
     add_chart_parser.set_defaults(func=handle_dashboard_add_chart_command)
 
@@ -3296,11 +3299,11 @@ def handle_dashboard_create_command(args, chronicle):
         filters = args.filters if args.filters else None
         charts = args.charts if args.charts else None
         if args.filters_file:
-            with open(args.filters_file, "r") as f:
+            with open(args.filters_file, "r", encoding="utf-8") as f:
                 filters = f.read()
 
         if args.charts_file:
-            with open(args.charts_file, "r") as f:
+            with open(args.charts_file, "r", encoding="utf-8") as f:
                 charts = f.read()
 
         result = chronicle.create_dashboard(
