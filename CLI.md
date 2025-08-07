@@ -1016,7 +1016,7 @@ secops dashboard create --display-name "Security Overview" \
 secops dashboard create --display-name "Security Overview" \
                         --description "Security monitoring dashboard" \
                         --access-type PRIVATE \
-                        --filters '[{\"id\": \"GlobalTimeFilter\", \"dataSource\": \"GLOBAL\", \"filterOperatorAndFieldValues\": [{\"filterOperator\": \"PAST\", \"fieldValues\": [\"7\", \"DAY\"]}], \"displayName\": \"Global Time Filter\", \"chartIds\": [], \"isStandardTimeRangeFilter\": true, \"isStandardTimeRangeFilterEnabled\": true}]' \
+                        --filters-file filters.json \
                         --charts '[{\"dashboardChart\": \"projects/<project_id>/locations/<location>/instances/<instacne_id>/dashboardCharts/<chart_id>\", \"chartLayout\": {\"startX\": 0, \"spanX\": 48, \"startY\": 0, \"spanY\": 26}, \"filtersIds\": [\"GlobalTimeFilter\"]}]'
 ```
 
@@ -1032,7 +1032,7 @@ secops dashboard list --page-size 10
 
 Update dashboard:
 ```bash
-secops dashboard update --id dashboard-id --display-name "Updated Security Dashboard" --description "Updated security monitoring dashboard" --access-type PRIVATE --filters '[{"id": "GlobalTimeFilter", "dataSource": "GLOBAL", "filterOperatorAndFieldValues": [{"filterOperator": "PAST", "fieldValues": ["7", "DAY"]}], "displayName": "Global Time Filter", "chartIds": [], "isStandardTimeRangeFilter": true, "isStandardTimeRangeFilterEnabled": true}]' --charts '[{"dashboardChart": "projects/<project_id>/locations/<location>/instances/<instacne_id>/dashboardCharts/<chart_id>", "chartLayout": {"startX": 0, "spanX": 48, "startY": 0, "spanY": 26}, "filtersIds": ["GlobalTimeFilter"]}]'
+secops dashboard update --id dashboard-id --display-name "Updated Security Dashboard" --description "Updated security monitoring dashboard" --access-type PRIVATE --filters '[{"id": "GlobalTimeFilter", "dataSource": "GLOBAL", "filterOperatorAndFieldValues": [{"filterOperator": "PAST", "fieldValues": ["7", "DAY"]}], "displayName": "Global Time Filter", "chartIds": [], "isStandardTimeRangeFilter": true, "isStandardTimeRangeFilterEnabled": true}]' --charts-file charts.json
 ```
 
 Delete dashboard:
@@ -1055,6 +1055,7 @@ secops dashboard add-chart --dashboard-id dashboard-id \
                            --chart_layout '{\"startX\": 0, \"spanX\": 12, \"startY\": 0, \"spanY\": 8}' \
                            --chart_datasource '{\"dataSources\": [\"UDM\"]}' \
                            --interval '{\"relativeTime\": {\"timeUnit\": \"DAY\", \"startTimeVal\": \"1\"}}' \
+                           --visualization-file visualization.json \
                            --tile_type VISUALIZATION
 ```
 
