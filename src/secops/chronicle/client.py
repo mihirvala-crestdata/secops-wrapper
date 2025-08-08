@@ -194,8 +194,8 @@ from secops.chronicle.rule_retrohunt import (
 )
 from secops.chronicle.rule_retrohunt import get_retrohunt as _get_retrohunt
 from secops.chronicle.rule_set import (
-    batch_update_curated_rule_set_deployments as _batch_update_curated_rule_set_deployments,
-)  # pylint: disable=line-too-long
+    batch_update_curated_rule_set_deployments as _batch_update_curated_rule_set_deployments,  # pylint: disable=line-too-long
+)
 from secops.chronicle.rule_validation import validate_rule as _validate_rule
 from secops.chronicle.search import search_udm as _search_udm
 from secops.chronicle.stats import get_stats as _get_stats
