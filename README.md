@@ -2017,6 +2017,35 @@ chart = client.add_chart(
 )
 ```
 
+## Get Dashboard Chart Details
+```python
+# Get dashboard chart details
+dashboard_chart = client.get_chart(
+    chart_id="chart-id-here"
+)
+print(f"Dashboard Chart Details: {dashboard_chart}")
+```
+
+### Remove Chart from existing dashboard
+```python
+# Remove chart from dashboard
+client.remove_chart(
+    dashboard_id="dashboard-id-here",
+    chart_id="chart-id-here"
+)
+```
+
+### Delete existing dashboard
+```python
+# Delete a dashboard
+client.delete_dashboard(dashboard_id="dashboard-id-here")
+print("Dashboard deleted successfully")
+```
+
+## Dashboard Query
+
+The Chronicle Dashboard Query API provides methods to execute dashboard queries without creating a dashboard and get details of dashboard query.
+
 ### Execute Dashboard Query
 ```python
 # Define query and time interval
@@ -2049,20 +2078,13 @@ for result in results.get("results", []):
     print(result)
 ```
 
-### Remove Chart from existing dashboard
+### Get Dashboard Query details
 ```python
-# Remove chart from dashboard
-client.remove_chart(
-    dashboard_id="dashboard-id-here",
-    chart_id="chart-id-here"
+# Get dashboard query details
+dashboard_query = client.get_dashboard_query(
+    query_id="query-id-here"
 )
-```
-
-### Delete existing dashboard
-```python
-# Delete a dashboard
-client.delete_dashboard(dashboard_id="dashboard-id-here")
-print("Dashboard deleted successfully")
+print(f"Dashboard Query Details: {dashboard_query}")
 ```
 
 ## Error Handling

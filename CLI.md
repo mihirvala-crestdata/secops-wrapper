@@ -1059,17 +1059,31 @@ secops dashboard add-chart --dashboard-id dashboard-id \
                            --tile_type VISUALIZATION
 ```
 
+Get existing chart detail:
+```bash
+secops dashboard get-chart --id chart-id
+```
+
 Remove Chart from existing dashboard:
 ```bash
 secops dashboard remove-chart --dashboard-id dashboard-id \
                               --chart-id chart-id
 ```
 
+### Dashboard Query
+
+Dashboard query commands provide option to execute query without dashboard and get details of existing dashboard query.
+
 Executing Dashboard Query:
 ```bash
-secops dashboard execute-query --dashboard-id dashboard-id \
-                              --query-file dns_query.txt \
-                              --interval '{\"relativeTime\": {\"timeUnit\": \"DAY\", \"startTimeVal\": \"7\"}}'
+secops dashboard-query execute --query-file dns_query.txt \
+                              --interval '{\"relativeTime\": {\"timeUnit\": \"DAY\", \"startTimeVal\": \"7\"}}' \
+                              --filters-file filters.json
+```
+
+Get Dashboard Query details:
+```bash
+secops dashboard-query get --id query-id
 ```
 
 ## Conclusion
