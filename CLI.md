@@ -1064,6 +1064,18 @@ Get existing chart detail:
 secops dashboard get-chart --id chart-id
 ```
 
+Edit existing chart details:
+```bash
+secops dashboard edit-chart --dashboard-id dashboard-id \
+                            --dashboard-chart-from-file dashboard_chart.json \
+                            --dashboard-query-from-file dashboard_query.json
+
+# Edit with JSON string        
+secops dashboard edit-chart --dashboard-id dashboard-id \
+                            --dashboard-chart '{\"name\": \"<query_id>\",\n    \"query\": \"metadata.event_type = \\\"USER_LOGIN\\\"\\nmatch:\\n  principal.user.userid\\noutcome:\\n  $logon_count = count(metadata.id)\\norder:\\n  $logon_count desc\\nlimit: 10\",\n    \"input\": {\"relativeTime\": {\"timeUnit\": \"DAY\", \"startTimeVal\": \"1\"}},\n    \"etag\": \"<etag>\"}' \
+                            --dashboard-query '{\"name\": \"<ChartID>\",\n    \"displayName\": \"Updated Display name\",\n    \"description\": \"Updaed description\",\n    \"etag\": \"<etag>\"}'
+```
+
 Remove Chart from existing dashboard:
 ```bash
 secops dashboard remove-chart --dashboard-id dashboard-id \

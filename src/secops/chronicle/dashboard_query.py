@@ -1,7 +1,7 @@
 """
 Module for Google SecOps Dashboard query.
 
-This module provides functions to 
+This module provides functions to
 execute and get dashboard query.
 """
 

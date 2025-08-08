@@ -1,17 +1,22 @@
 """
 Module for managing Google SecOps Native Dashboards.
 
-This module provides functions to 
-create, list, retrieve, update, duplicate, delete dashboards, 
+This module provides functions to
+create, list, retrieve, update, duplicate, delete dashboards,
 and manage dashboard charts.
 """
 
 import json
 import sys
-from secops.chronicle.models import InputInterval
 from typing import Any, Dict, List, Optional, Union
 
-from secops.exceptions import APIError
+from secops.chronicle.models import (
+    DashboardChart,
+    DashboardQuery,
+    InputInterval,
+    TileType,
+)
+from secops.exceptions import APIError, SecOpsError
 
 # Use built-in StrEnum if Python 3.11+, otherwise create a compatible version
 if sys.version_info >= (3, 11):
@@ -38,13 +43,6 @@ class DashboardView(StrEnum):
 
     BASIC = "NATIVE_DASHBOARD_VIEW_BASIC"
     FULL = "NATIVE_DASHBOARD_VIEW_FULL"
-
-
-class TileType(StrEnum):
-    """Valid tile types."""
-
-    VISUALIZATION = "TILE_TYPE_VISUALIZATION"
-    BUTTON = "TILE_TYPE_BUTTON"
 
 
 def create_dashboard(
@@ -512,6 +510,99 @@ def remove_chart(
     if response.status_code != 200:
         raise APIError(
             f"Failed to remove chart: Status {response.status_code}, "
+            f"Response: {response.text}"
+        )
+
+    return response.json()
+
+
+def edit_chart(
+    client,
+    dashboard_id: str,
+    dashboard_query: Optional[
+        Union[Dict[str, Any], DashboardQuery, str]
+    ] = None,
+    dashboard_chart: Optional[
+        Union[Dict[str, Any], DashboardChart, str]
+    ] = None,
+) -> Dict[str, Any]:
+    """Edit an existing chart in a dashboard.
+
+    Args:
+        client: ChronicleClient instance
+        dashboard_id: ID of the dashboard containing the chart
+        dashboard_query: Chart Query to edit in JSON or JSON String
+            eg:{
+                "name": "<query_id>",
+                "query": "<chart query>",
+                "input": {},
+                "etag":"123131231321321"
+            }
+        dashboard_chart: Chart to edit in JSON or JSON string
+            eg:{
+                "name": "<chart_id>"
+                "displayName": "<chart display name>",
+                "description": "<chart description>",
+                "visualization": {},
+                "chartDatasource": { "dataSources":[]},
+                "etag": "123131231321321"
+            }
+    Returns:
+        Dictionary containing the updated dashboard with edited chart
+    """
+    if dashboard_id.startswith("projects/"):
+        dashboard_id = dashboard_id.split("projects/")[-1]
+
+    payload = {}
+    update_fields = []
+
+    if dashboard_query:
+        if isinstance(dashboard_query, str):
+            try:
+                dashboard_query = DashboardQuery.from_dict(
+                    json.loads(dashboard_query)
+                )
+            except ValueError as e:
+                raise SecOpsError("Invalid dashboard query JSON") from e
+        if isinstance(dashboard_query, dict):
+            dashboard_query = DashboardQuery.from_dict(dashboard_query)
+
+        if not dashboard_query.name.startswith("projects/"):
+            dashboard_query.name = (
+                f"{client.instance_id}/dashboardQueries/{dashboard_query.name}"
+            )
+        payload["dashboardQuery"] = dashboard_query.to_dict()
+        update_fields.extend(dashboard_query.update_fields())
+
+    if dashboard_chart:
+        if isinstance(dashboard_chart, str):
+            try:
+                dashboard_chart = DashboardChart.from_dict(
+                    json.loads(dashboard_chart)
+                )
+            except ValueError as e:
+                raise SecOpsError("Invalid dashboard chart JSON") from e
+        if isinstance(dashboard_chart, dict):
+            dashboard_chart = DashboardChart.from_dict(dashboard_chart)
+
+        if not dashboard_chart.name.startswith("projects/"):
+            dashboard_chart.name = (
+                f"{client.instance_id}/dashboardCharts/{dashboard_chart.name}"
+            )
+        payload["dashboardChart"] = dashboard_chart.to_dict()
+        update_fields.extend(dashboard_chart.update_fields())
+
+    payload["editMask"] = ",".join(update_fields)
+
+    url = (
+        f"{client.base_url}/{client.instance_id}/"
+        f"nativeDashboards/{dashboard_id}:editChart"
+    )
+    response = client.session.post(url, json=payload)
+
+    if response.status_code != 200:
+        raise APIError(
+            f"Failed to edit chart: Status {response.status_code}, "
             f"Response: {response.text}"
         )
 

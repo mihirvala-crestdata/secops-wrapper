@@ -24,18 +24,14 @@ from google.auth.transport import requests as google_auth_requests
 from secops import auth as secops_auth
 from secops.chronicle.alert import get_alerts as _get_alerts
 from secops.chronicle.case import get_cases_from_list
-from secops.chronicle.dashboard import (
-    DashboardAccessType,
-    DashboardView,
-    InputInterval,
-    TileType,
-)
+from secops.chronicle.dashboard import DashboardAccessType, DashboardView
 from secops.chronicle.dashboard import add_chart as _add_chart
 from secops.chronicle.dashboard import create_dashboard as _create_dashboard
 from secops.chronicle.dashboard import delete_dashboard as _delete_dashboard
 from secops.chronicle.dashboard import (
     duplicate_dashboard as _duplicate_dashboard,
 )
+from secops.chronicle.dashboard import edit_chart as _edit_chart
 from secops.chronicle.dashboard import get_chart as _get_chart
 from secops.chronicle.dashboard import get_dashboard as _get_dashboard
 from secops.chronicle.dashboard import list_dashboards as _list_dashboards
@@ -98,7 +94,14 @@ from secops.chronicle.log_types import (
 )
 from secops.chronicle.log_types import is_valid_log_type as _is_valid_log_type
 from secops.chronicle.log_types import search_log_types as _search_log_types
-from secops.chronicle.models import CaseList, EntitySummary
+from secops.chronicle.models import (
+    CaseList,
+    DashboardChart,
+    DashboardQuery,
+    EntitySummary,
+    InputInterval,
+    TileType,
+)
 from secops.chronicle.nl_search import nl_search as _nl_search
 from secops.chronicle.nl_search import translate_nl_to_udm
 from secops.chronicle.parser import activate_parser as _activate_parser
@@ -2740,6 +2743,48 @@ class ChronicleClient:
             Dictionary containing chart details
         """
         return _get_chart(self, chart_id)
+
+    def edit_chart(
+        self,
+        dashboard_id: str,
+        dashboard_chart: Optional[
+            Union[Dict[str, Any], DashboardChart, str]
+        ] = None,
+        dashboard_query: Optional[
+            Union[Dict[str, Any], DashboardQuery, str]
+        ] = None,
+    ) -> Dict[str, Any]:
+        """Edit an existing chart in a dashboard.
+
+        Args:
+            dashboard_id: ID of the dashboard containing the chart
+            dashboard_chart: Chart to edit in JSON or JSON string
+                eg:{
+                    "name": "<chart_id>"
+                    "displayName": "<chart display name>",
+                    "description": "<chart description>",
+                    "visualization": {},
+                    "chartDatasource": { "dataSources":[]},
+                    "etag": "123131231321321"
+                }
+
+            dashboard_query: Chart Query to edit in JSON or JSON String
+                eg:{
+                    "name": "<query_id>",
+                    "query": "<chart query>",
+                    "input": {},
+                    "etag":"123131231321321"
+                }
+        Returns:
+            Dictionary containing the updated dashboard with edited chart
+        """
+
+        return _edit_chart(
+            self,
+            dashboard_id=dashboard_id,
+            dashboard_chart=dashboard_chart,
+            dashboard_query=dashboard_query,
+        )
 
     def execute_dashboard_query(
         self,

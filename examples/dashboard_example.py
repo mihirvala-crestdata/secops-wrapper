@@ -54,7 +54,7 @@ def example_create_dashboard(chronicle: ChronicleClient) -> Optional[str]:
     """
     print("\n=== Create Dashboard ===")
 
-    display_name = "Test Dashboard - " + f"{uuid.uuid4()}"
+    display_name = f"Test Dashboard - {uuid.uuid4()}"
     description = "A test dashboard created via API example"
     access_type = "PRIVATE"
 
@@ -203,7 +203,9 @@ def example_duplicate_dashboard(
         return None
 
 
-def example_add_chart(chronicle: ChronicleClient, dashboard_id: str) -> None:
+def example_add_chart(
+    chronicle: ChronicleClient, dashboard_id: str
+) -> Optional[dict]:
     """Add a chart to an existing dashboard.
 
     Args:
@@ -217,14 +219,14 @@ def example_add_chart(chronicle: ChronicleClient, dashboard_id: str) -> None:
 
         # Sample chart query
         query = """
-metadata.event_type = "NETWORK_DNS"
-match:
-  principal.hostname
-outcome:
-  $dns_query_count = count(metadata.id)
-order:
-  principal.hostname asc
-"""
+        metadata.event_type = "NETWORK_DNS"
+        match:
+        principal.hostname
+        outcome:
+        $dns_query_count = count(metadata.id)
+        order:
+        principal.hostname asc
+        """
 
         # Chart layout and configuration
         chart_layout = {"startX": 0, "spanX": 12, "startY": 0, "spanY": 8}
@@ -245,8 +247,123 @@ order:
 
         print("Chart added successfully:")
         print(json.dumps(result, indent=2))
+        return result
+
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error adding chart to dashboard: {e}")
+
+
+def example_get_chart(
+    chronicle: ChronicleClient, chart_id: str
+) -> Optional[dict]:
+    """Get details of a specific chart.
+
+    Args:
+        chronicle: ChronicleClient instance
+        chart_id: ID of the chart to retrieve
+    """
+    print("\n=== Get Dashboard Chart Details ===")
+
+    try:
+        chart_details = chronicle.get_chart(chart_id=chart_id)
+
+        print("\nChart details:")
+        print(f"- Name: {chart_details.get('name')}")
+        print(f"- Display Name: {chart_details.get('displayName')}")
+        print(f"- Description: {chart_details.get('description', 'N/A')}")
+        print(f"- ETag: {chart_details.get('etag')}")
+
+        print("\nFull chart details:")
+        print(json.dumps(chart_details, indent=2))
+
+        return chart_details
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error getting chart details: {e}")
+        return None
+
+
+def example_edit_chart(
+    chronicle: ChronicleClient, dashboard_id: str, chart_id: str
+) -> None:
+    """Edit an existing chart in a dashboard.
+
+    Args:
+        chronicle: ChronicleClient instance
+        dashboard_id: ID of the dashboard containing the chart
+        chart_id: ID of the chart to edit
+    """
+    print("\n=== Edit Dashboard Chart ===")
+
+    try:
+        # First get the chart details to obtain the etag
+        chart_details = chronicle.get_chart(chart_id=chart_id)
+        if not chart_details:
+            print("Could not retrieve chart details for editing")
+            return
+
+        # Prepare the updated chart details
+        updated_chart_name = f"Updated Chart {uuid.uuid4()}"
+
+        updated_dashboard_chart = {
+            "name": chart_details["name"],
+            "displayName": updated_chart_name,
+            "description": "This chart was updated by the example script",
+            "etag": chart_details["etag"],
+        }
+
+        print(f"\nUpdating chart with new name: {updated_chart_name}")
+
+        # Edit the chart
+        result = chronicle.edit_chart(
+            dashboard_id=dashboard_id,
+            dashboard_chart=updated_dashboard_chart,
+        )
+
+        print("\nChart updated successfully!")
+        print(f"- Updated Name: {result['dashboardChart']['displayName']}")
+        print(f"- Updated ETag: {result['dashboardChart']['etag']}")
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error editing chart: {e}")
+
+
+def example_remove_chart(
+    chronicle: ChronicleClient, dashboard_id: str, chart_id: str
+) -> None:
+    """Remove a chart from a dashboard.
+
+    Args:
+        chronicle: ChronicleClient instance
+        dashboard_id: ID of the dashboard containing the chart
+        chart_id: ID of the chart to remove
+    """
+    print("\n=== Remove Dashboard Chart ===")
+
+    try:
+        print(f"\nDeleting chart with ID: {chart_id}")
+        chronicle.remove_chart(dashboard_id=dashboard_id, chart_id=chart_id)
+        print("Chart removed successfully")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error deleting chart: {e}")
+
+
+def example_delete_dashboard(
+    chronicle: ChronicleClient, dashboard_id: str
+) -> None:
+    """Delete a dashboard.
+
+    Args:
+        chronicle: ChronicleClient instance
+        dashboard_id: ID of the dashboard to delete
+    """
+    print("\n=== Delete Dashboard ===")
+
+    try:
+        print(f"\nDeleting dashboard with ID: {dashboard_id}")
+        chronicle.delete_dashboard(dashboard_id=dashboard_id)
+        print("Dashboard deleted successfully")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error deleting dashboard: {e}")
 
 
 def example_execute_dashboard_query(chronicle: ChronicleClient) -> None:
@@ -260,15 +377,15 @@ def example_execute_dashboard_query(chronicle: ChronicleClient) -> None:
     try:
         # Sample query
         query = """
-metadata.event_type = "USER_LOGIN"
-match:
-  principal.user.userid
-outcome:
-  $logon_count = count(metadata.id)
-order:
-  $logon_count desc
-limit: 10
-"""
+        metadata.event_type = "USER_LOGIN"
+        match:
+        principal.user.userid
+        outcome:
+        $logon_count = count(metadata.id)
+        order:
+        $logon_count desc
+        limit: 10
+        """
 
         interval = {"relativeTime": {"timeUnit": "DAY", "startTimeVal": "1"}}
 
@@ -293,23 +410,34 @@ limit: 10
         print(f"Error executing dashboard query: {e}")
 
 
-def example_delete_dashboard(
-    chronicle: ChronicleClient, dashboard_id: str
-) -> None:
-    """Delete a dashboard.
+def example_get_dashboard_query(
+    chronicle: ChronicleClient, query_id: str
+) -> Optional[dict]:
+    """Get a dashboard query.
 
     Args:
         chronicle: ChronicleClient instance
-        dashboard_id: ID of the dashboard to delete
+        query_id: Dashboard query ID
+
+    Returns:
+        Dashboard query details as a dictionary, or None if not found
     """
-    print("\n=== Delete Dashboard ===")
+    print("\n=== Get Dashboard Query ===")
 
     try:
-        print(f"\nDeleting dashboard with ID: {dashboard_id}")
-        chronicle.delete_dashboard(dashboard_id=dashboard_id)
-        print("Dashboard deleted successfully")
+        print(f"\nGetting dashboard query: {query_id}")
+
+        result = chronicle.get_dashboard_query(query_id=query_id)
+
+        if result:
+            print("\nQuery details:")
+            print(json.dumps(result, indent=2))
+        else:
+            print("Dashboard query not found")
+        return result
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error deleting dashboard: {e}")
+        print(f"Error getting dashboard query: {e}")
+        return None
 
 
 # Map of example functions
@@ -319,9 +447,13 @@ EXAMPLES = {
     "3": example_list_dashboards,
     "4": example_update_dashboard,
     "5": example_duplicate_dashboard,
-    "6": example_add_chart,
-    "7": example_execute_dashboard_query,
-    "8": example_delete_dashboard,
+    "6": example_delete_dashboard,
+    "7": example_add_chart,
+    "8": example_get_chart,
+    "9": example_edit_chart,
+    "10": example_remove_chart,
+    "11": example_execute_dashboard_query,
+    "12": example_get_dashboard_query,
 }
 
 
@@ -344,83 +476,187 @@ def main() -> None:
         "-e",
         help=(
             "Example number to run (1-8). "
-            "If not specified, runs all examples in sequence. "
-            "1: Create Dashboard, 2: Get Dashboard, 3: List Dashboards, "
-            "4: Update Dashboard, 5: Duplicate Dashboard, 6: Add Chart, "
-            "7: Execute Dashboard Query, 8: Delete Dashboard"
+            "1: Create Dashboard, "
+            "2: Get Dashboard, "
+            "3: List Dashboards, "
+            "4: Update Dashboard, "
+            "5: Duplicate Dashboard, "
+            "6: Delete Dashboard, "
+            "7: Add Chart, "
+            "8: Get Chart, "
+            "9: Edit Chart, "
+            "10: Delete Chart, "
+            "0: Run All Examples"
         ),
+    )
+    parser.add_argument(
+        "--dashboard_id", help="Dashboard ID for examples requiring a dashboard"
+    )
+    parser.add_argument(
+        "--chart_id", help="Chart ID for examples requiring a chart"
+    )
+    parser.add_argument(
+        "--query_id", help="Query ID for examples requiring a query"
     )
 
     args = parser.parse_args()
 
-    # Initialize the client
-    chronicle = get_client(args.project_id, args.customer_id, args.region)
+    # Initialize the Chronicle client
+    chronicle = get_client(
+        project_id=args.project_id,
+        customer_id=args.customer_id,
+        region=args.region,
+    )
 
-    # Keep track of created resources for cleanup
     dashboard_ids = []
+    chart_id = args.chart_id
 
     try:
-        if args.example:
-            if args.example not in EXAMPLES:
+        if args.example == "1":
+            # Create Dashboard example
+            created_dash = example_create_dashboard(chronicle)
+            if created_dash:
+                dashboard_ids.append(created_dash)
+
+        elif args.example == "2":
+            # Get Dashboard example
+            if not args.dashboard_id:
+                print("Error: dashboard_id is required for this example")
+                return
+            example_get_dashboard(chronicle, args.dashboard_id)
+
+        elif args.example == "3":
+            # List Dashboards example
+            example_list_dashboards(chronicle)
+
+        elif args.example == "4":
+            # Update Dashboard example
+            if not args.dashboard_id:
+                print("Error: dashboard_id is required for this example")
+                return
+            example_update_dashboard(chronicle, args.dashboard_id)
+
+        elif args.example == "5":
+            # Duplicate Dashboard example
+            if not args.dashboard_id:
+                print("Error: dashboard_id is required for this example")
+                return
+            duplicated = example_duplicate_dashboard(
+                chronicle, args.dashboard_id
+            )
+            if duplicated:
+                dashboard_ids.append(duplicated)
+
+        elif args.example == "6":
+            # Delete Dashboard example
+            if not args.dashboard_id:
+                print("Error: dashboard_id is required for this example")
+                return
+            example_delete_dashboard(chronicle, args.dashboard_id)
+
+        elif args.example == "7":
+            # Add Chart example
+            if not args.dashboard_id:
+                print("Error: dashboard_id is required for this example")
+                return
+            result = example_add_chart(chronicle, args.dashboard_id)
+            if result and "dashboardChart" in result:
+                chart_id = result["dashboardChart"]["name"].split("/")[-1]
+                print(f"Created chart ID: {chart_id}")
+
+        elif args.example == "8":
+            # Get Chart example
+            if not args.chart_id:
+                print("Error: chart_id is required for this example")
+                return
+            example_get_chart(chronicle, args.chart_id)
+
+        elif args.example == "9":
+            # Edit Chart example
+            if not args.dashboard_id or not args.chart_id:
                 print(
-                    f"Invalid example number. Available examples: "
-                    f"{', '.join(EXAMPLES.keys())}"
+                    "Error: dashboard_id and chart_id "
+                    "are required for this example"
                 )
                 return
+            example_edit_chart(chronicle, args.dashboard_id, args.chart_id)
 
-            if args.example == "1":  # Create dashboard
-                dashboard_id = EXAMPLES[args.example](chronicle)
-                if dashboard_id:
-                    dashboard_ids.append(dashboard_id)
-            elif args.example == "3":  # List dashboards
-                EXAMPLES[args.example](chronicle)
-            elif args.example == "7":  # Execute query
-                EXAMPLES[args.example](chronicle)
-            else:
-                # First create a dashboard to use for examples
-                dashboard_id = example_create_dashboard(chronicle)
-                if dashboard_id:
-                    dashboard_ids.append(dashboard_id)
-                    time.sleep(2)  # Wait for dashboard to be fully created
+        elif args.example == "10":
+            # Delete Chart example
+            if not args.dashboard_id or not args.chart_id:
+                print(
+                    "Error: dashboard_id and chart_id are "
+                    "required for this example"
+                )
+                return
+            example_remove_chart(chronicle, args.dashboard_id, args.chart_id)
 
-                    # Run the specific example with the dashboard ID
-                    if args.example == "5":  # Duplicate dashboard
-                        duplicate_id = EXAMPLES[args.example](
-                            chronicle, dashboard_id
-                        )
-                        if duplicate_id:
-                            dashboard_ids.append(duplicate_id)
-                    else:
-                        EXAMPLES[args.example](chronicle, dashboard_id)
-        else:
-            # Run all examples in sequence
-            print("\n=== Running all Dashboard examples ===")
+        elif args.example == "11":
+            # Execute Dashboard Query example
+            example_execute_dashboard_query(chronicle)
+
+        elif args.example == "12":
+            # Get Dashboard Query example
+            if not args.query_id:
+                print("Error: query_id is required for this example")
+                return
+            example_get_dashboard_query(chronicle, args.query_id)
+
+        elif args.example == "0" or not args.example:
+            # Run all examples (create workflow)
+            print("=== Running All Examples ===")
 
             # Create a dashboard
             dashboard_id = example_create_dashboard(chronicle)
-            if dashboard_id:
-                dashboard_ids.append(dashboard_id)
-                time.sleep(2)  # Wait for dashboard to be fully created
+            if not dashboard_id:
+                print("Failed to create dashboard, stopping examples")
+                return
 
-                # Run examples that need an existing dashboard
-                example_get_dashboard(chronicle, dashboard_id)
-                example_list_dashboards(chronicle)
-                example_update_dashboard(chronicle, dashboard_id)
+            dashboard_ids.append(dashboard_id)
 
-                # Duplicate the dashboard
-                duplicate_id = example_duplicate_dashboard(
-                    chronicle, dashboard_id
-                )
-                if duplicate_id:
-                    dashboard_ids.append(duplicate_id)
-                    time.sleep(2)  # Wait for duplicate to be fully created
+            # Get dashboard details
+            example_get_dashboard(chronicle, dashboard_id)
+            time.sleep(1)
 
-                # Add a chart to the dashboard
-                example_add_chart(chronicle, dashboard_id)
+            # List dashboards
+            example_list_dashboards(chronicle)
+            time.sleep(1)
+
+            # Update dashboard
+            example_update_dashboard(chronicle, dashboard_id)
+            time.sleep(1)
+
+            # Add chart to dashboard
+            chart_result = example_add_chart(chronicle, dashboard_id)
+            if chart_result:
+                chart_id = chart_result["dashboardChart"]["name"].split("/")[-1]
+                print(f"Created chart ID: {chart_id}")
                 time.sleep(2)  # Wait for chart to be fully created
 
-                # Run query execution example
-                example_execute_dashboard_query(chronicle)
+                # Get chart details
+
+                chart_details = example_get_chart(chronicle, chart_id)
+                time.sleep(1)
+
+                # Edit chart
+                example_edit_chart(chronicle, dashboard_id, chart_id)
+                time.sleep(1)
+
+                query_id = chart_details["chartDatasource"][
+                    "dashboardQuery"
+                ].split("/")[-1]
+                example_get_dashboard_query(chronicle, query_id)
+
+                # Delete chart
+                example_remove_chart(chronicle, dashboard_id, chart_id)
+                time.sleep(1)
+
+            # Duplicate dashboard
+            duplicated = example_duplicate_dashboard(chronicle, dashboard_id)
+            if duplicated:
+                dashboard_ids.append(duplicated)
+
+            example_execute_dashboard_query(chronicle)
 
     finally:
         # Clean up all created dashboards

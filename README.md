@@ -1890,12 +1890,12 @@ The Feed API supports different feed types such as HTTP, HTTPS Push, and S3 buck
 
 ## Chronicle Dashboard
 
-The Chronicle Dashboard API provides methods to manage native dashboards, and execute query dashboards in Chronicle.
+The Chronicle Dashboard API provides methods to manage native dashboards and dashboard charts in Chronicle.
 
 ### Create Dashboard
 ```python
 # Create a dashboard
-dashboard = client.create_dashboard(
+dashboard = chronicle.create_dashboard(
     display_name="Security Overview",
     description="Dashboard showing security metrics",
     access_type="PRIVATE"  # "PRIVATE" or "PUBLIC"
@@ -1907,7 +1907,7 @@ print(f"Created dashboard with ID: {dashboard_id}")
 ### Get Specific Dashboard Details
 ```python
 # Get a specific dashboard
-dashboard = client.get_dashboard(
+dashboard = chronicle.get_dashboard(
     dashboard_id="dashboard-id-here",
     view="FULL"  # Optional: "BASIC" or "FULL" 
 )
@@ -1917,13 +1917,13 @@ print(f"Dashboard Details: {dashboard}")
 ### List Dashboards with pagination
 ```python
 # List dashboards (first page)
-dashboards = client.list_dashboards(page_size=10)
+dashboards = chronicle.list_dashboards(page_size=10)
 for dashboard in dashboards.get("nativeDashboards", []):
     print(f"- {dashboard.get('displayName')}")
 
 # Get next page if available
 if "nextPageToken" in dashboards:
-    next_page = client.list_dashboards(
+    next_page = chronicle.list_dashboards(
         page_size=10,
         page_token=dashboards["nextPageToken"]
     )
@@ -1952,7 +1952,7 @@ charts = [
     }
 ]
 # Update a dashboard
-updated_dashboard = client.update_dashboard(
+updated_dashboard = chronicle.update_dashboard(
     dashboard_id="dashboard-id-here",
     display_name="Updated Security Dashboard",
     filters=filters,
@@ -1964,7 +1964,7 @@ print(f"Updated dashboard: {updated_dashboard['displayName']}")
 ### Duplicate existing dashboard
 ```python
 # Duplicate a dashboard
-duplicate = client.duplicate_dashboard(
+duplicate = chronicle.duplicate_dashboard(
     dashboard_id="dashboard-id-here",
     display_name="Copy of Security Dashboard",
     access_type="PRIVATE"
@@ -1986,7 +1986,6 @@ order:
   principal.hostname asc
 """
 
-# Chart layout and configuration
 chart_layout = {
     "startX": 0, 
     "spanX": 12, 
@@ -2006,7 +2005,7 @@ interval = {
 }
 
 # Add chart to dashboard
-chart = client.add_chart(
+chart = chronicle.add_chart(
     dashboard_id="dashboard-id-here",
     display_name="DNS Query Metrics",
     query=query,
@@ -2017,19 +2016,47 @@ chart = client.add_chart(
 )
 ```
 
-## Get Dashboard Chart Details
+### Get Dashboard Chart Details
 ```python
 # Get dashboard chart details
-dashboard_chart = client.get_chart(
+dashboard_chart = chronicle.get_chart(
     chart_id="chart-id-here"
 )
 print(f"Dashboard Chart Details: {dashboard_chart}")
 ```
 
+### Edit Dashboard Chart
+```python
+# Dashboard Query updated details
+updated_dashboard_query={
+    "name": "project/<projectNumber>/instance/<instanceNumber>/dashboardQueries/<query_id>",
+    "query": 'metadata.event_type = "USER_LOGIN"\nmatch:\n  principal.user.userid\noutcome:\n  $logon_count = count(metadata.id)\norder:\n  $logon_count desc\nlimit: 10',
+    "input": {"relativeTime": {"timeUnit": "DAY", "startTimeVal": "1"}},
+    "etag": "123456", # Latest etag from server
+}
+
+# Dashboard Chart updated details
+updated_dashboard_chart={
+    "name": "project/<projectNumber>/instance/<instanceNumber>/dashboardCharts/<chart_id>",
+    "display_name": "Updated chart display Name",
+    "description": "Updated chart description",
+    "etag": "12345466", # latest etag from server
+    "visualization": {},
+    "chart_datasource":{"data_sources":[]}
+}
+
+updated_chart = chronicle.edit_chart(
+    dashboard_id="dashboard-id-here",
+    dashboard_chart=updated_dashboard_chart,
+    dashboard_query=updated_dashboard_query
+)
+print(f"Updated dashboard chart: {updated_chart}")
+```
+
 ### Remove Chart from existing dashboard
 ```python
 # Remove chart from dashboard
-client.remove_chart(
+chronicle.remove_chart(
     dashboard_id="dashboard-id-here",
     chart_id="chart-id-here"
 )
@@ -2038,7 +2065,7 @@ client.remove_chart(
 ### Delete existing dashboard
 ```python
 # Delete a dashboard
-client.delete_dashboard(dashboard_id="dashboard-id-here")
+chronicle.delete_dashboard(dashboard_id="dashboard-id-here")
 print("Dashboard deleted successfully")
 ```
 
@@ -2068,7 +2095,7 @@ interval = {
 }
 
 # Execute the query
-results = client.execute_dashboard_query(
+results = chronicle.execute_dashboard_query(
     query=query,
     interval=interval
 )
@@ -2081,7 +2108,7 @@ for result in results.get("results", []):
 ### Get Dashboard Query details
 ```python
 # Get dashboard query details
-dashboard_query = client.get_dashboard_query(
+dashboard_query = chronicle.get_dashboard_query(
     query_id="query-id-here"
 )
 print(f"Dashboard Query Details: {dashboard_query}")

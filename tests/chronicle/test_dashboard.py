@@ -937,3 +937,221 @@ class TestGetChart:
 
         # Verify API call
         chronicle_client.session.get.assert_called_once()
+
+
+class TestEditChart:
+    """Test the edit_chart function."""
+
+    def test_edit_chart_query(
+        self, chronicle_client: ChronicleClient, response_mock: Mock
+    ) -> None:
+        """Test edit_chart with dashboard_query parameter."""
+        # Setup mock response
+        response_mock.json.return_value = {"name": "updated-chart"}
+        chronicle_client.session.post.return_value = response_mock
+        dashboard_id = "test-dashboard"
+
+        # Dashboard query to update
+        dashboard_query = {
+            "name": "projects/test-project/locations/test-location/dashboardQueries/test-query",
+            "etag": "123456789",
+            "query": 'udm.metadata.event_type = "NETWORK_CONNECTION"',
+            "input": {
+                "relative_time": {"timeUnit": "DAY", "startTimeVal": "7"}
+            },
+        }
+
+        # Call function
+        result = dashboard.edit_chart(
+            chronicle_client,
+            dashboard_id=dashboard_id,
+            dashboard_query=dashboard_query,
+        )
+
+        # Verify API call
+        chronicle_client.session.post.assert_called_once()
+        url = (
+            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/"
+            f"nativeDashboards/{dashboard_id}:editChart"
+        )
+        expected_payload = {
+            "dashboardQuery": dashboard_query,
+            "editMask": "dashboard_query.query,dashboard_query.input",
+        }
+        chronicle_client.session.post.assert_called_with(
+            url, json=expected_payload
+        )
+
+        assert result == {"name": "updated-chart"}
+
+    def test_edit_chart_details(
+        self, chronicle_client: ChronicleClient, response_mock: Mock
+    ) -> None:
+        """Test edit_chart with dashboard_chart parameter."""
+        # Setup mock response
+        response_mock.json.return_value = {"name": "updated-chart"}
+        chronicle_client.session.post.return_value = response_mock
+        dashboard_id = "test-dashboard"
+
+        # Dashboard chart to update
+        dashboard_chart = {
+            "name": "projects/test-project/locations/test-location/dashboardCharts/test-chart",
+            "etag": "123456789",
+            "display_name": "Updated Chart Title",
+            "visualization": {"legends": [{"legendOrient": "HORIZONTAL"}]},
+        }
+
+        # Call function
+        result = dashboard.edit_chart(
+            chronicle_client,
+            dashboard_id=dashboard_id,
+            dashboard_chart=dashboard_chart,
+        )
+
+        # Verify API call
+        chronicle_client.session.post.assert_called_once()
+        url = (
+            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/"
+            f"nativeDashboards/{dashboard_id}:editChart"
+        )
+        expected_payload = {
+            "dashboardChart": dashboard_chart,
+            "editMask": "dashboard_chart.display_name,dashboard_chart.visualization",
+        }
+        chronicle_client.session.post.assert_called_with(
+            url, json=expected_payload
+        )
+
+        assert result == {"name": "updated-chart"}
+
+    def test_edit_chart_both(
+        self, chronicle_client: ChronicleClient, response_mock: Mock
+    ) -> None:
+        """Test edit_chart with both query and chart parameters."""
+        # Setup mock response
+        response_mock.json.return_value = {"name": "updated-chart"}
+        chronicle_client.session.post.return_value = response_mock
+        dashboard_id = "test-dashboard"
+
+        # Dashboard query and chart to update
+        dashboard_query = {
+            "name": "projects/test-project/locations/test-location/dashboardQueries/test-query",
+            "etag": "123456789",
+            "query": 'udm.metadata.event_type = "NETWORK_CONNECTION"',
+            "input": {
+                "relative_time": {"timeUnit": "DAY", "startTimeVal": "7"}
+            },
+        }
+
+        dashboard_chart = {
+            "name": "projects/test-project/locations/test-location/dashboardCharts/test-chart",
+            "etag": "123456789",
+            "display_name": "Updated Chart Title",
+        }
+
+        # Call function
+        result = dashboard.edit_chart(
+            chronicle_client,
+            dashboard_id=dashboard_id,
+            dashboard_query=dashboard_query,
+            dashboard_chart=dashboard_chart,
+        )
+
+        # Verify API call
+        chronicle_client.session.post.assert_called_once()
+        url = (
+            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/"
+            f"nativeDashboards/{dashboard_id}:editChart"
+        )
+        expected_payload = {
+            "dashboardQuery": dashboard_query,
+            "dashboardChart": dashboard_chart,
+            "editMask": (
+                "dashboard_query.query,dashboard_query.input,"
+                "dashboard_chart.display_name"
+            ),
+        }
+        chronicle_client.session.post.assert_called_with(
+            url, json=expected_payload
+        )
+
+        assert result == {"name": "updated-chart"}
+
+    def test_edit_chart_with_model_objects(
+        self, chronicle_client: ChronicleClient, response_mock: Mock
+    ) -> None:
+        """Test edit_chart with model objects instead of dictionaries."""
+        # Setup mock response
+        response_mock.json.return_value = {"name": "updated-chart"}
+        chronicle_client.session.post.return_value = response_mock
+        dashboard_id = "test-dashboard"
+
+        # Create model objects
+        interval = InputInterval(
+            relative_time={"timeUnit": "DAY", "startTimeVal": "3"}
+        )
+
+        dashboard_query = dashboard.DashboardQuery(
+            name="test-query",
+            etag="123456789",
+            query='udm.metadata.event_type = "PROCESS_LAUNCH"',
+            input=interval,
+        )
+
+        dashboard_chart = dashboard.DashboardChart(
+            name="test-chart",
+            etag="123456789",
+            display_name="Updated Chart",
+            visualization={"type": "BAR_CHART"},
+        )
+
+        # Call function
+        result = dashboard.edit_chart(
+            chronicle_client,
+            dashboard_id=dashboard_id,
+            dashboard_query=dashboard_query,
+            dashboard_chart=dashboard_chart,
+        )
+
+        # Verify API call
+        chronicle_client.session.post.assert_called_once()
+        # We don't need to check exact payload here as the model objects
+        # handle the conversion, but we check the URL
+        url = (
+            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/"
+            f"nativeDashboards/{dashboard_id}:editChart"
+        )
+        chronicle_client.session.post.assert_called_with(
+            url, json=chronicle_client.session.post.call_args[1]["json"]
+        )
+
+        assert result == {"name": "updated-chart"}
+
+    def test_edit_chart_error(
+        self, chronicle_client: ChronicleClient, response_mock: Mock
+    ) -> None:
+        """Test edit_chart with error response."""
+        # Setup error response
+        response_mock.status_code = 400
+        response_mock.text = "Invalid request"
+        chronicle_client.session.post.return_value = response_mock
+        dashboard_id = "test-dashboard"
+        dashboard_query = {
+            "name": "projects/test-project/locations/test-location/dashboardQueries/test-query",
+            "etag": "123123123",
+            "query": "invalid query",
+            "input": {
+                "relative_time": {"timeUnit": "DAY", "startTimeVal": "7"}
+            },
+        }
+
+        # Verify the function raises an APIError
+        with pytest.raises(APIError, match="Failed to edit chart"):
+            dashboard.edit_chart(
+                chronicle_client,
+                dashboard_id=dashboard_id,
+                dashboard_query=dashboard_query,
+            )
+
+        # Verify API call
+        chronicle_client.session.post.assert_called_once()

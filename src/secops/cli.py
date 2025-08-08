@@ -3235,6 +3235,37 @@ def setup_dashboard_command(subparsers):
     get_chart_parser.add_argument("--id", help="Chart ID to get")
     get_chart_parser.set_defaults(func=handle_dashboard_get_chart_command)
 
+    # Edit Chart
+    edit_chart_parser = dashboard_subparsers.add_parser(
+        "edit-chart", help="Edit an existing chart in a dashboard"
+    )
+    edit_chart_parser.add_argument(
+        "--dashboard-id", "--dashboard_id", help="Dashboard ID", required=True
+    )
+    dashboard_query_group = edit_chart_parser.add_mutually_exclusive_group()
+    dashboard_query_group.add_argument(
+        "--dashboard-query",
+        "--dashboard_query",
+        help="Dashboard query JSON string",
+    )
+    dashboard_query_group.add_argument(
+        "--dashboard-query-from-file",
+        "--dashboard_query_from_file",
+        help="File containing dashboard query JSON string",
+    )
+    dashboard_chart_group = edit_chart_parser.add_mutually_exclusive_group()
+    dashboard_chart_group.add_argument(
+        "--dashboard-chart",
+        "--dashboard_chart",
+        help="Dashboard chart JSON string",
+    )
+    dashboard_chart_group.add_argument(
+        "--dashboard-chart-from-file",
+        "--dashboard_chart_from_file",
+        help="File containing dashboard chart JSON string",
+    )
+    edit_chart_parser.set_defaults(func=handle_dashboard_edit_chart_command)
+
 
 def handle_dashboard_list_command(args, chronicle):
     """Handle list dashboards command."""
@@ -3472,6 +3503,49 @@ def handle_dashboard_get_chart_command(args, chronicle):
         sys.exit(1)
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error getting chart: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dashboard_edit_chart_command(args, chronicle):
+    """Handle edit chart command."""
+    try:
+        dashboard_query = args.dashboard_query if args.dashboard_query else None
+        dashboard_chart = args.dashboard_chart if args.dashboard_chart else None
+        if args.dashboard_query_from_file:
+            try:
+                with open(
+                    args.dashboard_query_from_file, "r", encoding="utf-8"
+                ) as f:
+                    dashboard_query = f.read()
+            except IOError as e:
+                print(
+                    f"Error reading dashboard query file: {e}", file=sys.stderr
+                )
+                sys.exit(1)
+
+        if args.dashboard_chart_from_file:
+            try:
+                with open(
+                    args.dashboard_chart_from_file, "r", encoding="utf-8"
+                ) as f:
+                    dashboard_chart = f.read()
+            except IOError as e:
+                print(
+                    f"Error reading dashboard chart file: {e}", file=sys.stderr
+                )
+                sys.exit(1)
+
+        result = chronicle.edit_chart(
+            dashboard_id=args.dashboard_id,
+            dashboard_query=dashboard_query,
+            dashboard_chart=dashboard_chart,
+        )
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error editing chart: {e}", file=sys.stderr)
         sys.exit(1)
 
 

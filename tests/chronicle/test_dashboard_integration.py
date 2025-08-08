@@ -181,8 +181,9 @@ def test_dashboard_lifecycle():
 
 
 @pytest.mark.integration
-def test_dashboard_add_chart_and_query():
-    """Test adding a chart to a dashboard and running a query."""
+def test_dashboard_chart_lifecycle():
+    """Test full dashboard chart lifecycle: add, get, edit and remove."""
+
     client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
     chronicle = client.chronicle(**CHRONICLE_CONFIG)
 
@@ -192,7 +193,6 @@ def test_dashboard_add_chart_and_query():
     chart_name = f"Test Chart {unique_id}"
 
     created_dashboard = None
-
     try:
         # Create the dashboard
         created_dashboard = chronicle.create_dashboard(
@@ -201,23 +201,20 @@ def test_dashboard_add_chart_and_query():
         dashboard_id = created_dashboard["name"].split("/")[-1]
         print(f"Dashboard created for chart test: {dashboard_id}")
 
-        # Query for chart
+        # Add Chart to created dashboard
         query = """
-metadata.event_type = "NETWORK_DNS"
-match:
-  principal.hostname
-outcome:
-  $dns_query_count = count(metadata.id)
-order:
-  principal.hostname asc
-"""
-        # Chart Layout
+            metadata.event_type = "NETWORK_DNS"
+            match:
+            principal.hostname
+            outcome:
+            $dns_query_count = count(metadata.id)
+            order:
+            principal.hostname asc
+        """
         chart_layout = {"startX": 0, "spanX": 12, "startY": 0, "spanY": 8}
-        # Chart Datasource
         chart_datasource = {"dataSources": ["UDM"]}
-        # Chart Interval
         interval = {"relativeTime": {"timeUnit": "DAY", "startTimeVal": "1"}}
-        # Add chart with query to dashboard
+
         chart_result = chronicle.add_chart(
             dashboard_id=dashboard_id,
             display_name=chart_name,
@@ -228,29 +225,42 @@ order:
         )
 
         assert chart_result is not None
+        assert "dashboardChart" in chart_result
+        assert "name" in chart_result["dashboardChart"]
         print(f"Chart added successfully to dashboard")
 
-        query_execute = """
-metadata.event_type = "USER_LOGIN"
-match:
-  principal.user.userid
-outcome:
-  $logon_count = count(metadata.id)
-order:
-  $logon_count desc
-limit: 10
-"""
-        query_execute_interval = {
-            "relativeTime": {"timeUnit": "DAY", "startTimeVal": "1"}
+        # Get chart details
+        chart_id = chart_result["dashboardChart"]["name"].split("/")[-1]
+        chart_details = chronicle.get_chart(chart_id=chart_id)
+
+        assert chart_details is not None
+        assert "name" in chart_details
+        assert chart_id in chart_details["name"]
+        assert "etag" in chart_details
+        print("Chart details fetched successfully")
+
+        # Edit chart detail
+        updated_dashboard_chart = {
+            "name": chart_id,
+            "displayName": "Updated Chart name",
+            "etag": chart_details["etag"],
         }
-        # Execute the query directly
-        query_result = chronicle.execute_dashboard_query(
-            query=query_execute, interval=query_execute_interval
+        updated_chart = chronicle.edit_chart(
+            dashboard_id=dashboard_id, dashboard_chart=updated_dashboard_chart
         )
 
-        assert query_result is not None
-        assert "results" in query_result
-        print(f"Query executed successfully")
+        assert updated_chart is not None
+        assert "dashboardChart" in updated_chart
+        assert "displayName" in updated_chart["dashboardChart"]
+        assert (
+            updated_chart["dashboardChart"]["displayName"]
+            == "Updated Chart name"
+        )
+        print("Chart updated successfully")
+
+        # Remove chart from dashboard
+        chronicle.remove_chart(dashboard_id=dashboard_id, chart_id=chart_id)
+        print("Chart removed successfully")
 
     except APIError as e:
         print(f"API Error: {str(e)}")
@@ -262,6 +272,6 @@ limit: 10
             try:
                 dashboard_id = created_dashboard["name"].split("/")[-1]
                 chronicle.delete_dashboard(dashboard_id=dashboard_id)
-                print("Cleaned up test dashboard with chart")
+                print(f"Cleaned up test dashboard: {dashboard_id}")
             except Exception as e:
                 print(f"Clean up failed: {str(e)}")

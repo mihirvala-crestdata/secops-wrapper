@@ -17,9 +17,7 @@
 These tests require valid credentials and API access.
 """
 import json
-import os
 import subprocess
-import tempfile
 import time
 import uuid
 
@@ -342,51 +340,16 @@ def test_cli_dashboard_list_pagination(cli_env, common_args):
 
 
 @pytest.mark.integration
-def test_cli_dashboard_add_chart_and_query(cli_env, common_args):
-    """Test adding charts to a dashboard and executing dashboard queries."""
+def test_cli_dashboard_chart_lifecycle(cli_env, common_args):
+    """Test full dashboard chart lifecycle via CLI: add, get, edit and remove."""
     # Generate unique ID for test resources
     unique_id = str(uuid.uuid4())[:8]
     display_name = f"CLI Chart Test Dashboard {unique_id}"
     chart_name = f"CLI Test Chart {unique_id}"
     dashboard_id = None
-    chart_query_file_name = None
-    executre_query_file_name = None
 
     try:
-        # Create chart query file
-        with tempfile.NamedTemporaryFile(
-            suffix=".yaral", mode="w+", delete=False
-        ) as temp_file:
-            temp_file.write(
-                """metadata.event_type = "NETWORK_DNS"
-match:
-  principal.hostname
-outcome:
-  $dns_query_count = count(metadata.id)
-order:
-  principal.hostname asc
-"""
-            )
-            chart_query_file_name = temp_file.name
-
-        # Create execute query file
-        with tempfile.NamedTemporaryFile(
-            suffix=".yaral", mode="w+", delete=False
-        ) as temp_file:
-            temp_file.write(
-                """metadata.event_type = "USER_LOGIN"
-match:
-  principal.user.userid
-outcome:
-  $logon_count = count(metadata.id)
-order:
-  $logon_count desc
-limit: 10
-"""
-            )
-            executre_query_file_name = temp_file.name
-
-        # Create dashboard for charts
+        # Create dashboard
         create_cmd = (
             [
                 "secops",
@@ -398,7 +361,7 @@ limit: 10
                 "--display-name",
                 display_name,
                 "--description",
-                "CLI chart test dashboard",
+                "CLI chart lifecycle test dashboard",
                 "--access-type",
                 "PRIVATE",
             ]
@@ -415,15 +378,22 @@ limit: 10
         dashboard_data = json.loads(create_result.stdout)
         dashboard_id = dashboard_data["name"].split("/")[-1]
 
-        # Wait for dashboard to be fully created
-        time.sleep(3)
-
+        # Add chart to dashboard
+        query = """
+        metadata.event_type = "NETWORK_DNS"
+        match:
+        principal.hostname
+        outcome:
+        $dns_query_count = count(metadata.id)
+        order:
+        principal.hostname asc
+        """
         query_interval = (
-            '{"relativeTime": {"timeUnit": "DAY", "startTimeVal": "7"}}'
+            '{"relativeTime": {"timeUnit": "DAY", "startTimeVal": "1"}}'
         )
         chart_layout = '{"startX": 0, "spanX": 12, "startY": 0, "spanY": 8}'
         chart_datasource = '{"dataSources": ["UDM"]}'
-        # Add chart to dashboard
+
         add_chart_cmd = (
             [
                 "secops",
@@ -436,8 +406,8 @@ limit: 10
                 dashboard_id,
                 "--display-name",
                 chart_name,
-                "--query-file",
-                chart_query_file_name,
+                "--query",
+                query,
                 "--interval",
                 query_interval,
                 "--chart_layout",
@@ -463,38 +433,103 @@ limit: 10
         assert chart_data is not None
         assert "dashboardChart" in chart_data
         assert "name" in chart_data["dashboardChart"]
+        chart_id = chart_data["dashboardChart"]["name"].split("/")[-1]
 
-        execute_interval = (
-            '{"relativeTime": {"timeUnit": "DAY", "startTimeVal": "7"}}'
-        )
-        execute_cmd = (
+        # Get chart details
+        get_chart_cmd = (
             [
                 "secops",
             ]
             + common_args
             + [
                 "dashboard",
-                "execute-query",
-                "--query-file",
-                executre_query_file_name,
-                "--interval",
-                execute_interval,
+                "get-chart",
+                "--id",
+                chart_id,
             ]
         )
 
-        execute_result = subprocess.run(
-            execute_cmd, env=cli_env, capture_output=True, text=True
+        get_chart_result = subprocess.run(
+            get_chart_cmd, env=cli_env, capture_output=True, text=True
         )
 
         # Check that the command executed successfully
-        assert execute_result.returncode == 0
+        assert get_chart_result.returncode == 0
 
-        # Load query result
-        query_result = json.loads(execute_result.stdout)
+        # Load chart details
+        chart_details = json.loads(get_chart_result.stdout)
 
-        # Verify query execution
-        assert query_result is not None
-        assert "results" in query_result
+        # Verify chart details were retrieved
+        assert chart_details is not None
+        assert "name" in chart_details
+        assert chart_id in chart_details["name"]
+        assert "etag" in chart_details
+
+        # Edit chart details
+        updated_chart_name = "Updated CLI Chart Name"
+        updated_dashboard_chart = json.dumps(
+            {
+                "name": chart_details["name"],
+                "displayName": updated_chart_name,
+                "etag": chart_details["etag"],
+            }
+        )
+
+        edit_chart_cmd = (
+            [
+                "secops",
+            ]
+            + common_args
+            + [
+                "dashboard",
+                "edit-chart",
+                "--dashboard-id",
+                dashboard_id,
+                "--dashboard-chart",
+                updated_dashboard_chart,
+            ]
+        )
+
+        edit_chart_result = subprocess.run(
+            edit_chart_cmd, env=cli_env, capture_output=True, text=True
+        )
+
+        # Check that the command executed successfully
+        assert edit_chart_result.returncode == 0
+
+        # Load updated chart data
+        updated_chart = json.loads(edit_chart_result.stdout)
+
+        # Verify chart was updated
+        assert updated_chart is not None
+        assert "dashboardChart" in updated_chart
+        assert "displayName" in updated_chart["dashboardChart"]
+        assert (
+            updated_chart["dashboardChart"]["displayName"] == updated_chart_name
+        )
+
+        # Remove chart from dashboard
+        remove_chart_cmd = (
+            [
+                "secops",
+            ]
+            + common_args
+            + [
+                "dashboard",
+                "remove-chart",
+                "--dashboard-id",
+                dashboard_id,
+                "--chart-id",
+                chart_id,
+            ]
+        )
+
+        remove_chart_result = subprocess.run(
+            remove_chart_cmd, env=cli_env, capture_output=True, text=True
+        )
+
+        # Check that the command executed successfully
+        assert remove_chart_result.returncode == 0
 
     finally:
         # Clean up resources
@@ -509,8 +544,3 @@ limit: 10
 
             subprocess.run(delete_cmd, env=cli_env, check=False)
             print(f"Cleaned up dashboard with ID: {dashboard_id}")
-
-        # Clean up temporary files
-        for file in [chart_query_file_name, executre_query_file_name]:
-            if os.path.exists(file):
-                os.remove(file)
