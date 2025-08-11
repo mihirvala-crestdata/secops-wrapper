@@ -214,33 +214,6 @@ from secops.chronicle.udm_search import (
 from secops.chronicle.validate import validate_query as _validate_query
 from secops.exceptions import SecOpsError
 
-from .parser import activate_parser as _activate_parser
-from .parser import (
-    activate_release_candidate_parser as _activate_release_candidate_parser,
-)
-from .parser import copy_parser as _copy_parser
-from .parser import create_parser as _create_parser
-from .parser import deactivate_parser as _deactivate_parser
-from .parser import delete_parser as _delete_parser
-from .parser import get_parser as _get_parser
-from .parser import list_parsers as _list_parsers
-from .parser import run_parser as _run_parser
-from .rule_exclusion import RuleExclusionType, UpdateRuleDeployment
-from .rule_exclusion import (
-    compute_rule_exclusion_activity as _compute_rule_exclusion_activity,
-)
-from .rule_exclusion import create_rule_exclusion as _create_rule_exclusion
-from .rule_exclusion import get_rule_exclusion as _get_rule_exclusion
-from .rule_exclusion import (
-    get_rule_exclusion_deployment as _get_rule_exclusion_deployment,
-)
-from .rule_exclusion import list_rule_exclusions as _list_rule_exclusions
-from .rule_exclusion import patch_rule_exclusion as _patch_rule_exclusion
-from .rule_exclusion import (
-    update_rule_exclusion_deployment as _update_rule_exclusion_deployment,
-)
-from .rule_validation import validate_rule as _validate_rule
-
 
 class ValueType(Enum):
     """Chronicle API value types."""
