@@ -1888,6 +1888,232 @@ The Feed API supports different feed types such as HTTP, HTTPS Push, and S3 buck
 
 > **Note**: Secret generation is only available for certain feed types that require authentication.
 
+## Chronicle Dashboard
+
+The Chronicle Dashboard API provides methods to manage native dashboards and dashboard charts in Chronicle.
+
+### Create Dashboard
+```python
+# Create a dashboard
+dashboard = chronicle.create_dashboard(
+    display_name="Security Overview",
+    description="Dashboard showing security metrics",
+    access_type="PRIVATE"  # "PRIVATE" or "PUBLIC"
+)
+dashboard_id = dashboard["name"].split("/")[-1]
+print(f"Created dashboard with ID: {dashboard_id}")
+```
+
+### Get Specific Dashboard Details
+```python
+# Get a specific dashboard
+dashboard = chronicle.get_dashboard(
+    dashboard_id="dashboard-id-here",
+    view="FULL"  # Optional: "BASIC" or "FULL" 
+)
+print(f"Dashboard Details: {dashboard}")
+```
+
+### List Dashboards with pagination
+```python
+# List dashboards (first page)
+dashboards = chronicle.list_dashboards(page_size=10)
+for dashboard in dashboards.get("nativeDashboards", []):
+    print(f"- {dashboard.get('displayName')}")
+
+# Get next page if available
+if "nextPageToken" in dashboards:
+    next_page = chronicle.list_dashboards(
+        page_size=10,
+        page_token=dashboards["nextPageToken"]
+    )
+```
+
+### Update existing dashboard details
+```python
+filters = [
+    {
+        "id": "GlobalTimeFilter",
+        "dataSource": "GLOBAL",
+        "filterOperatorAndFieldValues": [
+            {"filterOperator": "PAST", "fieldValues": ["7", "DAY"]}
+        ],
+        "displayName": "Global Time Filter",
+        "chartIds": [],
+        "isStandardTimeRangeFilter": True,
+        "isStandardTimeRangeFilterEnabled": True,
+    }
+]
+charts = [
+    {
+        "dashboardChart": "projects/<project_id>/locations/<location>/instances/<instacne_id>/dashboardCharts/<chart_id>",
+        "chartLayout": {"startX": 0, "spanX": 48, "startY": 0, "spanY": 26},
+        "filtersIds": ["GlobalTimeFilter"],
+    }
+]
+# Update a dashboard
+updated_dashboard = chronicle.update_dashboard(
+    dashboard_id="dashboard-id-here",
+    display_name="Updated Security Dashboard",
+    filters=filters,
+    charts=charts,
+)
+print(f"Updated dashboard: {updated_dashboard['displayName']}")
+```
+
+### Duplicate existing dashboard
+```python
+# Duplicate a dashboard
+duplicate = chronicle.duplicate_dashboard(
+    dashboard_id="dashboard-id-here",
+    display_name="Copy of Security Dashboard",
+    access_type="PRIVATE"
+)
+duplicate_id = duplicate["name"].split("/")[-1]
+print(f"Created duplicate dashboard with ID: {duplicate_id}")
+```
+
+### Add Chart to existing dashboard
+```python
+# Define chart configuration
+query = """
+metadata.event_type = "NETWORK_DNS"
+match:
+  principal.hostname
+outcome:
+  $dns_query_count = count(metadata.id)
+order:
+  principal.hostname asc
+"""
+
+chart_layout = {
+    "startX": 0, 
+    "spanX": 12, 
+    "startY": 0, 
+    "spanY": 8
+}
+
+chart_datasource = {
+    "dataSources": ["UDM"]
+}
+
+interval = {
+    "relativeTime": {
+        "timeUnit": "DAY",
+        "startTimeVal": "1"
+    }
+}
+
+# Add chart to dashboard
+chart = chronicle.add_chart(
+    dashboard_id="dashboard-id-here",
+    display_name="DNS Query Metrics",
+    query=query,
+    chart_layout=chart_layout,
+    chart_datasource=chart_datasource,
+    interval=interval,
+    tile_type="VISUALIZATION" # Option: "VISUALIZATION" or "BUTTOn"
+)
+```
+
+### Get Dashboard Chart Details
+```python
+# Get dashboard chart details
+dashboard_chart = chronicle.get_chart(
+    chart_id="chart-id-here"
+)
+print(f"Dashboard Chart Details: {dashboard_chart}")
+```
+
+### Edit Dashboard Chart
+```python
+# Dashboard Query updated details
+updated_dashboard_query={
+    "name": "project/<projectNumber>/instance/<instanceNumber>/dashboardQueries/<query_id>",
+    "query": 'metadata.event_type = "USER_LOGIN"\nmatch:\n  principal.user.userid\noutcome:\n  $logon_count = count(metadata.id)\norder:\n  $logon_count desc\nlimit: 10',
+    "input": {"relativeTime": {"timeUnit": "DAY", "startTimeVal": "1"}},
+    "etag": "123456", # Latest etag from server
+}
+
+# Dashboard Chart updated details
+updated_dashboard_chart={
+    "name": "project/<projectNumber>/instance/<instanceNumber>/dashboardCharts/<chart_id>",
+    "display_name": "Updated chart display Name",
+    "description": "Updated chart description",
+    "etag": "12345466", # latest etag from server
+    "visualization": {},
+    "chart_datasource":{"data_sources":[]}
+}
+
+updated_chart = chronicle.edit_chart(
+    dashboard_id="dashboard-id-here",
+    dashboard_chart=updated_dashboard_chart,
+    dashboard_query=updated_dashboard_query
+)
+print(f"Updated dashboard chart: {updated_chart}")
+```
+
+### Remove Chart from existing dashboard
+```python
+# Remove chart from dashboard
+chronicle.remove_chart(
+    dashboard_id="dashboard-id-here",
+    chart_id="chart-id-here"
+)
+```
+
+### Delete existing dashboard
+```python
+# Delete a dashboard
+chronicle.delete_dashboard(dashboard_id="dashboard-id-here")
+print("Dashboard deleted successfully")
+```
+
+## Dashboard Query
+
+The Chronicle Dashboard Query API provides methods to execute dashboard queries without creating a dashboard and get details of dashboard query.
+
+### Execute Dashboard Query
+```python
+# Define query and time interval
+query = """
+metadata.event_type = "USER_LOGIN"
+match:
+  principal.user.userid
+outcome:
+  $logon_count = count(metadata.id)
+order:
+  $logon_count desc
+limit: 10
+"""
+
+interval = {
+    "relativeTime": {
+        "timeUnit": "DAY",
+        "startTimeVal": "7"
+    }
+}
+
+# Execute the query
+results = chronicle.execute_dashboard_query(
+    query=query,
+    interval=interval
+)
+
+# Process results
+for result in results.get("results", []):
+    print(result)
+```
+
+### Get Dashboard Query details
+```python
+# Get dashboard query details
+dashboard_query = chronicle.get_dashboard_query(
+    query_id="query-id-here"
+)
+print(f"Dashboard Query Details: {dashboard_query}")
+```
+
 ## Error Handling
 
 The SDK defines several custom exceptions:

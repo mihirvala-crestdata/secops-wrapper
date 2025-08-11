@@ -24,6 +24,25 @@ from google.auth.transport import requests as google_auth_requests
 from secops import auth as secops_auth
 from secops.chronicle.alert import get_alerts as _get_alerts
 from secops.chronicle.case import get_cases_from_list
+from secops.chronicle.dashboard import DashboardAccessType, DashboardView
+from secops.chronicle.dashboard import add_chart as _add_chart
+from secops.chronicle.dashboard import create_dashboard as _create_dashboard
+from secops.chronicle.dashboard import delete_dashboard as _delete_dashboard
+from secops.chronicle.dashboard import (
+    duplicate_dashboard as _duplicate_dashboard,
+)
+from secops.chronicle.dashboard import edit_chart as _edit_chart
+from secops.chronicle.dashboard import get_chart as _get_chart
+from secops.chronicle.dashboard import get_dashboard as _get_dashboard
+from secops.chronicle.dashboard import list_dashboards as _list_dashboards
+from secops.chronicle.dashboard import remove_chart as _remove_chart
+from secops.chronicle.dashboard import update_dashboard as _update_dashboard
+from secops.chronicle.dashboard_query import (
+    execute_query as _execute_dashboard_query,
+)
+from secops.chronicle.dashboard_query import (
+    get_execute_query as _get_execute_query,
+)
 from secops.chronicle.data_export import (
     cancel_data_export as _cancel_data_export,
 )
@@ -75,7 +94,14 @@ from secops.chronicle.log_types import (
 )
 from secops.chronicle.log_types import is_valid_log_type as _is_valid_log_type
 from secops.chronicle.log_types import search_log_types as _search_log_types
-from secops.chronicle.models import CaseList, EntitySummary
+from secops.chronicle.models import (
+    CaseList,
+    DashboardChart,
+    DashboardQuery,
+    EntitySummary,
+    InputInterval,
+    TileType,
+)
 from secops.chronicle.nl_search import nl_search as _nl_search
 from secops.chronicle.nl_search import translate_nl_to_udm
 from secops.chronicle.parser import activate_parser as _activate_parser
@@ -186,6 +212,7 @@ from secops.chronicle.udm_search import (
     fetch_udm_search_csv as _fetch_udm_search_csv,
 )
 from secops.chronicle.validate import validate_query as _validate_query
+from secops.exceptions import SecOpsError
 
 
 class ValueType(Enum):
@@ -2452,3 +2479,329 @@ class ChronicleClient:
             use_array_bracket_notation,
             compress_array_fields,
         )
+
+    # Dashboard Methods
+    def create_dashboard(
+        self,
+        display_name: str,
+        access_type: str,
+        description: Optional[str] = None,
+        filters: Optional[Union[List[Dict[str, Any]], str]] = None,
+        charts: Optional[Union[List[Dict[str, Any]], str]] = None,
+    ) -> Dict[str, Any]:
+        """Create a new native dashboard.
+
+        Args:
+            display_name: Name of the dashboard to create
+            access_type: Access type for the dashboard (Public or Private)
+            description: Description for the dashboard
+            filters: List of filters to apply to the dashboard
+                (JSON or JSON string)
+            charts: List of charts to include in the dashboard
+                (JSON or JSON string)
+
+        Returns:
+            Dictionary containing the created dashboard details
+
+        Raises:
+            APIError: If the API request fails
+        """
+        try:
+            access_type = DashboardAccessType[access_type.upper()]
+        except ValueError as e:
+            raise SecOpsError(f"Invalid access type: {access_type}") from e
+
+        return _create_dashboard(
+            self,
+            display_name=display_name,
+            access_type=access_type,
+            description=description,
+            filters=filters,
+            charts=charts,
+        )
+
+    def list_dashboards(
+        self,
+        page_size: Optional[int] = None,
+        page_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """List all available dashboards.
+
+        Args:
+            page_size: Maximum number of results to return
+            page_token: Token for pagination
+
+        Returns:
+            Dictionary containing dashboard list and pagination info
+        """
+        return _list_dashboards(
+            self,
+            page_size=page_size,
+            page_token=page_token,
+        )
+
+    def get_dashboard(
+        self,
+        dashboard_id: str,
+        view: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get information about a specific dashboard.
+
+        Args:
+            dashboard_id: ID of the dashboard to retrieve
+            view: Level of detail to include in the response
+                Defaults to BASIC
+
+        Returns:
+            Dictionary containing dashboard details
+        """
+        if view:
+            try:
+                view = DashboardView[view.upper()]
+            except ValueError as e:
+                raise SecOpsError(f"Invalid view: {view}") from e
+
+        return _get_dashboard(
+            self,
+            dashboard_id=dashboard_id,
+            view=view,
+        )
+
+    def update_dashboard(
+        self,
+        dashboard_id: str,
+        display_name: Optional[str] = None,
+        description: Optional[str] = None,
+        filters: Optional[Union[List[Dict[str, Any]], str]] = None,
+        charts: Optional[Union[List[Dict[str, Any]], str]] = None,
+    ) -> Dict[str, Any]:
+        """Update an existing dashboard.
+
+        Args:
+            dashboard_id: ID of the dashboard to update
+            display_name: New name for the dashboard (optional)
+            description: New description for the dashboard (optional)
+            filters: New filters for the dashboard (optional)
+            charts: New charts for the dashboard (optional)
+
+        Returns:
+            Dictionary containing the updated dashboard details
+        """
+        return _update_dashboard(
+            self,
+            dashboard_id=dashboard_id,
+            display_name=display_name,
+            description=description,
+            filters=filters,
+            charts=charts,
+        )
+
+    def delete_dashboard(self, dashboard_id: str) -> Dict[str, Any]:
+        """Delete an existing dashboard.
+
+        Args:
+            dashboard_id: ID of the dashboard to delete
+        """
+        return _delete_dashboard(self, dashboard_id=dashboard_id)
+
+    def add_chart(
+        self,
+        dashboard_id: str,
+        display_name: str,
+        chart_layout: Union[Dict[str, Any], str],
+        tile_type: Optional[str] = None,
+        chart_datasource: Optional[Union[Dict[str, Any], str]] = None,
+        visualization: Optional[Union[Dict[str, Any], str]] = None,
+        drill_down_config: Optional[Union[Dict[str, Any], str]] = None,
+        description: Optional[str] = None,
+        query: Optional[str] = None,
+        interval: Optional[Union[InputInterval, Dict[str, Any], str]] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Add a chart to an existing dashboard.
+
+        Args:
+            dashboard_id: ID of the dashboard to add the chart to
+            display_name: Display name for the chart
+            chart_layout: Layout for the chart
+            tile_type: Type of the tile
+                (expected values: VISUALIZATION, BUTTON)
+                Defaults to VISUALIZATION
+            chart_datasource: Query and datasource used in the chart
+                (Should be empty for Button type)
+            visualization: Visualization for the chart.
+            drill_down_config: Drill down configuration.
+            description: Description for the chart
+            query: Query for the chart
+            interval: Query input interval for the chart
+            **kwargs: Additional keyword arguments
+                (Will be added to request payload)
+
+        Returns:
+            Dictionary containing the updated dashboard details
+        """
+        if tile_type:
+            try:
+                tile_type = TileType[tile_type.upper()]
+            except ValueError as e:
+                raise SecOpsError(f"Invalid tile type: {tile_type}") from e
+
+        return _add_chart(
+            self,
+            dashboard_id=dashboard_id,
+            display_name=display_name,
+            chart_layout=chart_layout,
+            tile_type=tile_type,
+            chart_datasource=chart_datasource,
+            visualization=visualization,
+            drill_down_config=drill_down_config,
+            description=description,
+            query=query,
+            interval=interval,
+            **kwargs,
+        )
+
+    def duplicate_dashboard(
+        self,
+        dashboard_id: str,
+        display_name: str,
+        access_type: str,
+        description: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Duplicate an existing dashboard.
+
+        Args:
+            dashboard_id: Id of the dashboard to duplicate
+            display_name: Display name for the new dashboard
+            access_type: Access type for the new dashboard (PRIVATE or PUBLIC)
+            description: Description for the new dashboard
+
+        Returns:
+            Dictionary containing the updated dashboard details
+        """
+        try:
+            access_type = DashboardAccessType[access_type.upper()]
+        except ValueError as e:
+            raise SecOpsError(f"Invalid access type: {access_type}") from e
+
+        return _duplicate_dashboard(
+            self,
+            dashboard_id=dashboard_id,
+            display_name=display_name,
+            access_type=access_type,
+            description=description,
+        )
+
+    def remove_chart(
+        self,
+        dashboard_id: str,
+        chart_id: str,
+    ) -> Dict[str, Any]:
+        """Remove a chart from a dashboard.
+
+        Args:
+            dashboard_id: ID of the dashboard containing the chart
+            chart_id: ID of the chart to remove
+
+        Returns:
+            Dictionary containing the updated dashboard
+
+        Raises:
+            APIError: If the API request fails
+        """
+        return _remove_chart(
+            self,
+            dashboard_id=dashboard_id,
+            chart_id=chart_id,
+        )
+
+    def get_chart(self, chart_id: str) -> Dict[str, Any]:
+        """Get information about a specific chart.
+
+        Args:
+            chart_id: ID of the chart to retrieve
+
+        Returns:
+            Dictionary containing chart details
+        """
+        return _get_chart(self, chart_id)
+
+    def edit_chart(
+        self,
+        dashboard_id: str,
+        dashboard_chart: Optional[
+            Union[Dict[str, Any], DashboardChart, str]
+        ] = None,
+        dashboard_query: Optional[
+            Union[Dict[str, Any], DashboardQuery, str]
+        ] = None,
+    ) -> Dict[str, Any]:
+        """Edit an existing chart in a dashboard.
+
+        Args:
+            dashboard_id: ID of the dashboard containing the chart
+            dashboard_chart: Chart to edit in JSON or JSON string
+                eg:{
+                    "name": "<chart_id>"
+                    "displayName": "<chart display name>",
+                    "description": "<chart description>",
+                    "visualization": {},
+                    "chartDatasource": { "dataSources":[]},
+                    "etag": "123131231321321"
+                }
+
+            dashboard_query: Chart Query to edit in JSON or JSON String
+                eg:{
+                    "name": "<query_id>",
+                    "query": "<chart query>",
+                    "input": {},
+                    "etag":"123131231321321"
+                }
+        Returns:
+            Dictionary containing the updated dashboard with edited chart
+        """
+
+        return _edit_chart(
+            self,
+            dashboard_id=dashboard_id,
+            dashboard_chart=dashboard_chart,
+            dashboard_query=dashboard_query,
+        )
+
+    def execute_dashboard_query(
+        self,
+        query: str,
+        interval: Union[InputInterval, Dict[str, Any], str],
+        filters: Optional[Union[List[Dict[str, Any]], str]] = None,
+        clear_cache: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """Execute a query for a dashboard.
+
+        Args:
+            dashboard_id: Id of the dashboard to execute the query for
+            query: Query to execute
+            interval: The time interval for the query
+            filters: Filters to apply to the query
+            clear_cache: Flag to read from database instead of cache
+
+        Returns:
+            Dictionary containing the query results
+        """
+        return _execute_dashboard_query(
+            self,
+            query=query,
+            interval=interval,
+            filters=filters,
+            clear_cache=clear_cache,
+        )
+
+    def get_dashboard_query(self, query_id: str) -> Dict[str, Any]:
+        """Get the dashboard query details.
+
+        Args:
+            query_id: Id of the dashboard query
+
+        Returns:
+            Dictionary containing the query details
+        """
+        return _get_execute_query(self, query_id=query_id)

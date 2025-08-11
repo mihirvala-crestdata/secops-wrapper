@@ -1001,6 +1001,103 @@ Delete feed:
 secops feed delete --id "feed-123"
 ```
 
+### Native Dashboards
+
+The Dashboard commands allow you to manage and interact with dashboards in Chronicle.
+
+Create native dashboard:
+```bash
+# Create minimal dashboard
+secops dashboard create --display-name "Security Overview" \
+                        --description "Security monitoring dashboard" \
+                        --access-type PRIVATE
+
+# Create with filters and charts
+secops dashboard create --display-name "Security Overview" \
+                        --description "Security monitoring dashboard" \
+                        --access-type PRIVATE \
+                        --filters-file filters.json \
+                        --charts '[{\"dashboardChart\": \"projects/<project_id>/locations/<location>/instances/<instacne_id>/dashboardCharts/<chart_id>\", \"chartLayout\": {\"startX\": 0, \"spanX\": 48, \"startY\": 0, \"spanY\": 26}, \"filtersIds\": [\"GlobalTimeFilter\"]}]'
+```
+
+Get dashboard details:
+```bash
+secops dashboard get --id dashboard-id --view FULL
+```
+
+List dashboards:
+```bash
+secops dashboard list --page-size 10
+```
+
+Update dashboard:
+```bash
+secops dashboard update --id dashboard-id --display-name "Updated Security Dashboard" --description "Updated security monitoring dashboard" --access-type PRIVATE --filters '[{"id": "GlobalTimeFilter", "dataSource": "GLOBAL", "filterOperatorAndFieldValues": [{"filterOperator": "PAST", "fieldValues": ["7", "DAY"]}], "displayName": "Global Time Filter", "chartIds": [], "isStandardTimeRangeFilter": true, "isStandardTimeRangeFilterEnabled": true}]' --charts-file charts.json
+```
+
+Delete dashboard:
+```bash
+secops dashboard delete --id dashboard-id
+```
+
+Create Duplicate dashboard from existing:
+```bash
+secops dashboard duplicate --id source-dashboard-id \
+                           --display-name "Copy of Security Overview"
+```
+
+Adding Chart to existing dashboard:
+```bash
+secops dashboard add-chart --dashboard-id dashboard-id \
+                           --display-name "DNS Query Chart" \
+                           --description "Shows DNS query patterns" \
+                           --query-file dns_query.txt \
+                           --chart_layout '{\"startX\": 0, \"spanX\": 12, \"startY\": 0, \"spanY\": 8}' \
+                           --chart_datasource '{\"dataSources\": [\"UDM\"]}' \
+                           --interval '{\"relativeTime\": {\"timeUnit\": \"DAY\", \"startTimeVal\": \"1\"}}' \
+                           --visualization-file visualization.json \
+                           --tile_type VISUALIZATION
+```
+
+Get existing chart detail:
+```bash
+secops dashboard get-chart --id chart-id
+```
+
+Edit existing chart details:
+```bash
+secops dashboard edit-chart --dashboard-id dashboard-id \
+                            --dashboard-chart-from-file dashboard_chart.json \
+                            --dashboard-query-from-file dashboard_query.json
+
+# Edit with JSON string        
+secops dashboard edit-chart --dashboard-id dashboard-id \
+                            --dashboard-chart '{\"name\": \"<query_id>\",\n    \"query\": \"metadata.event_type = \\\"USER_LOGIN\\\"\\nmatch:\\n  principal.user.userid\\noutcome:\\n  $logon_count = count(metadata.id)\\norder:\\n  $logon_count desc\\nlimit: 10\",\n    \"input\": {\"relativeTime\": {\"timeUnit\": \"DAY\", \"startTimeVal\": \"1\"}},\n    \"etag\": \"<etag>\"}' \
+                            --dashboard-query '{\"name\": \"<ChartID>\",\n    \"displayName\": \"Updated Display name\",\n    \"description\": \"Updaed description\",\n    \"etag\": \"<etag>\"}'
+```
+
+Remove Chart from existing dashboard:
+```bash
+secops dashboard remove-chart --dashboard-id dashboard-id \
+                              --chart-id chart-id
+```
+
+### Dashboard Query
+
+Dashboard query commands provide option to execute query without dashboard and get details of existing dashboard query.
+
+Executing Dashboard Query:
+```bash
+secops dashboard-query execute --query-file dns_query.txt \
+                              --interval '{\"relativeTime\": {\"timeUnit\": \"DAY\", \"startTimeVal\": \"7\"}}' \
+                              --filters-file filters.json
+```
+
+Get Dashboard Query details:
+```bash
+secops dashboard-query get --id query-id
+```
+
 ## Conclusion
 
 The SecOps CLI provides a powerful way to interact with Google Security Operations products directly from your terminal. For more detailed information about the SDK capabilities, refer to the [main README](README.md).

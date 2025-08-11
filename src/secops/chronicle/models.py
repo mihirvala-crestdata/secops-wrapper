@@ -13,10 +13,13 @@
 # limitations under the License.
 #
 """Data models for Chronicle API responses."""
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+import json
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+
+from secops.exceptions import SecOpsError
 
 
 @dataclass
@@ -271,3 +274,163 @@ class CaseList:
             Case.from_dict(case_data) for case_data in data.get("cases", [])
         ]
         return cls(cases)
+
+
+# Dashboard Models
+
+
+class TileType(str, Enum):
+    """Valid tile types."""
+
+    VISUALIZATION = "TILE_TYPE_VISUALIZATION"
+    BUTTON = "TILE_TYPE_BUTTON"
+
+
+@dataclass
+class InputInterval:
+    """Input interval values to query."""
+
+    time_window: Optional[Dict[str, Any]] = None
+    relative_time: Optional[Dict[str, Any]] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        """Create from a dictionary."""
+        return cls(
+            time_window=data.get("time_window") or data.get("timeWindow"),
+            relative_time=data.get("relative_time") or data.get("relativeTime"),
+        )
+
+    def __post_init__(self):
+        """Validate that only one of `time_window` or `relative_time` is set."""
+        if self.time_window is not None and self.relative_time is not None:
+            raise ValueError(
+                "Only one of `time_window` or `relative_time` can be set."
+            )
+        if self.time_window is None and self.relative_time is None:
+            raise ValueError(
+                "One of `time_window` or `relative_time` must be set."
+            )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to a dictionary."""
+        result = {}
+        if self.time_window:
+            result["timeWindow"] = self.time_window
+        if self.relative_time:
+            result["relativeTime"] = self.relative_time
+        return result
+
+
+@dataclass
+class DashboardQuery:
+    """Dashboard query Model."""
+
+    query: str
+    input: Union[InputInterval, str]
+    name: str
+    etag: str
+
+    def __post_init__(self):
+        """Post init to handle field validation and transformation."""
+
+        try:
+            if isinstance(self.input, str):
+                self.input = InputInterval.from_dict(json.loads(self.input))
+        except ValueError as e:
+            raise SecOpsError(f"Value must be valid JSON string: {e}") from e
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        """Create from a dictionary."""
+        return cls(
+            query=data.get("query"),
+            input=(
+                InputInterval.from_dict(data["input"])
+                if isinstance(data["input"], dict)
+                else data["input"]
+            ),
+            name=data.get("name"),
+            etag=data.get("etag"),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to a dictionary."""
+        return asdict(
+            self, dict_factory=lambda x: {k: v for (k, v) in x if v is not None}
+        )
+
+    def update_fields(self) -> List[str]:
+        """Return a list of fields that have been modified."""
+        return [
+            f"dashboard_query.{field}"
+            for field in ["query", "input"]
+            if getattr(self, field) is not None
+        ]
+
+
+@dataclass
+class DashboardChart:
+    """Dashboard Chart Model."""
+
+    name: str
+    etag: str
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    tile_type: Optional[TileType] = None
+    visualization: Optional[Union[Dict[str, Any], str]] = None
+    drill_down_config: Optional[Union[Dict[str, Any], str]] = None
+    chart_datasource: Optional[Union[Dict[str, Any], str]] = None
+
+    def __post_init__(self):
+        """Post init to handle field validation and transformation."""
+        try:
+            if self.visualization and isinstance(self.visualization, str):
+                self.visualization = json.loads(self.visualization)
+            if self.drill_down_config and isinstance(
+                self.drill_down_config, str
+            ):
+                self.drill_down_config = json.loads(self.drill_down_config)
+            if self.chart_datasource and isinstance(self.chart_datasource, str):
+                self.chart_datasource = json.loads(self.chart_datasource)
+        except ValueError as e:
+            raise SecOpsError(f"Value must be valid JSON string: {e}") from e
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        """Create from a dictionary."""
+        return cls(
+            name=data.get("name"),
+            etag=data.get("etag"),
+            display_name=data.get("displayName") or data.get("display_name"),
+            description=data.get("description"),
+            tile_type=data.get("tileType") or data.get("tile_type"),
+            visualization=data.get("visualization"),
+            drill_down_config=(
+                data.get("drillDownConfig") or data.get("drill_down_config")
+            ),
+            chart_datasource=(
+                data.get("chartDatasource") or data.get("chart_datasource")
+            ),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to a dictionary."""
+        return asdict(
+            self, dict_factory=lambda x: {k: v for (k, v) in x if v is not None}
+        )
+
+    def update_fields(self) -> List[str]:
+        """Return a list of fields that have been modified."""
+        return [
+            f"dashboard_chart.{field}"
+            for field in [
+                "display_name",
+                "description",
+                "tile_type",
+                "visualization",
+                "drill_down_config",
+                "chart_datasource",
+            ]
+            if getattr(self, field) is not None
+        ]

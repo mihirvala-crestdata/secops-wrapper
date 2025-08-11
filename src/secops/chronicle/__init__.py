@@ -21,6 +21,20 @@ from secops.chronicle.client import (
     ValueType,
     _detect_value_type,
 )
+from secops.chronicle.dashboard import (
+    DashboardAccessType,
+    DashboardView,
+    add_chart,
+    create_dashboard,
+    delete_dashboard,
+    duplicate_dashboard,
+    get_chart,
+    get_dashboard,
+    list_dashboards,
+    remove_chart,
+    update_dashboard,
+)
+from secops.chronicle.dashboard_query import execute_query, get_execute_query
 from secops.chronicle.data_export import (
     AvailableLogType,
     cancel_data_export,
@@ -66,8 +80,10 @@ from secops.chronicle.models import (
     EntityMetrics,
     EntitySummary,
     FileMetadataAndProperties,
+    InputInterval,
     PrevalenceData,
     SoarPlatformInfo,
+    TileType,
     TimeInterval,
     Timeline,
     TimelineBucket,
@@ -111,12 +127,12 @@ from secops.chronicle.rule_set import batch_update_curated_rule_set_deployments
 from secops.chronicle.rule_validation import ValidationResult
 from secops.chronicle.search import search_udm
 from secops.chronicle.stats import get_stats
+from secops.chronicle.udm_mapping import (
+    RowLogFormat,
+    generate_udm_key_value_mappings,
+)
 from secops.chronicle.udm_search import fetch_udm_search_csv
 from secops.chronicle.validate import validate_query
-from secops.chronicle.udm_mapping import (
-    generate_udm_key_value_mappings,
-    RowLogFormat,
-)
 
 __all__ = [
     # Client
@@ -191,6 +207,19 @@ __all__ = [
     "get_retrohunt",
     # Rule set operations
     "batch_update_curated_rule_set_deployments",
+    # Native Dashboard
+    "add_chart",
+    "create_dashboard",
+    "delete_dashboard",
+    "duplicate_dashboard",
+    "get_chart",
+    "get_dashboard",
+    "list_dashboards",
+    "remove_chart",
+    "update_dashboard",
+    # Dashboard Queries
+    "execute_query",
+    "get_execute_query",
     # Models
     "Entity",
     "EntityMetadata",
@@ -213,6 +242,10 @@ __all__ = [
     "NavigationAction",
     "UpdateRuleDeployment",
     "RowLogFormat",
+    "DashboardAccessType",
+    "DashboardView",
+    "InputInterval",
+    "TileType",
     # Data Table and Reference List
     "DataTableColumnType",
     "ReferenceListSyntaxType",

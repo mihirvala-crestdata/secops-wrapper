@@ -2974,6 +2974,686 @@ def handle_generate_udm_mapping_command(args, chronicle):
         sys.exit(1)
 
 
+def setup_dashboard_command(subparsers):
+    """Set up dashboard commands."""
+    dashboard_parser = subparsers.add_parser(
+        "dashboard", help="Manage Chronicle dashboards"
+    )
+    dashboard_subparsers = dashboard_parser.add_subparsers(
+        dest="dashboard_command",
+        help="Dashboard command to execute",
+        required=True,
+    )
+
+    # List dashboards
+    list_parser = dashboard_subparsers.add_parser(
+        "list", help="List dashboards"
+    )
+    list_parser.add_argument(
+        "--page-size",
+        "--page_size",
+        type=int,
+        help="Maximum number of dashboards to return",
+    )
+    list_parser.add_argument(
+        "--page-token", "--page_token", help="Page token for pagination"
+    )
+    list_parser.set_defaults(func=handle_dashboard_list_command)
+
+    # Get dashboard
+    get_parser = dashboard_subparsers.add_parser(
+        "get", help="Get dashboard details"
+    )
+    get_parser.add_argument(
+        "--dashboard-id",
+        "--dashboard_id",
+        help="Dashboard ID",
+        required=True,
+    )
+    get_parser.add_argument(
+        "--view", help="Dashboard view", choices=["BASIC", "FULL"]
+    )
+    get_parser.set_defaults(func=handle_dashboard_get_command)
+
+    # Create dashboard
+    create_parser = dashboard_subparsers.add_parser(
+        "create", help="Create a new dashboard"
+    )
+    create_parser.add_argument(
+        "--display-name",
+        "--display_name",
+        required=True,
+        help="Dashboard display name",
+    )
+    create_parser.add_argument("--description", help="Dashboard description")
+    create_parser.add_argument(
+        "--access-type",
+        "--access_type",
+        choices=["PRIVATE", "PUBLIC"],
+        required=True,
+        help="Dashboard access type",
+    )
+    filters_group = create_parser.add_mutually_exclusive_group()
+    filters_group.add_argument(
+        "--filters",
+        "--filters",
+        help="List of filters to apply to the dashboard",
+    )
+    filters_group.add_argument(
+        "--filters-file",
+        "--filters_file",
+        help="File containing list of filters to apply to the dashboard",
+    )
+    charts_group = create_parser.add_mutually_exclusive_group()
+    charts_group.add_argument(
+        "--charts",
+        "--charts",
+        help="List of charts to include in the dashboard",
+    )
+    charts_group.add_argument(
+        "--charts-file",
+        "--charts_file",
+        help="File containing list of charts to include in the dashboard",
+    )
+    create_parser.set_defaults(func=handle_dashboard_create_command)
+
+    # Update Dashboard
+    create_parser = dashboard_subparsers.add_parser(
+        "update", help="Update an existing dashboard"
+    )
+    create_parser.add_argument(
+        "--dashboard-id",
+        "--dashboard_id",
+        required=True,
+        help="Dashboard ID",
+    )
+    create_parser.add_argument(
+        "--display-name",
+        "--display_name",
+        help="Updated Dashboard display name",
+    )
+    create_parser.add_argument("--description", help="Dashboard description")
+    update_filters_group = create_parser.add_mutually_exclusive_group()
+    update_filters_group.add_argument(
+        "--filters",
+        "--filters",
+        help="List of filters to apply to the dashboard",
+    )
+    update_filters_group.add_argument(
+        "--filters-file",
+        "--filters_file",
+        help="File containing list of filters to apply to the dashboard",
+    )
+    update_charts_group = create_parser.add_mutually_exclusive_group()
+    update_charts_group.add_argument(
+        "--charts",
+        "--charts",
+        help="List of charts to include in the dashboard",
+    )
+    update_charts_group.add_argument(
+        "--charts-file",
+        "--charts_file",
+        help="File containing list of charts to include in the dashboard",
+    )
+    create_parser.set_defaults(func=handle_dashboard_update_command)
+
+    # Delete Dashboard
+    delete_parser = dashboard_subparsers.add_parser(
+        "delete", help="Delete an existing dashboard"
+    )
+    delete_parser.add_argument(
+        "--dashboard-id", "--dashboard_id", required=True, help="Dashboard ID"
+    )
+    delete_parser.set_defaults(func=handle_dashboard_delete_command)
+
+    # Duplicate dashboard
+    duplicate_parser = dashboard_subparsers.add_parser(
+        "duplicate", help="Duplicate an existing dashboard"
+    )
+    duplicate_parser.add_argument(
+        "--dashboard-id",
+        "--dashboard_id",
+        required=True,
+        help="Source dashboard ID",
+    )
+    duplicate_parser.add_argument(
+        "--display-name",
+        "--display_name",
+        required=True,
+        help="New dashboard display name",
+    )
+    duplicate_parser.add_argument(
+        "--description", help="New dashboard description"
+    )
+    duplicate_parser.add_argument(
+        "--access-type",
+        "--access_type",
+        choices=["PRIVATE", "PUBLIC"],
+        required=True,
+        help="New dashboard access type",
+    )
+    duplicate_parser.set_defaults(func=handle_dashboard_duplicate_command)
+
+    # Add chart
+    add_chart_parser = dashboard_subparsers.add_parser(
+        "add-chart", help="Add a chart to a dashboard"
+    )
+    add_chart_parser.add_argument(
+        "--dashboard-id", "--dashboard_id", help="Dashboard ID", required=True
+    )
+    add_chart_parser.add_argument(
+        "--display-name",
+        "--display_name",
+        required=True,
+        help="Chart display name",
+    )
+    add_chart_parser.add_argument("--description", help="Chart description")
+    chart_layout_group = add_chart_parser.add_mutually_exclusive_group(
+        required=True
+    )
+    chart_layout_group.add_argument(
+        "--chart-layout",
+        "--chart_layout",
+        help="Chart layout in JSON string",
+    )
+    chart_layout_group.add_argument(
+        "--chart-layout-file",
+        "--chart_layout_file",
+        help="File containing chart layout in JSON string",
+    )
+    query_group = add_chart_parser.add_mutually_exclusive_group()
+    query_group.add_argument("--query", help="Query for the chart")
+    query_group.add_argument(
+        "--query-file",
+        "--query_file",
+        help="File containing query for the chart",
+    )
+    add_chart_parser.add_argument(
+        "--interval", help="Time interval JSON string"
+    )
+    add_chart_parser.add_argument(
+        "--tile-type",
+        "--tile_type",
+        choices=["VISUALIZATION", "BUTTON"],
+        help="Tile type for the chart",
+        required=True,
+    )
+    chart_datasource_group = add_chart_parser.add_mutually_exclusive_group()
+    chart_datasource_group.add_argument(
+        "--chart-datasource",
+        "--chart_datasource",
+        help="Chart datasource JSON string",
+    )
+    chart_datasource_group.add_argument(
+        "--chart-datasource-file",
+        "--chart_datasource_file",
+        help="File containing chart datasource JSON string",
+    )
+    visualization_group = add_chart_parser.add_mutually_exclusive_group()
+    visualization_group.add_argument(
+        "--visualization",
+        "--visualization",
+        help="Visualization for the chart in JSON string",
+    )
+    visualization_group.add_argument(
+        "--visualization-file",
+        "--visualization_file",
+        help="File containing visualization for the chart in JSON string",
+    )
+    drill_down_config_group = add_chart_parser.add_mutually_exclusive_group()
+    drill_down_config_group.add_argument(
+        "--drill-down-config",
+        "--drill_down_config",
+        help="Drill down configuration for the chart in JSON string",
+    )
+    drill_down_config_group.add_argument(
+        "--drill-down-config-file",
+        "--drill_down_config_file",
+        help=(
+            "File containing drill down configuration for "
+            "the chart in JSON string"
+        ),
+    )
+    add_chart_parser.set_defaults(func=handle_dashboard_add_chart_command)
+
+    # Remove chart
+    remove_chart_parser = dashboard_subparsers.add_parser(
+        "remove-chart", help="Remove a chart from a dashboard"
+    )
+    remove_chart_parser.add_argument(
+        "--dashboard-id", "--dashboard_id", help="Dashboard ID"
+    )
+    remove_chart_parser.add_argument(
+        "--chart-id", "--chart_id", help="Chart ID to remove"
+    )
+    remove_chart_parser.set_defaults(func=handle_dashboard_remove_chart_command)
+
+    # Get chart
+    get_chart_parser = dashboard_subparsers.add_parser(
+        "get-chart", help="Get a chart from a dashboard"
+    )
+    get_chart_parser.add_argument("--id", help="Chart ID to get")
+    get_chart_parser.set_defaults(func=handle_dashboard_get_chart_command)
+
+    # Edit Chart
+    edit_chart_parser = dashboard_subparsers.add_parser(
+        "edit-chart", help="Edit an existing chart in a dashboard"
+    )
+    edit_chart_parser.add_argument(
+        "--dashboard-id", "--dashboard_id", help="Dashboard ID", required=True
+    )
+    dashboard_query_group = edit_chart_parser.add_mutually_exclusive_group()
+    dashboard_query_group.add_argument(
+        "--dashboard-query",
+        "--dashboard_query",
+        help="Dashboard query JSON string",
+    )
+    dashboard_query_group.add_argument(
+        "--dashboard-query-from-file",
+        "--dashboard_query_from_file",
+        help="File containing dashboard query JSON string",
+    )
+    dashboard_chart_group = edit_chart_parser.add_mutually_exclusive_group()
+    dashboard_chart_group.add_argument(
+        "--dashboard-chart",
+        "--dashboard_chart",
+        help="Dashboard chart JSON string",
+    )
+    dashboard_chart_group.add_argument(
+        "--dashboard-chart-from-file",
+        "--dashboard_chart_from_file",
+        help="File containing dashboard chart JSON string",
+    )
+    edit_chart_parser.set_defaults(func=handle_dashboard_edit_chart_command)
+
+
+def handle_dashboard_list_command(args, chronicle):
+    """Handle list dashboards command."""
+    try:
+        result = chronicle.list_dashboards(
+            page_size=args.page_size, page_token=args.page_token
+        )
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error listing dashboards: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dashboard_get_command(args, chronicle):
+    """Handle get dashboard command."""
+    try:
+        result = chronicle.get_dashboard(
+            dashboard_id=args.dashboard_id, view=args.view
+        )
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error getting dashboard: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dashboard_create_command(args, chronicle):
+    """Handle create dashboard command."""
+    try:
+        filters = args.filters if args.filters else None
+        charts = args.charts if args.charts else None
+        if args.filters_file:
+            with open(args.filters_file, "r", encoding="utf-8") as f:
+                filters = f.read()
+
+        if args.charts_file:
+            with open(args.charts_file, "r", encoding="utf-8") as f:
+                charts = f.read()
+
+        result = chronicle.create_dashboard(
+            display_name=args.display_name,
+            access_type=args.access_type,
+            description=args.description,
+            filters=filters,
+            charts=charts,
+        )
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error creating dashboard: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dashboard_update_command(args, chronicle):
+    """Handle update dashboard command."""
+    try:
+        filters = args.filters if args.filters else None
+        charts = args.charts if args.charts else None
+        if args.filters_file:
+            try:
+                with open(args.filters_file, "r", encoding="utf-8") as f:
+                    filters = f.read()
+            except IOError as e:
+                print(f"Error reading filters file: {e}", file=sys.stderr)
+                sys.exit(1)
+
+        if args.charts_file:
+            try:
+                with open(args.charts_file, "r", encoding="utf-8") as f:
+                    charts = f.read()
+            except IOError as e:
+                print(f"Error reading charts file: {e}", file=sys.stderr)
+                sys.exit(1)
+
+        result = chronicle.update_dashboard(
+            dashboard_id=args.dashboard_id,
+            display_name=args.display_name,
+            description=args.description,
+            filters=filters,
+            charts=charts,
+        )
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error creating dashboard: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dashboard_delete_command(args, chronicle):
+    """Handle delete dashboard command."""
+    try:
+        result = chronicle.delete_dashboard(dashboard_id=args.dashboard_id)
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error deleting dashboard: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dashboard_duplicate_command(args, chronicle):
+    """Handle duplicate dashboard command."""
+    try:
+        result = chronicle.duplicate_dashboard(
+            dashboard_id=args.dashboard_id,
+            display_name=args.display_name,
+            access_type=args.access_type,
+            description=args.description,
+        )
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error duplicating dashboard: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dashboard_add_chart_command(args, chronicle):
+    """Handle add chart to dashboard command."""
+    try:
+        # Process query from file or argument
+        query = args.query if args.query else None
+        if args.query_file:
+            try:
+                with open(args.query_file, "r", encoding="utf-8") as f:
+                    query = f.read()
+            except IOError as e:
+                print(f"Error reading query file: {e}", file=sys.stderr)
+                sys.exit(1)
+        chart_layout = args.chart_layout if args.chart_layout else None
+        if args.chart_layout_file:
+            try:
+                with open(args.chart_layout_file, "r", encoding="utf-8") as f:
+                    chart_layout = f.read()
+            except IOError as e:
+                print(f"Error reading chart layout file: {e}", file=sys.stderr)
+                sys.exit(1)
+
+        visualization = args.visualization if args.visualization else None
+        if args.visualization_file:
+            try:
+                with open(args.visualization_file, "r", encoding="utf-8") as f:
+                    visualization = f.read()
+            except IOError as e:
+                print(f"Error reading visualization file: {e}", file=sys.stderr)
+                sys.exit(1)
+
+        drill_down_config = (
+            args.drill_down_config if args.drill_down_config else None
+        )
+        if args.drill_down_config_file:
+            try:
+                with open(
+                    args.drill_down_config_file, "r", encoding="utf-8"
+                ) as f:
+                    drill_down_config = f.read()
+            except IOError as e:
+                print(
+                    f"Error reading drill down config file: {e}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+        chart_datasource = (
+            args.chart_datasource if args.chart_datasource else None
+        )
+        if args.chart_datasource_file:
+            try:
+                with open(
+                    args.chart_datasource_file, "r", encoding="utf-8"
+                ) as f:
+                    chart_datasource = f.read()
+            except IOError as e:
+                print(
+                    f"Error reading chart datasource file: {e}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+        result = chronicle.add_chart(
+            dashboard_id=args.dashboard_id,
+            display_name=args.display_name,
+            chart_layout=chart_layout,
+            tile_type=args.tile_type,
+            chart_datasource=chart_datasource,
+            visualization=visualization,
+            drill_down_config=drill_down_config,
+            description=args.description,
+            query=query,
+            interval=args.interval,
+        )
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error adding chart: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dashboard_remove_chart_command(args, chronicle):
+    """Handle remove chart command."""
+    try:
+        result = chronicle.remove_chart(
+            dashboard_id=args.dashboard_id,
+            chart_id=args.chart_id,
+        )
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error removing chart: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dashboard_get_chart_command(args, chronicle):
+    """Handle get chart command."""
+    try:
+        result = chronicle.get_chart(chart_id=args.id)
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error getting chart: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dashboard_edit_chart_command(args, chronicle):
+    """Handle edit chart command."""
+    try:
+        dashboard_query = args.dashboard_query if args.dashboard_query else None
+        dashboard_chart = args.dashboard_chart if args.dashboard_chart else None
+        if args.dashboard_query_from_file:
+            try:
+                with open(
+                    args.dashboard_query_from_file, "r", encoding="utf-8"
+                ) as f:
+                    dashboard_query = f.read()
+            except IOError as e:
+                print(
+                    f"Error reading dashboard query file: {e}", file=sys.stderr
+                )
+                sys.exit(1)
+
+        if args.dashboard_chart_from_file:
+            try:
+                with open(
+                    args.dashboard_chart_from_file, "r", encoding="utf-8"
+                ) as f:
+                    dashboard_chart = f.read()
+            except IOError as e:
+                print(
+                    f"Error reading dashboard chart file: {e}", file=sys.stderr
+                )
+                sys.exit(1)
+
+        result = chronicle.edit_chart(
+            dashboard_id=args.dashboard_id,
+            dashboard_query=dashboard_query,
+            dashboard_chart=dashboard_chart,
+        )
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error editing chart: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def setup_dashboard_query_command(subparsers):
+    """Set up dashboard query command."""
+    dashboard_query_parser = subparsers.add_parser(
+        "dashboard-query", help="Manage Chronicle dashboard queries"
+    )
+    dashboard_query_subparsers = dashboard_query_parser.add_subparsers(
+        dest="dashboard_query_command",
+        help="Dashboard query command to execute",
+        required=True,
+    )
+
+    # Execute query
+    execute_query_parser = dashboard_query_subparsers.add_parser(
+        "execute", help="Execute a dashboard query"
+    )
+    execute_query_parser.add_argument("--query", help="Query to execute")
+    execute_query_parser.add_argument(
+        "--query-file", "--query_file", help="File containing query to execute"
+    )
+    execute_query_parser.add_argument(
+        "--interval",
+        required=True,
+        help="Time interval JSON string",
+    )
+    eq_filters_group = execute_query_parser.add_mutually_exclusive_group()
+    eq_filters_group.add_argument(
+        "--filters-file",
+        "--filters_file",
+        help="File containing filters for the query in JSON string",
+    )
+    eq_filters_group.add_argument(
+        "--filters",
+        "--filters",
+        help="Filters for the query in JSON string",
+    )
+    execute_query_parser.add_argument(
+        "--clear-cache",
+        "--clear_cache",
+        choices=["true", "false"],
+        help="Clear cache for the query",
+    )
+    execute_query_parser.set_defaults(
+        func=handle_dashboard_query_execute_command
+    )
+
+    # Get query
+    get_query_parser = dashboard_query_subparsers.add_parser(
+        "get", help="Get a dashboard query"
+    )
+    get_query_parser.add_argument("--id", required=True, help="Query ID")
+    get_query_parser.set_defaults(func=handle_dashboard_query_get_command)
+
+
+def handle_dashboard_query_execute_command(args, chronicle):
+    """Handle execute dashboard query command."""
+    try:
+        # Process query from file or argument
+        if args.query_file and args.query:
+            print(
+                "Error: Only one of query or query-file can be specified.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        query = args.query if args.query else None
+        if args.query_file:
+            try:
+                with open(args.query_file, "r", encoding="utf-8") as f:
+                    query = f.read()
+            except IOError as e:
+                print(f"Error reading query file: {e}", file=sys.stderr)
+                sys.exit(1)
+
+        if not query:
+            print("Error: No query provided", file=sys.stderr)
+            sys.exit(1)
+
+        result = chronicle.execute_dashboard_query(
+            query=query,
+            interval=args.interval,
+            filters=args.filters,
+            clear_cache=args.clear_cache,
+        )
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error executing query: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dashboard_query_get_command(args, chronicle):
+    """Handle get dashboard query command."""
+    try:
+        result = chronicle.get_dashboard_query(query_id=args.id)
+        output_formatter(result, args.output)
+    except APIError as e:
+        print(f"API error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error getting query: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(description="Google SecOps CLI")
@@ -3006,6 +3686,8 @@ def main() -> None:
     setup_rule_exclusion_command(subparsers)  # Add rule exclusion command
     setup_config_command(subparsers)
     setup_help_command(subparsers)
+    setup_dashboard_command(subparsers)
+    setup_dashboard_query_command(subparsers)
 
     # Parse arguments
     args = parser.parse_args()
@@ -3031,6 +3713,7 @@ def main() -> None:
         "export",
         "gemini",
         "rule-exclusion",
+        "dashboard",
     ]
     requires_chronicle = any(cmd in args.command for cmd in chronicle_commands)
 
