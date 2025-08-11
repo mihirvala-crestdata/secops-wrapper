@@ -16,7 +16,6 @@
 
 These tests require valid credentials and API access.
 """
-import time
 import uuid
 
 import pytest
@@ -107,6 +106,8 @@ def test_dashboard_query_execute_get():
             "dashboardQuery"
             in chart_result["dashboardChart"]["chartDatasource"]
         )
+        chart_id = chart_result["dashboardChart"]["name"].split("/")[-1]
+
         print(f"Chart added successfully to dashboard")
 
         query_id = chart_result["dashboardChart"]["chartDatasource"][
