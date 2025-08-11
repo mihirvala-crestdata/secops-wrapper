@@ -94,10 +94,12 @@ jobs:
             console.log(`@${commenter} is authorized to approve.`);
 
       - name: Trigger Integration Tests Workflow
-        uses: peter-evans/workflow-dispatch@v1
+        uses: marketplace/actions/workflow-dispatch@v1
         with:
-          workflow: Integration Tests
-          ref: refs/heads/${{ steps.pr-details.outputs.head_ref }}
-          inputs:
-            pr_number: ${{ steps.pr-details.outputs.pr_number }}
-            approver: ${{ github.event.comment.user.login }}
+          workflow: 'integration_test.yml'
+          ref: ${{ steps.pr-details.outputs.head_ref }}
+          inputs: |
+            {
+              "pr_number": "${{ steps.pr-details.outputs.pr_number }}",
+              "approver": "${{ github.event.comment.user.login }}"
+            }
