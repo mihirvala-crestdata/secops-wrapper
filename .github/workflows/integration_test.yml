@@ -6,12 +6,14 @@ on:
       pr_number:
         description: "PR number to run integration tests for"
         required: true
+      approver:
+        description: "GitHub username of the person who approved"
+        required: true
 
 jobs:
   integration-tests:
     name: Run Integration Tests
     runs-on: ubuntu-latest
-    environment: integration-tests
     
     env:
       # Chronicle config variables
@@ -32,6 +34,21 @@ jobs:
       CHRONICLE_UNIVERSE_DOMAIN: ${{ vars.CHRONICLE_UNIVERSE_DOMAIN }}
 
     steps:
+      - name: Post PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = parseInt(core.getInput('pr_number'));
+            const approver = core.getInput('approver');
+            const body = `✅ Integration tests started by @${approver}`;
+            await github.issues.createComment({
+              owner,
+              repo,
+              issue_number: prNumber,
+              body
+            })
+              
       - name: Checkout code
         uses: actions/checkout@v3
         with:

@@ -8,7 +8,7 @@ jobs:
   approve-integration-tests:
     name: Approve Integration Tests Trigger
     runs-on: ubuntu-latest
-    if: startsWith(github.event.comment.body, '/run-integration') && github.event.issue.pull_request
+    if: startsWith(github.event.comment.body, '/approve-integration-tests') && github.event.issue.pull_request
     steps:
       - name: Get PR details
         id: pr-details
@@ -17,11 +17,20 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const prNumber = context.payload.issue.number;
-            const pr = await github.pulls.get({ owner, repo, pull_number: prNumber });
 
+            // Get PR details
+            let pr;
+            try {
+              pr = await github.pulls.get({ owner, repo, pull_number: prNumber });
+            } catch (err) {
+              console.log(`No PR found for #${prNumber}. Skipping.`);
+              process.exit(0); // skip silently
+            }
+
+            // Skip if not targeting main
             if (pr.data.base.ref !== 'main') {
               console.log(`PR #${prNumber} is targeting '${pr.data.base.ref}', not 'main'. Skipping approval.`);
-              process.exit(0); // silently skip
+              process.exit(0);
             }
 
             core.setOutput('head_ref', pr.data.head.ref);
@@ -34,15 +43,18 @@ jobs:
           script: |
             const path = '.github/CODEOWNERS';
             const { owner, repo } = context.repo;
+
             try {
               const res = await github.repos.getContent({ owner, repo, path });
               const content = Buffer.from(res.data.content, 'base64').toString();
               core.setOutput('content', content);
             } catch (err) {
-              core.setFailed(`Could not load CODEOWNERS file: ${err.message}`);
+              console.log(`No CODEOWNERS file found at ${path}. Skipping approval.`);
+              process.exit(0);
             }
 
       - name: Check commenter in CODEOWNERS (users & teams)
+        id: check-owner
         uses: actions/github-script@v7
         with:
           script: |
@@ -50,7 +62,6 @@ jobs:
             const content = core.getInput('content', { required: true });
             const lines = content.split(/\r?\n/).filter(l => l.trim() && !l.startsWith('#'));
 
-            const { owner: org } = context.repo;
             const owners = new Set();
 
             for (const line of lines) {
@@ -60,23 +71,27 @@ jobs:
                 if (name.includes('/')) {
                   // Team name
                   const [teamOrg, teamSlug] = name.split('/');
-                  const members = await github.teams.listMembersInOrg({
-                    org: teamOrg,
-                    team_slug: teamSlug
-                  });
-                  members.data.forEach(m => owners.add(m.login));
+                  try {
+                    const members = await github.teams.listMembersInOrg({
+                      org: teamOrg,
+                      team_slug: teamSlug
+                    });
+                    members.data.forEach(m => owners.add(m.login));
+                  } catch (err) {
+                    console.log(`Could not fetch team members for ${name}: ${err.message}`);
+                  }
                 } else {
-                  // Individual user
                   owners.add(name);
                 }
               }
             }
 
             if (!owners.has(commenter)) {
-              core.setFailed(`User @${commenter} is not in CODEOWNERS or a CODEOWNER team.`);
-            } else {
-              console.log(`@${commenter} is authorized to approve.`);
+              console.log(`User @${commenter} is NOT in CODEOWNERS or any CODEOWNER team. Skipping.`);
+              process.exit(0);
             }
+
+            console.log(`@${commenter} is authorized to approve.`);
 
       - name: Trigger Integration Tests Workflow
         uses: peter-evans/workflow-dispatch@v1
@@ -85,3 +100,4 @@ jobs:
           ref: refs/heads/${{ steps.pr-details.outputs.head_ref }}
           inputs:
             pr_number: ${{ steps.pr-details.outputs.pr_number }}
+            approver: ${{ github.event.comment.user.login }}
