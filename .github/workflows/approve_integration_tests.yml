@@ -1,0 +1,87 @@
+name: Approve Integration Tests
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  approve-integration-tests:
+    name: Approve Integration Tests Trigger
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.comment.body, '/run-integration') && github.event.issue.pull_request
+    steps:
+      - name: Get PR details
+        id: pr-details
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = context.payload.issue.number;
+            const pr = await github.pulls.get({ owner, repo, pull_number: prNumber });
+
+            if (pr.data.base.ref !== 'main') {
+              console.log(`PR #${prNumber} is targeting '${pr.data.base.ref}', not 'main'. Skipping approval.`);
+              process.exit(0); // silently skip
+            }
+
+            core.setOutput('head_ref', pr.data.head.ref);
+            core.setOutput('pr_number', prNumber);
+
+      - name: Get CODEOWNERS
+        id: get-codeowners
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const path = '.github/CODEOWNERS';
+            const { owner, repo } = context.repo;
+            try {
+              const res = await github.repos.getContent({ owner, repo, path });
+              const content = Buffer.from(res.data.content, 'base64').toString();
+              core.setOutput('content', content);
+            } catch (err) {
+              core.setFailed(`Could not load CODEOWNERS file: ${err.message}`);
+            }
+
+      - name: Check commenter in CODEOWNERS (users & teams)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commenter = context.payload.comment.user.login;
+            const content = core.getInput('content', { required: true });
+            const lines = content.split(/\r?\n/).filter(l => l.trim() && !l.startsWith('#'));
+
+            const { owner: org } = context.repo;
+            const owners = new Set();
+
+            for (const line of lines) {
+              const parts = line.trim().split(/\s+/).slice(1);
+              for (const part of parts) {
+                const name = part.replace(/^@/, '');
+                if (name.includes('/')) {
+                  // Team name
+                  const [teamOrg, teamSlug] = name.split('/');
+                  const members = await github.teams.listMembersInOrg({
+                    org: teamOrg,
+                    team_slug: teamSlug
+                  });
+                  members.data.forEach(m => owners.add(m.login));
+                } else {
+                  // Individual user
+                  owners.add(name);
+                }
+              }
+            }
+
+            if (!owners.has(commenter)) {
+              core.setFailed(`User @${commenter} is not in CODEOWNERS or a CODEOWNER team.`);
+            } else {
+              console.log(`@${commenter} is authorized to approve.`);
+            }
+
+      - name: Trigger Integration Tests Workflow
+        uses: peter-evans/workflow-dispatch@v1
+        with:
+          workflow: Integration Tests
+          ref: refs/heads/${{ steps.pr-details.outputs.head_ref }}
+          inputs:
+            pr_number: ${{ steps.pr-details.outputs.pr_number }}

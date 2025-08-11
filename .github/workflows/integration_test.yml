@@ -1,9 +1,11 @@
 name: Integration Tests
 
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to run integration tests for"
+        required: true
 
 jobs:
   integration-tests:
@@ -33,7 +35,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: refs/pull/${{ github.event.inputs.pr_number }}/head
       
       - name: Set up Python
         uses: actions/setup-python@v4
