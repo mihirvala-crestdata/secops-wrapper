@@ -1,14 +1,93 @@
 name: Integration Tests
 
 on:
-  pull_request:
-    types: [labeled]
+  issue_comment:
+    types: [created]
 
 jobs:
+  check-authorization:
+    name: Check Authorization
+    if: >-
+      startsWith(github.event.comment.body, '/run-integration-tests') && 
+      contains(toJSON(github.event.issue), 'pull_request')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      is_authorized: ${{ steps.auth-check.outputs.is_authorized }}
+      pr_number: ${{ github.event.issue.number }}
+      
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Check CODEOWNERS authorization
+        id: auth-check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commenter = context.payload.comment.user.login;
+            console.log(`Comment by: ${commenter}`);
+
+            // Verify this is a pull request comment
+            if (!context.payload.issue.pull_request) {
+              console.log('This comment is not on a pull request. Skipping.');
+              core.setOutput("is_authorized", "false");
+              return;
+            }
+            
+            try {              
+              // Get CODEOWNERS file
+              const { data: codeownersFile } = await github.rest.repos.getContent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path: '.github/CODEOWNERS',
+              });
+              
+              // Decode content from base64
+              const content = Buffer.from(codeownersFile.content, 'base64')
+                .toString('utf8');
+              
+              // Parse CODEOWNERS file
+              const lines = content.split('\n')
+                .filter(line => line.trim() && !line.startsWith('#'));
+              
+              // Extract owners
+              const owners = new Set();
+              for (const line of lines) {
+                const matches = line.match(/@[\w-]+(?:\/[\w-]+)?/g) || [];
+                for (const match of matches) {
+                  owners.add(match.substring(1)); 
+                }
+              }
+              
+              // Check if commenter is in CODEOWNERS
+              const isAuthorized = 
+                owners.has(commenter) || 
+                Array.from(owners).some(owner => 
+                  owner.includes('/') && 
+                  owner.startsWith(context.repo.owner + '/')
+                );
+              
+              core.setOutput("is_authorized", isAuthorized ? "true" : "false");
+              console.log(`Authorization result: ${isAuthorized}`);
+              
+            } catch (error) {
+              console.error(`Error processing CODEOWNERS: ${error.message}`);
+              core.setOutput("is_authorized", "false");
+            }
+
   integration-tests:
     name: Run Integration Tests
-    if: github.event.label.name == 'run-integration-test'
+    needs: check-authorization
+    if: needs.check-authorization.outputs.is_authorized == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      checks: write
     
     env:
       # Chronicle config variables
@@ -30,9 +109,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          ref: refs/pull/${{ github.event.inputs.pr_number }}/head
+        uses: actions/checkout@v5
       
       - name: Set up Python
         uses: actions/setup-python@v4
