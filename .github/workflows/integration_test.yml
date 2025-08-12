@@ -21,6 +21,8 @@ jobs:
       
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: 'main'
       
       - name: Check CODEOWNERS authorization
         id: auth-check
@@ -38,6 +40,15 @@ jobs:
             }
             
             try {
+
+              console.log(`Trying to get .github/CODEOWNERS from ${context.repo.owner}/${context.repo.repo}`);
+              const { data: codeownersFile } = await github.rest.repos.getContent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path: '.github/CODEOWNERS',
+              });
+              console.log("CODEOWNERS file found!");
+
               // Get CODEOWNERS file
               const { data: codeownersFile } = await github.rest.repos.getContent({
                 owner: context.repo.owner,
