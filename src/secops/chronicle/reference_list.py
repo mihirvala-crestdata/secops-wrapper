@@ -100,7 +100,7 @@ def create_reference_list(
         _validate_cidr_entries(entries)
 
     response = client.session.post(
-        f"{client.base_url}/{client.instance_id}/referenceLists",
+        f"{client.base_v1_url}/{client.instance_id}/referenceLists",
         json={
             "description": description,
             "entries": [{"value": x} for x in entries],
@@ -140,7 +140,7 @@ def get_reference_list(
         params["view"] = view.value
 
     response = client.session.get(
-        f"{client.base_url}/{client.instance_id}/referenceLists/{name}",
+        f"{client.base_v1_url}/{client.instance_id}/referenceLists/{name}",
         params=params if params else None,
     )
 
@@ -178,7 +178,7 @@ def list_reference_lists(
 
     while True:
         response = client.session.get(
-            f"{client.base_url}/{client.instance_id}/referenceLists",
+            f"{client.base_v1_url}/{client.instance_id}/referenceLists",
             params=params,
         )
 
@@ -252,7 +252,7 @@ def update_reference_list(
     params = {"updateMask": ",".join(update_paths)}
 
     response = client.session.patch(
-        f"{client.base_url}/{client.instance_id}/referenceLists/{name}",
+        f"{client.base_v1_url}/{client.instance_id}/referenceLists/{name}",
         json=payload,
         params=params,
     )

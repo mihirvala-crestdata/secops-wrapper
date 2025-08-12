@@ -30,6 +30,7 @@ def mock_chronicle_client() -> Mock:
     client = Mock(spec=ChronicleClient)
     client.session = Mock()
     client.base_url = "https://test-chronicle.googleapis.com/v1alpha"
+    client.base_v1_url = "https://test-chronicle.googleapis.com/v1"
     client.instance_id = "projects/test-project/locations/us/instances/test-customer"
     return client
 
@@ -331,7 +332,7 @@ class TestReferenceLists:
         assert result["description"] == description
         assert len(result["entries"]) == 2
         mock_chronicle_client.session.post.assert_called_once_with(
-            f"{mock_chronicle_client.base_url}/{mock_chronicle_client.instance_id}/referenceLists",
+            f"{mock_chronicle_client.base_v1_url}/{mock_chronicle_client.instance_id}/referenceLists",
             params={"referenceListId": rl_name},
             json={
                 "description": description,
@@ -399,7 +400,7 @@ class TestReferenceLists:
         assert result["description"] == "Full RL details"
         assert len(result["entries"]) == 1
         mock_chronicle_client.session.get.assert_called_once_with(
-            f"{mock_chronicle_client.base_url}/{mock_chronicle_client.instance_id}/referenceLists/{rl_name}",
+            f"{mock_chronicle_client.base_v1_url}/{mock_chronicle_client.instance_id}/referenceLists/{rl_name}",
             params={"view": ReferenceListView.FULL.value},
         )
 
@@ -428,7 +429,7 @@ class TestReferenceLists:
         assert results[0]["displayName"] == "rl_basic1"
         assert "entries" not in results[0]  # Entries are not in BASIC view
         mock_chronicle_client.session.get.assert_called_once_with(
-            f"{mock_chronicle_client.base_url}/{mock_chronicle_client.instance_id}/referenceLists",
+            f"{mock_chronicle_client.base_v1_url}/{mock_chronicle_client.instance_id}/referenceLists",
             params={"pageSize": 1000, "view": ReferenceListView.BASIC.value},
         )
 
@@ -474,7 +475,7 @@ class TestReferenceLists:
         assert result["entries"][0]["value"] == "updated_entryX"
 
         mock_chronicle_client.session.patch.assert_called_once_with(
-            f"{mock_chronicle_client.base_url}/{mock_chronicle_client.instance_id}/referenceLists/{rl_name}",
+            f"{mock_chronicle_client.base_v1_url}/{mock_chronicle_client.instance_id}/referenceLists/{rl_name}",
             json={
                 "description": new_description,
                 "entries": [{"value": "updated_entryX"}, {"value": "new_entryY"}],

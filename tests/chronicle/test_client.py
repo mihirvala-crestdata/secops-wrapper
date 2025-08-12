@@ -56,7 +56,8 @@ def test_chronicle_client_initialization():
         assert client.project_id == "test-project"
         assert client.customer_id == "test-customer"
         assert client.region == "us"
-        assert client.base_url == "https://us-chronicle.googleapis.com/v1alpha"
+        assert client.base_url == "https://chronicle.us.rep.googleapis.com/v1alpha"
+        assert client.base_v1_url == "https://chronicle.us.rep.googleapis.com/v1"
 
 
 def test_chronicle_client_custom_user_agent():

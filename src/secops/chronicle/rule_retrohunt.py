@@ -39,7 +39,9 @@ def create_retrohunt(
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/rules/{rule_id}/retrohunts"
+    url = (
+        f"{client.base_v1_url}/{client.instance_id}/rules/{rule_id}/retrohunts"
+    )
 
     body = {
         "process_interval": {
@@ -72,7 +74,7 @@ def get_retrohunt(client, rule_id: str, operation_id: str) -> Dict[str, Any]:
         APIError: If the API request fails
     """
     url = (
-        f"{client.base_url}/{client.instance_id}/rules/{rule_id}"
+        f"{client.base_v1_url}/{client.instance_id}/rules/{rule_id}"
         f"/retrohunts/{operation_id}"
     )
 
