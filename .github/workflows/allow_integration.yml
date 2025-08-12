@@ -5,10 +5,17 @@ on:
     types: [created]
 
 jobs:
+  dump-github-context:
+    name: Dump GitHub context (Debug)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump GitHub context
+        run: echo "${{ toJSON(github) }}"
+
   approve-integration-tests:
     name: Approve Integration Tests Trigger
     runs-on: ubuntu-latest
-    if: startsWith(github.event.comment.body, '/approve-integration-tests') && github.event.issue.pull_request
+    if: startsWith(github.event.comment.body, '/run-integration-tests') && contains(toJSON(github.event.issue), 'pull_request')
     steps:
       - name: Get PR details
         id: pr-details
