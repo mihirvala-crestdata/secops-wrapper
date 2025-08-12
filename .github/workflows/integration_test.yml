@@ -121,29 +121,18 @@ jobs:
             
             core.exportVariable('PR_HEAD_SHA', pullRequest.head.sha);
             return pullRequest.head.sha;
-
-      - name: Create PR check (in progress)
-        uses: actions/github-script@v7
+      
+      - name: Set initial status
+        uses: LouisBrunner/checks-action@v1.6.0
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            // Get workflow run URL for linking to logs
-            const workflowRunId = context.runId;
-            const workflowRunUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${workflowRunId}`;
-                
-            await github.rest.checks.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              name: 'Chronicle Integration Tests',  // Changed name to be more distinct
-              head_sha: process.env.PR_HEAD_SHA,
-              status: 'in_progress',
-              output: {
-                title: 'Integration tests running',
-                summary: `Integration tests are currently in progress.\n\n[View workflow logs](${workflowRunUrl})`
-              },
-              details_url: workflowRunUrl  // Direct link to workflow run logs
-            });
-
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: Integration Tests Check
+          status: in_progress
+          sha: ${{ env.PR_HEAD_SHA }}
+          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          output: |
+            {"summary": "Integration tests are running. [View logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"}
+      
       - name: Checkout code
         uses: actions/checkout@v5
       
@@ -168,29 +157,16 @@ jobs:
         run: |
           echo "Running integration tests..."
           python -m pytest tests/ -m "integration" -v
-
-      - name: Update PR check status
+      
+      - name: Update test status
         if: always()
-        uses: actions/github-script@v7
+        uses: LouisBrunner/checks-action@v1.6.0
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const conclusion = '${{ job.status }}' === 'success' ? 'success' : 'failure';
-            
-            // Get workflow run URL for linking to logs
-            const workflowRunId = context.runId;
-            const workflowRunUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${workflowRunId}`;
-            
-            await github.rest.checks.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              name: 'Chronicle Integration Tests',  // Same distinct name
-              head_sha: process.env.PR_HEAD_SHA,
-              status: 'completed',
-              conclusion: conclusion,
-              output: {
-                title: conclusion === 'success' ? 'Integration tests passed' : 'Integration tests failed',
-                summary: `${conclusion === 'success' ? 'All integration tests completed successfully.' : 'Some integration tests failed.'}\n\n[View detailed workflow logs](${workflowRunUrl})`
-              },
-              details_url: workflowRunUrl  // Direct link to workflow run logs
-            });
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: Integration Tests Check
+          status: completed
+          conclusion: ${{ job.status }}
+          sha: ${{ env.PR_HEAD_SHA }}
+          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          output: |
+            {"summary": "${{ job.status == 'success' && 'All integration tests passed!' || 'Some integration tests failed. See logs for details.' }} [View detailed logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"}
