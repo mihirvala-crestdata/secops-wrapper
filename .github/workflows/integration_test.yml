@@ -127,16 +127,21 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            // Get workflow run URL for linking to logs
+            const workflowRunId = context.runId;
+            const workflowRunUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${workflowRunId}`;
+                
             await github.rest.checks.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              name: 'Integration Tests',
+              name: 'Chronicle Integration Tests',  // Changed name to be more distinct
               head_sha: process.env.PR_HEAD_SHA,
               status: 'in_progress',
               output: {
                 title: 'Integration tests running',
-                summary: 'Integration tests are currently in progress.'
-              }
+                summary: `Integration tests are currently in progress.\n\n[View workflow logs](${workflowRunUrl})`
+              },
+              details_url: workflowRunUrl  // Direct link to workflow run logs
             });
 
       - name: Checkout code
@@ -170,21 +175,22 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const conclusion = '${{ job.status }}' === 'success' ? 
-              'success' : 'failure';
+            const conclusion = '${{ job.status }}' === 'success' ? 'success' : 'failure';
+            
+            // Get workflow run URL for linking to logs
+            const workflowRunId = context.runId;
+            const workflowRunUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${workflowRunId}`;
             
             await github.rest.checks.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              name: 'Integration Tests',
+              name: 'Chronicle Integration Tests',  // Same distinct name
               head_sha: process.env.PR_HEAD_SHA,
               status: 'completed',
               conclusion: conclusion,
               output: {
-                title: conclusion === 'success' ? 
-                  'Integration tests passed' : 'Integration tests failed',
-                summary: conclusion === 'success' ? 
-                  'All integration tests completed successfully.' : 
-                  'Some integration tests failed. Check the logs for details.'
-              }
+                title: conclusion === 'success' ? 'Integration tests passed' : 'Integration tests failed',
+                summary: `${conclusion === 'success' ? 'All integration tests completed successfully.' : 'Some integration tests failed.'}\n\n[View detailed workflow logs](${workflowRunUrl})`
+              },
+              details_url: workflowRunUrl  // Direct link to workflow run logs
             });
