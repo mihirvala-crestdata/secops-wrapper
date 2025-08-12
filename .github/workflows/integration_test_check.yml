@@ -8,38 +8,22 @@ on:
 jobs:
   report:
     runs-on: ubuntu-latest
-    permissions:
-      checks: write
-      pull-requests: read
-      
     steps:
-      - name: Download workflow artifacts
-        uses: dawidd6/action-download-artifact@v2
+      - name: Get PR info
+        uses: potiuk/get-workflow-origin@v1_5
+        id: workflow-run-info
         with:
-          workflow: ${{ github.event.workflow.id }}
-          run_id: ${{ github.event.workflow_run.id }}
-          name: pr-data
-          path: ./pr-data
+          token: ${{ secrets.GITHUB_TOKEN }}
           
-      - name: Read PR data
-        id: pr-data
-        run: |
-          if [ -f "./pr-data/PR_NUMBER" ]; then
-            echo "PR_NUMBER=$(cat ./pr-data/PR_NUMBER)" >> $GITHUB_OUTPUT
-            echo "PR_SHA=$(cat ./pr-data/PR_SHA)" >> $GITHUB_OUTPUT
-          else
-            echo "No PR data found"
-            exit 1
-          fi
-          
-      - name: Create check
+      - name: Report status
+        if: steps.workflow-run-info.outputs.pull_request_number
         uses: LouisBrunner/checks-action@v1.6.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           name: Chronicle Integration Tests
           status: completed
           conclusion: ${{ github.event.workflow_run.conclusion }}
-          sha: ${{ steps.pr-data.outputs.PR_SHA }}
+          sha: ${{ steps.workflow-run-info.outputs.pull_request_head_sha }}
           details_url: ${{ github.event.workflow_run.html_url }}
           output: |
             {"summary": "Integration tests ${{ github.event.workflow_run.conclusion == 'success' && 'passed!' || 'failed!' }}. [View logs](${{ github.event.workflow_run.html_url }})"}
