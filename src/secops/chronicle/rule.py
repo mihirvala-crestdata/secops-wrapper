@@ -34,7 +34,7 @@ def create_rule(client, rule_text: str) -> Dict[str, Any]:
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/rules"
+    url = f"{client.base_v1_url}/{client.instance_id}/rules"
 
     body = {
         "text": rule_text,
@@ -63,7 +63,7 @@ def get_rule(client, rule_id: str) -> Dict[str, Any]:
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/rules/{rule_id}"
+    url = f"{client.base_v1_url}/{client.instance_id}/rules/{rule_id}"
 
     response = client.session.get(url)
 
@@ -106,7 +106,7 @@ def list_rules(
         params["pageToken"] = page_token
 
     while more:
-        url = f"{client.base_url}/{client.instance_id}/rules"
+        url = f"{client.base_v1_url}/{client.instance_id}/rules"
         response = client.session.get(url, params=params)
 
         if response.status_code != 200:
@@ -147,7 +147,7 @@ def update_rule(client, rule_id: str, rule_text: str) -> Dict[str, Any]:
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/rules/{rule_id}"
+    url = f"{client.base_v1_url}/{client.instance_id}/rules/{rule_id}"
 
     body = {
         "text": rule_text,
@@ -177,7 +177,7 @@ def delete_rule(client, rule_id: str, force: bool = False) -> Dict[str, Any]:
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/rules/{rule_id}"
+    url = f"{client.base_v1_url}/{client.instance_id}/rules/{rule_id}"
 
     params = {}
     if force:
@@ -206,7 +206,9 @@ def enable_rule(client, rule_id: str, enabled: bool = True) -> Dict[str, Any]:
     Raises:
         APIError: If the API request fails
     """
-    url = f"{client.base_url}/{client.instance_id}/rules/{rule_id}/deployment"
+    url = (
+        f"{client.base_v1_url}/{client.instance_id}/rules/{rule_id}/deployment"
+    )
 
     body = {
         "enabled": enabled,

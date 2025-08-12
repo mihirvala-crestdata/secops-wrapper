@@ -96,7 +96,7 @@ def test_create_rule(chronicle_client, mock_response):
 
         # Assert
         mock_post.assert_called_once_with(
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules",
+            f"{chronicle_client.base_v1_url}/{chronicle_client.instance_id}/rules",
             json={"text": "rule test {}"},
         )
         assert result == mock_response.json.return_value
@@ -127,7 +127,7 @@ def test_get_rule(chronicle_client, mock_response):
 
         # Assert
         mock_get.assert_called_once_with(
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}"
+            f"{chronicle_client.base_v1_url}/{chronicle_client.instance_id}/rules/{rule_id}"
         )
         assert result == mock_response.json.return_value
 
@@ -161,7 +161,7 @@ def test_list_rules(chronicle_client, mock_response):
 
         # Assert
         mock_get.assert_called_once_with(
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules",
+            f"{chronicle_client.base_v1_url}/{chronicle_client.instance_id}/rules",
             params={"pageSize": 1000, "view": "FULL"},
         )
         assert result == mock_response.json.return_value
@@ -241,7 +241,7 @@ def test_update_rule(chronicle_client, mock_response):
 
         # Assert
         mock_patch.assert_called_once_with(
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}",
+            f"{chronicle_client.base_v1_url}/{chronicle_client.instance_id}/rules/{rule_id}",
             params={"update_mask": "text"},
             json={"text": rule_text},
         )
@@ -278,7 +278,7 @@ def test_delete_rule(chronicle_client, mock_response):
 
         # Assert
         mock_delete.assert_called_once_with(
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}",
+            f"{chronicle_client.base_v1_url}/{chronicle_client.instance_id}/rules/{rule_id}",
             params={},
         )
         assert result == {}
@@ -313,7 +313,7 @@ def test_delete_rule_force(chronicle_client, mock_response):
 
         # Assert
         mock_delete.assert_called_once_with(
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}",
+            f"{chronicle_client.base_v1_url}/{chronicle_client.instance_id}/rules/{rule_id}",
             params={"force": "true"},
         )
         assert result == {}
@@ -332,7 +332,7 @@ def test_enable_rule(chronicle_client, mock_response):
 
         # Assert
         mock_patch.assert_called_once_with(
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}/deployment",
+            f"{chronicle_client.base_v1_url}/{chronicle_client.instance_id}/rules/{rule_id}/deployment",
             params={"update_mask": "enabled"},
             json={"enabled": True},
         )
@@ -352,7 +352,7 @@ def test_disable_rule(chronicle_client, mock_response):
 
         # Assert
         mock_patch.assert_called_once_with(
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules/{rule_id}/deployment",
+            f"{chronicle_client.base_v1_url}/{chronicle_client.instance_id}/rules/{rule_id}/deployment",
             params={"update_mask": "enabled"},
             json={"enabled": False},
         )
@@ -377,7 +377,9 @@ def test_enable_rule_error(chronicle_client, mock_error_response):
 def test_search_rules(chronicle_client, mock_response):
     """Test search_rules function."""
     # Arrange
-    mock_response.json.return_value = {"rules": [{"name": "rule1"}, {"name": "rule2"}]}
+    mock_response.json.return_value = {
+        "rules": [{"name": "rule1"}, {"name": "rule2"}]
+    }
 
     with patch.object(
         chronicle_client.session, "get", return_value=mock_response
@@ -387,7 +389,7 @@ def test_search_rules(chronicle_client, mock_response):
 
         # Assert
         mock_get.assert_called_once_with(
-            f"{chronicle_client.base_url}/{chronicle_client.instance_id}/rules",
+            f"{chronicle_client.base_v1_url}/{chronicle_client.instance_id}/rules",
             params={"pageSize": 1000, "view": "FULL"},
         )
         assert result == mock_response.json.return_value
@@ -430,7 +432,9 @@ def test_run_rule_test(chronicle_client, mock_streaming_response):
         chronicle_client.session, "post", return_value=mock_response
     ) as mock_post:
         # Act
-        results = list(run_rule_test(chronicle_client, rule_text, start_time, end_time))
+        results = list(
+            run_rule_test(chronicle_client, rule_text, start_time, end_time)
+        )
 
         # Assert
         expected_url = f"{chronicle_client.base_url}/projects/{chronicle_client.project_id}/locations/{chronicle_client.region}/instances/{chronicle_client.customer_id}/legacy:legacyRunTestRule"
@@ -471,7 +475,9 @@ def test_run_rule_test_error(chronicle_client, mock_error_response):
     ):
         # Act & Assert
         with pytest.raises(APIError) as exc_info:
-            list(run_rule_test(chronicle_client, rule_text, start_time, end_time))
+            list(
+                run_rule_test(chronicle_client, rule_text, start_time, end_time)
+            )
 
         assert "Failed to test rule" in str(exc_info.value)
 
@@ -487,7 +493,11 @@ def test_run_rule_test_invalid_max_results(chronicle_client):
     with pytest.raises(ValueError) as exc_info:
         list(
             run_rule_test(
-                chronicle_client, rule_text, start_time, end_time, max_results=20000
+                chronicle_client,
+                rule_text,
+                start_time,
+                end_time,
+                max_results=20000,
             )
         )
 
@@ -497,7 +507,11 @@ def test_run_rule_test_invalid_max_results(chronicle_client):
     with pytest.raises(ValueError) as exc_info:
         list(
             run_rule_test(
-                chronicle_client, rule_text, start_time, end_time, max_results=-5
+                chronicle_client,
+                rule_text,
+                start_time,
+                end_time,
+                max_results=-5,
             )
         )
 
@@ -512,10 +526,14 @@ def test_run_rule_test_handles_exceptions(chronicle_client):
     rule_text = "rule test {}"
 
     with patch.object(
-        chronicle_client.session, "post", side_effect=Exception("Connection error")
+        chronicle_client.session,
+        "post",
+        side_effect=Exception("Connection error"),
     ):
         # Act & Assert
         with pytest.raises(APIError) as exc_info:
-            list(run_rule_test(chronicle_client, rule_text, start_time, end_time))
+            list(
+                run_rule_test(chronicle_client, rule_text, start_time, end_time)
+            )
 
         assert "Error testing rule" in str(exc_info.value)
