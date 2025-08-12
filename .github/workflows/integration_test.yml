@@ -108,31 +108,6 @@ jobs:
       CHRONICLE_UNIVERSE_DOMAIN: ${{ vars.CHRONICLE_UNIVERSE_DOMAIN }}
 
     steps:
-      - name: Get PR information
-        id: pr_info
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { data: pullRequest } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: ${{ needs.check-authorization.outputs.pr_number }}
-            });
-            
-            core.exportVariable('PR_HEAD_SHA', pullRequest.head.sha);
-            return pullRequest.head.sha;
-      
-      - name: Set initial status
-        uses: LouisBrunner/checks-action@v1.6.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          name: Integration Tests Check
-          status: in_progress
-          sha: ${{ env.PR_HEAD_SHA }}
-          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          output: |
-            {"summary": "Integration tests are running. [View logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"}
-      
       - name: Checkout code
         uses: actions/checkout@v5
       
@@ -157,16 +132,3 @@ jobs:
         run: |
           echo "Running integration tests..."
           python -m pytest tests/ -m "integration" -v
-      
-      - name: Update test status
-        if: always()
-        uses: LouisBrunner/checks-action@v1.6.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          name: Integration Tests Check
-          status: completed
-          conclusion: ${{ job.status }}
-          sha: ${{ env.PR_HEAD_SHA }}
-          details_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          output: |
-            {"summary": "${{ job.status == 'success' && 'All integration tests passed!' || 'Some integration tests failed. See logs for details.' }} [View detailed logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"}
