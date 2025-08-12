@@ -1,4 +1,4 @@
-name: Approve Integration Tests
+name: Start Integration Tests
 
 on:
   issue_comment:
@@ -15,6 +15,10 @@ jobs:
   approve-integration-tests:
     name: Approve Integration Tests Trigger
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     if: startsWith(github.event.comment.body, '/run-integration-tests') && contains(toJSON(github.event.issue), 'pull_request')
     steps:
       - name: Get PR details
@@ -66,7 +70,7 @@ jobs:
         with:
           script: |
             const commenter = context.payload.comment.user.login;
-            const content = core.getInput('content', { required: true });
+            const content = '${{ steps.get-codeowners.outputs.content }}';
             const lines = content.split(/\r?\n/).filter(l => l.trim() && !l.startsWith('#'));
 
             const owners = new Set();
@@ -101,7 +105,7 @@ jobs:
             console.log(`@${commenter} is authorized to approve.`);
 
       - name: Trigger Integration Tests Workflow
-        uses: marketplace/actions/workflow-dispatch@v1
+        uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: 'integration_test.yml'
           ref: ${{ steps.pr-details.outputs.head_ref }}
