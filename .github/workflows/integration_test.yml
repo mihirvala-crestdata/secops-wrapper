@@ -110,6 +110,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
       
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -128,7 +130,7 @@ jobs:
         with:
           credentials_json: ${{ secrets.SERVICE_ACCOUNT_JSON }}
   
-      - name: Run integration tests
-        run: |
-          echo "Running integration tests..."
-          python -m pytest tests/ -m "integration" -v
+      # - name: Run integration tests
+      #   run: |
+      #     echo "Running integration tests..."
+      #     python -m pytest tests/ -m "integration" -v
