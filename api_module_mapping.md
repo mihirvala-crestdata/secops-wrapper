@@ -21,22 +21,22 @@ Following shows mapping between SecOps [REST Resource](https://cloud.google.com/
 |operations.delete                                                             |v1     |                                                            |                                       |
 |operations.get                                                                |v1     |                                                            |                                       |
 |operations.list                                                               |v1     |                                                            |                                       |
-|referenceLists.create                                                         |v1     |                                                            |                                       |
-|referenceLists.get                                                            |v1     |                                                            |                                       |
-|referenceLists.list                                                           |v1     |                                                            |                                       |
-|referenceLists.patch                                                          |v1     |                                                            |                                       |
-|rules.create                                                                  |v1     |                                                            |                                       |
-|rules.delete                                                                  |v1     |                                                            |                                       |
+|referenceLists.create                                                         |v1     |chronicle.reference_list.create_reference_list                                                            |secops reference-list create                                       |
+|referenceLists.get                                                            |v1     |chronicle.reference_list.get_reference_list                                                            |secops reference-list get                                       |
+|referenceLists.list                                                           |v1     |chronicle.reference_list.list_reference_lists               |secops reference-list list                                       |
+|referenceLists.patch                                                          |v1     |chronicle.reference_list.update_reference_list              |secops reference-list update                                       |
+|rules.create                                                                  |v1     |chronicle.rule.create_rule                                  |secops rule create                                       |
+|rules.delete                                                                  |v1     |chronicle.rule.delete_rule                                  |secops rule delete                                       |
 |rules.deployments.list                                                        |v1     |                                                            |                                       |
-|rules.get                                                                     |v1     |                                                            |                                       |
+|rules.get                                                                     |v1     |chronicle.rule.get_rule                                     |secops rule get                                       |
 |rules.getDeployment                                                           |v1     |                                                            |                                       |
-|rules.list                                                                    |v1     |                                                            |                                       |
+|rules.list                                                                    |v1     |chronicle.rule.list_rules                                   |secops rule list                                       |
 |rules.listRevisions                                                           |v1     |                                                            |                                       |
-|rules.patch                                                                   |v1     |                                                            |                                       |
-|rules.retrohunts.create                                                       |v1     |                                                            |                                       |
-|rules.retrohunts.get                                                          |v1     |                                                            |                                       |
+|rules.patch                                                                   |v1     |chronicle.rule.update_rule                                  |secops rule update                                       |
+|rules.retrohunts.create                                                       |v1     |chronicle.rule_retrohunt.create_retrohunt                                                            |                                       |
+|rules.retrohunts.get                                                          |v1     |chronicle.rule_retrohunt.get_retrohunt                                                            |                                       |
 |rules.retrohunts.list                                                         |v1     |                                                            |                                       |
-|rules.updateDeployment                                                        |v1     |                                                            |                                       |
+|rules.updateDeployment                                                        |v1     |chronicle.rule.enable_rule                                  |secops rule enable                                       |
 |watchlists.create                                                             |v1     |                                                            |                                       |
 |watchlists.delete                                                             |v1     |                                                            |                                       |
 |watchlists.get                                                                |v1     |                                                            |                                       |
@@ -315,24 +315,24 @@ Following shows mapping between SecOps [REST Resource](https://cloud.google.com/
 |operations.list                                                               |v1alpha|                                                            |                                       |
 |operations.streamSearch                                                       |v1alpha|                                                            |                                       |
 |queryProductSourceStats                                                       |v1alpha|                                                            |                                       |
-|referenceLists.create                                                         |v1alpha|chronicle.reference_list.create_reference_list              |secops reference-list create           |
-|referenceLists.get                                                            |v1alpha|chronicle.reference_list.get_reference_list                 |secops reference-list get              |
-|referenceLists.list                                                           |v1alpha|chronicle.reference_list.list_reference_lists               |secops reference-list list             |
-|referenceLists.patch                                                          |v1alpha|chronicle.reference_list.update_reference_list              |secops reference-list update           |
+|referenceLists.create                                                         |v1alpha|              |           |
+|referenceLists.get                                                            |v1alpha|                 |              |
+|referenceLists.list                                                           |v1alpha|                    |                                       |
+|referenceLists.patch                                                          |v1alpha|                    |           |
 |report                                                                        |v1alpha|                                                            |                                       |
 |ruleExecutionErrors.list                                                      |v1alpha|chronicle.rule_detection.list_errors                        |                                       |
-|rules.create                                                                  |v1alpha|chronicle.rule.create_rule                                  |secops rule create                     |
-|rules.delete                                                                  |v1alpha|chronicle.rule.delete_rule                                  |secops rule delete                     |
+|rules.create                                                                  |v1alpha|                    |                     |
+|rules.delete                                                                  |v1alpha|                    |                     |
 |rules.deployments.list                                                        |v1alpha|                                                            |                                       |
-|rules.get                                                                     |v1alpha|chronicle.rule.get_rule                                     |secops rule get                        |
+|rules.get                                                                     |v1alpha|                    |                        |
 |rules.getDeployment                                                           |v1alpha|                                                            |                                       |
-|rules.list                                                                    |v1alpha|chronicle.rule.list_rules                                   |secops rule list                       |
+|rules.list                                                                    |v1alpha|                    |                       |
 |rules.listRevisions                                                           |v1alpha|                                                            |                                       |
-|rules.patch                                                                   |v1alpha|chronicle.rule.update_rule                                  |secops rule update                     |
-|rules.retrohunts.create                                                       |v1alpha|chronicle.rule_retrohunt.create_retrohunt                   |                                       |
-|rules.retrohunts.get                                                          |v1alpha|chronicle.rule_retrohunt.get_retrohunt                      |                                       |
+|rules.patch                                                                   |v1alpha|                    |                     |
+|rules.retrohunts.create                                                       |v1alpha|                   |                                       |
+|rules.retrohunts.get                                                          |v1alpha|                      |                                       |
 |rules.retrohunts.list                                                         |v1alpha|                                                            |                                       |
-|rules.updateDeployment                                                        |v1alpha|chronicle.rule.enable_rule                                  |secops rule enable                     |
+|rules.updateDeployment                                                        |v1alpha|                    |                     |
 |searchEntities                                                                |v1alpha|                                                            |                                       |
 |searchRawLogs                                                                 |v1alpha|                                                            |                                       |
 |summarizeEntitiesFromQuery                                                    |v1alpha|chronicle.entity.summarize_entity                           |secops entity                          |
