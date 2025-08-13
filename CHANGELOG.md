@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Updated
 - Dev Base URL with HTTPS
 
-
 ## [0.12.2] - 2025-08-13
 ### Updated
 - Reverted Base url to `https://{region}-chronicle.googleapis.com` for all requests
