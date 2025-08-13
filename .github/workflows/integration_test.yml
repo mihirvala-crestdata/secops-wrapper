@@ -1,0 +1,245 @@
+name: Integration Tests
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  check-authorization:
+    name: Check Authorization
+    # Only run this workflow when someone comments '/run-integration-tests' in a PR
+    if: |
+      startsWith(github.event.comment.body, '/run-integration-tests') &&
+      contains(toJSON(github.event.issue), 'pull_request')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    # These outputs will be used by other jobs
+    outputs:
+      authorized: ${{ steps.auth-check.outputs.authorized }}
+      pr_number: ${{ github.event.issue.number }}
+      
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Check CODEOWNERS authorization
+        id: auth-check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commenter = context.payload.comment.user.login;
+            console.log(`Comment by: ${commenter}`);
+
+            // Verify this is a pull request comment
+            if (!context.payload.issue.pull_request) {
+              console.log('This comment is not on a pull request. Skipping.');
+              core.setOutput("is_authorized", "false");
+              return;
+            }
+            
+            try {              
+              // Get CODEOWNERS file
+              const { data: codeownersFile } = await github.rest.repos.getContent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path: '.github/CODEOWNERS',
+              });
+              
+              // Decode content from base64
+              const content = Buffer.from(codeownersFile.content, 'base64')
+                .toString('utf8');
+              
+              // Parse CODEOWNERS file
+              const lines = content.split('\n')
+                .filter(line => line.trim() && !line.startsWith('#'));
+              
+              // Extract owners
+              const owners = new Set();
+              for (const line of lines) {
+                const matches = line.match(/@[\w-]+(?:\/[\w-]+)?/g) || [];
+                for (const match of matches) {
+                  owners.add(match.substring(1)); 
+                }
+              }
+              
+              // Check if commenter is in CODEOWNERS
+              const isAuthorized = 
+                owners.has(commenter) || 
+                Array.from(owners).some(owner => 
+                  owner.includes('/') && 
+                  owner.startsWith(context.repo.owner + '/')
+                );
+              
+              // Output authorization result as a simple string
+              core.setOutput("authorized", isAuthorized ? "true" : "false");
+              console.log(`Authorization result: ${isAuthorized}`);
+              
+            } catch (error) {
+              console.error(`Error processing CODEOWNERS: ${error.message}`);
+              core.setOutput("authorized", "false");
+            }
+
+  integration-tests:
+    name: Run Integration Tests
+    needs: check-authorization
+    # Only run if the user is authorized
+    if: needs.check-authorization.outputs.authorized == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      checks: write
+    
+    env:
+      # Chronicle config variables
+      CHRONICLE_CUSTOMER_ID: ${{ secrets.CHRONICLE_CUSTOMER_ID }}
+      CHRONICLE_PROJECT_NUMBER: ${{ secrets.CHRONICLE_PROJECT_NUMBER }}
+      CHRONICLE_REGION: ${{ vars.CHRONICLE_REGION }}
+      
+      # Service account variables
+      CHRONICLE_PROJECT_NAME: ${{ secrets.CHRONICLE_PROJECT_NAME }}
+      CHRONICLE_PRIVATE_KEY_ID: ${{ secrets.CHRONICLE_PRIVATE_KEY_ID }}
+      CHRONICLE_PRIVATE_KEY: ${{ secrets.CHRONICLE_PRIVATE_KEY }}
+      CHRONICLE_CLIENT_EMAIL: ${{ secrets.CHRONICLE_CLIENT_EMAIL }}
+      CHRONICLE_CLIENT_ID: ${{ secrets.CHRONICLE_CLIENT_ID }}
+      CHRONICLE_AUTH_URI: ${{ vars.CHRONICLE_AUTH_URI }}
+      CHRONICLE_TOKEN_URI: ${{ vars.CHRONICLE_TOKEN_URI }}
+      CHRONICLE_AUTH_PROVIDER_CERT_URL: ${{ vars.CHRONICLE_AUTH_PROVIDER_CERT_URL }}
+      CHRONICLE_CLIENT_X509_CERT_URL: ${{ secrets.CHRONICLE_CLIENT_X509_CERT_URL }}
+      CHRONICLE_UNIVERSE_DOMAIN: ${{ vars.CHRONICLE_UNIVERSE_DOMAIN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+          pip install pytest pytest-cov python-dotenv
+
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+
+      # Create a check for the PR to show in the checks section
+      - name: Create in-progress check
+        id: create-check
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          result-encoding: string
+          script: |
+            // Get the PR's SHA from the issue number
+            const { data: pullRequest } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.issue.number
+            });
+            
+            const sha = pullRequest.head.sha;
+            const run_id = process.env.GITHUB_RUN_ID;
+            const run_url = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${run_id}`;
+            
+            // Create a check
+            const check = await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Integration Tests',
+              head_sha: sha,
+              status: 'in_progress',
+              output: {
+                title: 'Integration Tests Running',
+                summary: 'Integration tests are currently running.',
+                text: `Integration tests were triggered by comment and are now running.\n\n[View Action Details](${run_url})`
+              }
+            });
+            
+            return check.data.id;
+  
+      - name: Run integration tests
+        id: run-tests
+        continue-on-error: true
+        run: |
+          echo "Running integration tests..."
+          python -m pytest tests/ -m "integration" -v --junitxml=junit/integration-test-results.xml
+      
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: junit/integration-test-results.xml
+          retention-days: 1
+          
+      - name: Publish integration test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: junit/integration-test-results.xml
+          comment_mode: changes
+          comment_title: "Integration Test Results Summary"
+          
+      - name: Update check with test results
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          CHECK_ID: ${{ steps.create-check.outputs.result }}
+          TEST_OUTCOME: ${{ steps.run-tests.outcome }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Get the PR's SHA
+            const { data: pullRequest } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.issue.number
+            });
+            
+            const sha = pullRequest.head.sha;
+            const run_id = process.env.GITHUB_RUN_ID;
+            const run_url = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${run_id}`;
+            
+            // Determine test status
+            const testStatus = process.env.TEST_OUTCOME;
+            let checkConclusion, statusText, statusEmoji;
+            
+            if (testStatus === 'success') {
+              checkConclusion = 'success';
+              statusText = 'Passed';
+              statusEmoji = '✅';
+            } else if (testStatus === 'failure') {
+              checkConclusion = 'failure';
+              statusText = 'Failed';
+              statusEmoji = '❌';
+            } else {
+              checkConclusion = 'neutral';
+              statusText = 'Skipped or Cancelled';
+              statusEmoji = '⚠️';
+            }
+            
+            // Update the check
+            await github.rest.checks.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              check_run_id: Number(process.env.CHECK_ID),
+              status: 'completed',
+              conclusion: checkConclusion,
+              output: {
+                title: `Integration Tests ${statusText}`,
+                summary: `Integration tests have ${statusText.toLowerCase()}.`,
+                text: `${statusEmoji} Integration tests were completed with status: **${statusText}**\n\n[View Complete Test Results](${run_url})`
+              }
+            });
