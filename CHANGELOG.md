@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Updated
 - Reverted Base url to `https://{region}-chronicle.googleapis.com` for all requests
 - Dev Base URL to `http://autopush-chronicle.sandbox.googleapis.com`
+### Fixed
+- Parser extension flakey integration tests
 
 ## [0.12.1] - 2025-08-12
 ### Enhanced
