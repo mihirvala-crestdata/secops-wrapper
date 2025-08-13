@@ -93,9 +93,7 @@ def test_chronicle_client_custom_session_user_agent():
 
 def test_fetch_udm_search_csv(chronicle_client, mock_response):
     """Test fetching UDM search results."""
-    with patch.object(
-        chronicle_client.session, "post", return_value=mock_response
-    ):
+    with patch.object(chronicle_client.session, "post", return_value=mock_response):
         result = chronicle_client.fetch_udm_search_csv(
             query='metadata.event_type = "NETWORK_CONNECTION"',
             start_time=datetime(2024, 1, 14, 23, 7, tzinfo=timezone.utc),
@@ -136,9 +134,7 @@ def test_fetch_udm_search_csv_parsing_error(chronicle_client):
     error_response.text = '{"invalid": json}'
     error_response.json.side_effect = ValueError("Invalid JSON")
 
-    with patch.object(
-        chronicle_client.session, "post", return_value=error_response
-    ):
+    with patch.object(chronicle_client.session, "post", return_value=error_response):
         with pytest.raises(APIError) as exc_info:
             chronicle_client.fetch_udm_search_csv(
                 query='metadata.event_type = "NETWORK_CONNECTION"',
@@ -159,9 +155,7 @@ def test_validate_query(chronicle_client):
         "isValid": True,
     }
 
-    with patch.object(
-        chronicle_client.session, "get", return_value=mock_response
-    ):
+    with patch.object(chronicle_client.session, "get", return_value=mock_response):
         result = chronicle_client.validate_query(
             'metadata.event_type = "NETWORK_CONNECTION"'
         )
@@ -187,9 +181,7 @@ def test_get_stats(chronicle_client):
         }
     }
 
-    with patch.object(
-        chronicle_client.session, "get", return_value=mock_response
-    ):
+    with patch.object(chronicle_client.session, "get", return_value=mock_response):
         result = chronicle_client.get_stats(
             query="""target.ip != ""
 match:
@@ -231,9 +223,7 @@ def test_search_udm(chronicle_client):
         "moreDataAvailable": False,
     }
 
-    with patch.object(
-        chronicle_client.session, "get", return_value=mock_response
-    ):
+    with patch.object(chronicle_client.session, "get", return_value=mock_response):
         result = chronicle_client.search_udm(
             query='target.ip != ""',
             start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
@@ -249,9 +239,7 @@ def test_search_udm(chronicle_client):
 
 @patch("secops.chronicle.entity._detect_value_type_for_query")
 @patch("secops.chronicle.entity._summarize_entity_by_id")
-def test_summarize_entity_ip(
-    mock_summarize_by_id, mock_detect, chronicle_client
-):
+def test_summarize_entity_ip(mock_summarize_by_id, mock_detect, chronicle_client):
     """Test summarize_entity for an IP address."""
     mock_detect.return_value = ('ip = "8.8.8.8"', "ASSET")
 
@@ -308,14 +296,9 @@ def test_summarize_entity_ip(
     }
     # Call 2: Get prevalence
     mock_prevalence_response = {
-        "prevalenceResult": [
-            {"prevalenceTime": "2024-01-01T00:00:00Z", "count": 10}
-        ]
+        "prevalenceResult": [{"prevalenceTime": "2024-01-01T00:00:00Z", "count": 10}]
     }
-    mock_summarize_by_id.side_effect = [
-        mock_details_response,
-        mock_prevalence_response,
-    ]
+    mock_summarize_by_id.side_effect = [mock_details_response, mock_prevalence_response]
 
     with patch.object(
         chronicle_client.session, "get", return_value=mock_query_response
@@ -366,8 +349,7 @@ def test_summarize_entity_ip(
 
 
 @patch(
-    "secops.chronicle.entity._detect_value_type_for_query",
-    return_value=(None, None),
+    "secops.chronicle.entity._detect_value_type_for_query", return_value=(None, None)
 )
 def test_summarize_entity_detect_error(mock_detect, chronicle_client):
     """Test summarize_entity raises ValueError on detection failure."""
@@ -413,9 +395,7 @@ def test_list_iocs(chronicle_client):
         ]
     }
 
-    with patch.object(
-        chronicle_client.session, "get", return_value=mock_response
-    ):
+    with patch.object(chronicle_client.session, "get", return_value=mock_response):
         result = chronicle_client.list_iocs(
             start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
             end_time=datetime(2024, 1, 2, tzinfo=timezone.utc),
@@ -447,9 +427,7 @@ def test_list_iocs_error(chronicle_client):
     mock_response.status_code = 400
     mock_response.text = "Invalid request"
 
-    with patch.object(
-        chronicle_client.session, "get", return_value=mock_response
-    ):
+    with patch.object(chronicle_client.session, "get", return_value=mock_response):
         with pytest.raises(APIError, match="Failed to list IoCs"):
             chronicle_client.list_iocs(
                 start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
@@ -518,9 +496,7 @@ def test_get_cases_filtering(chronicle_client):
         ]
     }
 
-    with patch.object(
-        chronicle_client.session, "get", return_value=mock_response
-    ):
+    with patch.object(chronicle_client.session, "get", return_value=mock_response):
         result = chronicle_client.get_cases(["case-1", "case-2"])
 
         high_priority = result.filter_by_priority("PRIORITY_HIGH")
@@ -538,9 +514,7 @@ def test_get_cases_error(chronicle_client):
     mock_response.status_code = 400
     mock_response.text = "Invalid request"
 
-    with patch.object(
-        chronicle_client.session, "get", return_value=mock_response
-    ):
+    with patch.object(chronicle_client.session, "get", return_value=mock_response):
         with pytest.raises(APIError, match="Failed to get cases"):
             chronicle_client.get_cases(["invalid-id"])
 
@@ -603,9 +577,7 @@ def test_get_alerts(chronicle_client):
         assert alert.get("detection")[0].get("ruleName") == "TEST_RULE"
 
         # Check field aggregations
-        field_aggregations = result.get("fieldAggregations", {}).get(
-            "fields", []
-        )
+        field_aggregations = result.get("fieldAggregations", {}).get("fields", [])
         assert len(field_aggregations) > 0
         rule_name_field = next(
             (
@@ -625,9 +597,7 @@ def test_get_alerts_error(chronicle_client):
     error_response.status_code = 400
     error_response.text = "Invalid query syntax"
 
-    with patch.object(
-        chronicle_client.session, "get", return_value=error_response
-    ):
+    with patch.object(chronicle_client.session, "get", return_value=error_response):
         with pytest.raises(
             APIError, match="Failed to get alerts: Invalid query syntax"
         ):
@@ -668,21 +638,15 @@ def test_get_alerts_parameters(chronicle_client):
     """Test that parameters are correctly set in the request."""
     mock_response = Mock()
     mock_response.status_code = 200
-    mock_response.iter_lines.return_value = [
-        b'{"progress": 1, "complete": true}'
-    ]
+    mock_response.iter_lines.return_value = [b'{"progress": 1, "complete": true}']
 
     with patch("time.sleep"), patch.object(
         chronicle_client.session, "get", return_value=mock_response
     ) as mock_get:
         # Test with a non-UTC timezone (Eastern Time)
         eastern = timezone(timedelta(hours=-5))
-        start_time = datetime(
-            2025, 3, 8, 10, 30, 45, tzinfo=eastern
-        )  # 10:30:45 ET
-        end_time = datetime(
-            2025, 3, 9, 15, 45, 30, tzinfo=eastern
-        )  # 15:45:30 ET
+        start_time = datetime(2025, 3, 8, 10, 30, 45, tzinfo=eastern)  # 10:30:45 ET
+        end_time = datetime(2025, 3, 9, 15, 45, 30, tzinfo=eastern)  # 15:45:30 ET
 
         # Expected UTC timestamps after conversion
         expected_start = "2025-03-08T15:30:45Z"  # 10:30:45 ET = 15:30:45 UTC
@@ -721,18 +685,12 @@ def test_get_alerts_parameters(chronicle_client):
 
         # Test with another timezone (Pacific Time)
         pacific = timezone(timedelta(hours=-8))
-        start_time = datetime(
-            2025, 3, 8, 7, 15, 30, tzinfo=pacific
-        )  # 7:15:30 PT
-        end_time = datetime(
-            2025, 3, 9, 19, 45, 0, tzinfo=pacific
-        )  # 19:45:00 PT
+        start_time = datetime(2025, 3, 8, 7, 15, 30, tzinfo=pacific)  # 7:15:30 PT
+        end_time = datetime(2025, 3, 9, 19, 45, 0, tzinfo=pacific)  # 19:45:00 PT
 
         # Expected UTC timestamps after conversion
         expected_start = "2025-03-08T15:15:30Z"  # 7:15:30 PT = 15:15:30 UTC
-        expected_end = (
-            "2025-03-10T03:45:00Z"  # 19:45:00 PT = 03:45:00 UTC (next day)
-        )
+        expected_end = "2025-03-10T03:45:00Z"  # 19:45:00 PT = 03:45:00 UTC (next day)
 
         chronicle_client.get_alerts(
             start_time=start_time,
@@ -766,8 +724,12 @@ def test_get_alerts_parameters(chronicle_client):
         )  # With microseconds
 
         # Expected UTC timestamps after conversion (microseconds removed)
-        expected_start = "2025-03-08T07:00:45Z"  # 12:30:45 IST = 07:00:45 UTC (no microseconds)
-        expected_end = "2025-03-09T12:45:30Z"  # 18:15:30 IST = 12:45:30 UTC (no microseconds)
+        expected_start = (
+            "2025-03-08T07:00:45Z"  # 12:30:45 IST = 07:00:45 UTC (no microseconds)
+        )
+        expected_end = (
+            "2025-03-09T12:45:30Z"  # 18:15:30 IST = 12:45:30 UTC (no microseconds)
+        )
 
         chronicle_client.get_alerts(
             start_time=start_time,
@@ -886,25 +848,17 @@ def test_fix_json_formatting(chronicle_client):
     """Test JSON formatting fix helper method."""
     # Test trailing commas in arrays
     json_with_array_trailing_comma = '{"items": [1, 2, 3,]}'
-    fixed = chronicle_client._fix_json_formatting(
-        json_with_array_trailing_comma
-    )
+    fixed = chronicle_client._fix_json_formatting(json_with_array_trailing_comma)
     assert fixed == '{"items": [1, 2, 3]}'
 
     # Test trailing commas in objects
     json_with_object_trailing_comma = '{"a": 1, "b": 2,}'
-    fixed = chronicle_client._fix_json_formatting(
-        json_with_object_trailing_comma
-    )
+    fixed = chronicle_client._fix_json_formatting(json_with_object_trailing_comma)
     assert fixed == '{"a": 1, "b": 2}'
 
     # Test multiple trailing commas
-    json_with_multiple_trailing_commas = (
-        '{"a": [1, 2,], "b": {"c": 3, "d": 4,},}'
-    )
-    fixed = chronicle_client._fix_json_formatting(
-        json_with_multiple_trailing_commas
-    )
+    json_with_multiple_trailing_commas = '{"a": [1, 2,], "b": {"c": 3, "d": 4,},}'
+    fixed = chronicle_client._fix_json_formatting(json_with_multiple_trailing_commas)
     assert fixed == '{"a": [1, 2], "b": {"c": 3, "d": 4}}'
 
     # Test no trailing commas
