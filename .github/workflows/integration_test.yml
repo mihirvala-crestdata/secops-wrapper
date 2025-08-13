@@ -176,7 +176,7 @@ jobs:
         continue-on-error: true
         run: |
           echo "Running integration tests..."
-          python -m pytest tests/ -m "not integration" -v --junitxml=junit/test-results.xml
+          python -m pytest tests/ -m "integration" -v --junitxml=junit/test-results.xml
       
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -184,6 +184,7 @@ jobs:
         with:
           name: test-results
           path: junit/test-results.xml
+          retention-days: 1
           
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
