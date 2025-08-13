@@ -190,7 +190,7 @@ jobs:
         if: always()
         with:
           files: junit/test-results.xml
-          comment_mode: update
+          comment_mode: changes
           comment_title: "Integration Test Results Summary"
           
       - name: Update check with test results
