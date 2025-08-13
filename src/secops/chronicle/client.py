@@ -319,10 +319,10 @@ class ChronicleClient:
             # Set up the base URL for dev/staging
             if region == "dev":
                 self.base_url = (
-                    "https://dev-chronicle.sandbox.googleapis.com/v1alpha"
+                    "http://autopush-chronicle.sandbox.googleapis.com/v1alpha"
                 )
                 self.base_v1_url = (
-                    "https://dev-chronicle.sandbox.googleapis.com/v1"
+                    "http://autopush-chronicle.sandbox.googleapis.com/v1"
                 )
             else:  # staging
                 self.base_url = (
@@ -339,10 +339,10 @@ class ChronicleClient:
             )
             # Set up the base URL
             self.base_url = (
-                f"https://chronicle.{self.region}.rep.googleapis.com/v1alpha"
+                f"https://{self.region}-chronicle.googleapis.com/v1alpha"
             )
             self.base_v1_url = (
-                f"https://chronicle.{self.region}.rep.googleapis.com/v1"
+                f"https://{self.region}-chronicle.googleapis.com/v1"
             )
 
         # Create a session with authentication
