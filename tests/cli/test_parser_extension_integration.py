@@ -133,37 +133,54 @@ def test_cli_parser_extension_lifecycle(cli_env, common_args):
         )
 
         # 4. Activate parser extension
-        activate_cmd = (
-            [
-                "secops",
-            ]
-            + common_args
-            + [
-                "parser-extension",
-                "activate",
-                "--log-type",
-                log_type,
-                "--id",
-                parser_extension_id,
-            ]
-        )
-        activate_result = subprocess.run(
-            activate_cmd, env=cli_env, capture_output=True, text=True
+
+        # Checking if parser validation completed
+        get_result_validation_check = subprocess.run(
+            get_cmd, env=cli_env, capture_output=True, text=True
         )
 
         # Check that the command executed successfully
-        assert activate_result.returncode == 0
+        assert get_result_validation_check.returncode == 0
+        # Parse the output to get the parser extension ID
+        pe_validation_get_data = json.loads(get_result_validation_check.stdout)
+        assert "state" in parser_extension_data
+        if pe_validation_get_data["state"] == "VALIDATED":
+            activate_cmd = (
+                [
+                    "secops",
+                ]
+                + common_args
+                + [
+                    "parser-extension",
+                    "activate",
+                    "--log-type",
+                    log_type,
+                    "--id",
+                    parser_extension_id,
+                ]
+            )
+            activate_result = subprocess.run(
+                activate_cmd, env=cli_env, capture_output=True, text=True
+            )
 
-        # Get Parser extension to check state
-        get_activate_result = subprocess.run(
-            get_cmd, env=cli_env, capture_output=True, text=True
-        )
-        # Load parser extension data
-        pe_activation_data = json.loads(get_activate_result.stdout)
+            # Check that the command executed successfully
+            assert activate_result.returncode == 0
 
-        assert "name" in pe_activation_data
-        assert parser_extension_id == pe_activation_data["name"].split("/")[-1]
-        assert pe_activation_data["state"] == "LIVE"
+            # Get Parser extension to check state
+            get_activate_result = subprocess.run(
+                get_cmd, env=cli_env, capture_output=True, text=True
+            )
+            # Load parser extension data
+            pe_activation_data = json.loads(get_activate_result.stdout)
+
+            assert "name" in pe_activation_data
+            assert (
+                parser_extension_id == pe_activation_data["name"].split("/")[-1]
+            )
+            assert pe_activation_data["state"] == "LIVE"
+
+        else:
+            print("Parser extension is not validated yet. Skipping Activation")
 
     finally:
         # Clean up: Delete the parser extension

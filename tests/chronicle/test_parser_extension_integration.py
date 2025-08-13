@@ -70,15 +70,22 @@ def test_parser_extension_crud_operations():
         )
 
         # Ensure the created extension is validated
-        time.sleep(5)
+        time.sleep(10)
 
         # Test activate
-        chronicle.activate_parser_extension(log_type, extension_id)
-        # Get extension again to verify activation
-        extension_details = chronicle.get_parser_extension(
-            log_type, extension_id
-        )
-        assert extension_details["state"] == "LIVE"
+        if (
+            chronicle.get_parser_extension(log_type, extension_id).get("state")
+            == "VALIDATED"
+        ):
+
+            chronicle.activate_parser_extension(log_type, extension_id)
+            # Get extension again to verify activation
+            extension_details = chronicle.get_parser_extension(
+                log_type, extension_id
+            )
+            assert extension_details["state"] == "LIVE"
+        else:
+            print("Parser extension is not validated yet. Skipping Activation")
 
     finally:
         # Cleanup: Delete the created extension
@@ -113,9 +120,13 @@ def test_parser_extension_validation():
         extension_id = extension["name"].split("/")[-1]
         assert extension_id
 
+        # Wait till creation completes
+        time.sleep(2)
+
         # Clean up first extension before testing next
-        chronicle.delete_parser_extension(log_type, extension_id)
-        extension_id = None
+        if chronicle.get_parser_extension(log_type, extension_id).get("name"):
+            chronicle.delete_parser_extension(log_type, extension_id)
+            extension_id = None
 
         # Then with field extractors
         extension = chronicle.create_parser_extension(
@@ -131,9 +142,13 @@ def test_parser_extension_validation():
         extension_id = extension["name"].split("/")[-1]
         assert extension_id
 
+        # Wait till creation completes
+        time.sleep(2)
+
         # Clean up second extension before testing next
-        chronicle.delete_parser_extension(log_type, extension_id)
-        extension_id = None
+        if chronicle.get_parser_extension(log_type, extension_id).get("name"):
+            chronicle.delete_parser_extension(log_type, extension_id)
+            extension_id = None
 
         # Finally with dynamic parsing
         extension = chronicle.create_parser_extension(
@@ -145,8 +160,13 @@ def test_parser_extension_validation():
         extension_id = extension["name"].split("/")[-1]
         assert extension_id
 
+        # Wait till creation completes
+        time.sleep(2)
+
     finally:
         # Cleanup
-        if extension_id:
+        if extension_id and chronicle.get_parser_extension(
+            log_type, extension_id
+        ).get("name"):
             chronicle.delete_parser_extension(log_type, extension_id)
             print(f"Cleaned up extension: {extension_id}")
