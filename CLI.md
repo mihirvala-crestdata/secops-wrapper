@@ -121,6 +121,14 @@ secops search --query "metadata.event_type = \"USER_LOGIN\" AND security_result.
 
 > **Note:** Chronicle API uses snake_case for UDM field names. For example, use `security_result` instead of `securityResult`, `event_timestamp` instead of `eventTimestamp`. Valid UDM fields include: `metadata`, `principal`, `target`, `security_result`, `network`, etc.
 
+### Find UDM Field Values
+
+Search ingested UDM field values that match a query:
+
+```bash
+secops search udm-field-values --query "source" --page-size 10
+```
+
 ### Get Statistics
 
 Run statistical analyses on your data:

@@ -509,6 +509,45 @@ results = chronicle.search_udm(
 }
 ```
 
+### Fetch UDM Field Values
+
+Search for ingested UDM field values that match a query:
+
+```python
+# Search for fields containing "source"
+results = chronicle.find_udm_field_values(
+    query="source",
+    page_size=10
+)
+
+# Example response:
+{
+    "valueMatches": [
+        {
+            "fieldPath": "metadata.ingestion_labels.key",
+            "value": "source",
+            "ingestionTime": "2025-08-18T08:00:11.670673Z",
+            "matchEnd": 6
+        },
+        {
+            "fieldPath": "additional.fields.key",
+            "value": "source",
+            "ingestionTime": "2025-02-18T19:45:01.811426Z",
+            "matchEnd": 6
+        }
+    ],
+    "fieldMatches": [
+        {
+            "fieldPath": "about.labels.value"
+        },
+        {
+            "fieldPath": "additional.fields.value.string_value"
+        }
+    ],
+    "fieldMatchRegex": "source"
+}
+```
+
 ### Statistics Queries
 
 Get statistics about network connections grouped by hostname:

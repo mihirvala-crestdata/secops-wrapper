@@ -18,7 +18,7 @@ import pytest
 from unittest.mock import Mock, patch
 from secops.chronicle.client import ChronicleClient
 from secops.chronicle.models import CaseList
-from secops.exceptions import APIError
+from secops.exceptions import APIError, SecOpsError
 
 
 @pytest.fixture
@@ -865,3 +865,181 @@ def test_fix_json_formatting(chronicle_client):
     json_without_trailing_commas = '{"a": [1, 2], "b": {"c": 3, "d": 4}}'
     fixed = chronicle_client._fix_json_formatting(json_without_trailing_commas)
     assert fixed == json_without_trailing_commas
+
+
+def test_find_udm_field_values_basic(chronicle_client):
+    """Test basic UDM field values search functionality."""
+    # Mock the response
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "valueMatches": [
+            {"value": "elevated", "count": 15},
+            {"value": "elevation", "count": 8}
+        ],
+        "fieldMatches": [
+            {"field": "principal.process.file.full_path", "count": 12},
+            {"field": "principal.user.attribute.roles", "count": 11}
+        ],
+        "fieldMatchRegex": ".*elev.*"
+    }
+    
+    # Configure the mock session
+    chronicle_client.session.get.return_value = mock_response
+    
+    # Call the method
+    result = chronicle_client.find_udm_field_values(query="elev")
+    
+    # Verify the request was made correctly
+    chronicle_client.session.get.assert_called_once_with(
+        f"{chronicle_client.base_url}/{chronicle_client.instance_id}:findUdmFieldValues",
+        params={"query": "elev"}
+    )
+    
+    # Verify the response was processed correctly
+    assert len(result["valueMatches"]) == 2
+    assert result["valueMatches"][0]["value"] == "elevated"
+    assert result["valueMatches"][0]["count"] == 15
+    assert result["valueMatches"][1]["value"] == "elevation"
+    assert len(result["fieldMatches"]) == 2
+    assert result["fieldMatchRegex"] == ".*elev.*"
+
+
+def test_find_udm_field_values_with_page_size(chronicle_client):
+    """Test UDM field values search with page size parameter."""
+    # Mock the response
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "valueMatches": [
+            {"value": "elevated", "count": 15}
+        ],
+        "fieldMatches": [
+            {"field": "principal.process.file.full_path", "count": 12}
+        ]
+    }
+    
+    # Configure the mock session
+    chronicle_client.session.get.return_value = mock_response
+    
+    # Call the method with page_size
+    result = chronicle_client.find_udm_field_values(query="elev", page_size=1)
+    
+    # Verify the request was made with correct parameters
+    chronicle_client.session.get.assert_called_once_with(
+        f"{chronicle_client.base_url}/{chronicle_client.instance_id}:findUdmFieldValues",
+        params={"query": "elev", "pageSize": 1}
+    )
+    
+    # Verify the response
+    assert len(result["valueMatches"]) == 1
+    assert len(result["fieldMatches"]) == 1
+
+
+def test_find_udm_field_values_with_page_token(chronicle_client):
+    """Test UDM field values search with page token parameter."""
+    # Mock the response
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "valueMatches": [
+            {"value": "elevation", "count": 8}
+        ],
+        "fieldMatches": [
+            {"field": "principal.user.attribute.roles", "count": 11}
+        ],
+        "nextPageToken": "next_token_value"
+    }
+    
+    # Configure the mock session
+    chronicle_client.session.get.return_value = mock_response
+    
+    # Call the method with page_token
+    result = chronicle_client.find_udm_field_values(
+        query="elev", 
+        page_token="test_token"
+    )
+    
+    # Verify the request was made with correct parameters
+    chronicle_client.session.get.assert_called_once_with(
+        f"{chronicle_client.base_url}/{chronicle_client.instance_id}:findUdmFieldValues",
+        params={"query": "elev", "pageToken": "test_token"}
+    )
+    
+    # Verify the response includes the nextPageToken
+    assert result["nextPageToken"] == "next_token_value"
+
+
+def test_find_udm_field_values_with_all_params(chronicle_client):
+    """Test UDM field values search with all parameters."""
+    # Mock the response
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "valueMatches": [
+            {"value": "elevated", "count": 15}
+        ],
+        "nextPageToken": "next_page_123"
+    }
+    
+    # Configure the mock session
+    chronicle_client.session.get.return_value = mock_response
+    
+    # Call the method with all parameters
+    result = chronicle_client.find_udm_field_values(
+        query="elev",
+        page_size=10,
+        page_token="current_token"
+    )
+    
+    # Verify the request was made with all parameters
+    chronicle_client.session.get.assert_called_once_with(
+        f"{chronicle_client.base_url}/{chronicle_client.instance_id}:findUdmFieldValues",
+        params={
+            "query": "elev",
+            "pageSize": 10,
+            "pageToken": "current_token"
+        }
+    )
+    
+    # Verify the response
+    assert len(result["valueMatches"]) == 1
+    assert result["nextPageToken"] == "next_page_123"
+
+
+def test_find_udm_field_values_error_response(chronicle_client):
+    """Test error handling for UDM field values search."""
+    # Mock an error response
+    mock_response = Mock()
+    mock_response.status_code = 400
+    mock_response.text = "Bad Request: Invalid query parameter"
+    
+    # Configure the mock session
+    chronicle_client.session.get.return_value = mock_response
+    
+    # Verify that APIError is raised
+    with pytest.raises(APIError) as excinfo:
+        chronicle_client.find_udm_field_values(query="invalid:query")
+    
+    # Verify the error message
+    assert "Chronicle API request failed" in str(excinfo.value)
+    assert "Bad Request: Invalid query parameter" in str(excinfo.value)
+
+
+def test_find_udm_field_values_json_error(chronicle_client):
+    """Test JSON parsing error for UDM field values search."""
+    # Mock a response with invalid JSON
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.side_effect = ValueError("Invalid JSON")
+    
+    # Configure the mock session
+    chronicle_client.session.get.return_value = mock_response
+    
+    # Verify that SecOpsError is raised
+    with pytest.raises(SecOpsError) as excinfo:
+        chronicle_client.find_udm_field_values(query="elev")
+    
+    # Verify the error message
+    assert "Failed to parse response as JSON" in str(excinfo.value)
+    assert "Invalid JSON" in str(excinfo.value)
