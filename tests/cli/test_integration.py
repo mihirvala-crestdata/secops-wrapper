@@ -197,6 +197,9 @@ def test_cli_parser_lifecycle(cli_env, common_args):
                 found_in_list
             ), f"Created parser {created_parser_id} not found in listed parsers for {test_log_type}"
 
+        # Wait till state of parser changes
+        time.sleep(5)
+
         # 4. Activate the parser (if applicable and testable - might require specific states)
         # Note: Activation typically makes a parser "live".
         # This step might depend on the parser's state and whether it's a "custom" or "release candidate".
