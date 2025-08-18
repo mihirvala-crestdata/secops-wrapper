@@ -197,6 +197,9 @@ def test_cli_parser_lifecycle(cli_env, common_args):
                 found_in_list
             ), f"Created parser {created_parser_id} not found in listed parsers for {test_log_type}"
 
+        # Wait till state of parser changes
+        time.sleep(5)
+
         # 4. Activate the parser (if applicable and testable - might require specific states)
         # Note: Activation typically makes a parser "live".
         # This step might depend on the parser's state and whether it's a "custom" or "release candidate".
@@ -2167,3 +2170,43 @@ def test_cli_generate_udm_key_value_mapping(cli_env, common_args):
         # Clean up temp files
         if "log_file_path" in locals() and os.path.exists(log_file_path):
             os.unlink(log_file_path)
+
+
+@pytest.mark.integration
+def test_cli_udm_field_values(cli_env, common_args):
+    """Test the search udm-field-values command with pagination."""
+    # Execute the CLI command with page size parameter
+    cmd = [
+        "secops",
+    ] + common_args + [
+        "search", 
+        "udm-field-values",
+        "--query", 
+        "source",
+        "--page-size",
+        "2"  # Small page size to test pagination
+    ]
+
+    result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
+    
+    # Check that the command executed successfully
+    assert result.returncode == 0, f"Command failed: {result.stderr}"
+    
+    # Try to parse the output as JSON
+    try:
+        output = json.loads(result.stdout)
+        
+        # Verify basic response structure
+        assert "valueMatches" in output, "Response should contain valueMatches"
+        assert "fieldMatches" in output, "Response should contain fieldMatches"
+        assert "fieldMatchRegex" in output, "Response should contain fieldMatchRegex"
+        
+        # Verify query is reflected in response
+        assert output["fieldMatchRegex"] == "source", "Field match regex should match query"
+        
+        # Verify pagination is working
+        assert len(output["valueMatches"]) <= 2, "Should respect page size parameter"
+        
+    except json.JSONDecodeError:
+        # If not valid JSON, fail the test
+        assert False, f"Output is not valid JSON: {result.stdout}"

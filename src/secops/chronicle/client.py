@@ -104,6 +104,9 @@ from secops.chronicle.models import (
 )
 from secops.chronicle.nl_search import nl_search as _nl_search
 from secops.chronicle.nl_search import translate_nl_to_udm
+from secops.chronicle.udm_search import (
+    find_udm_field_values as _find_udm_field_values,
+)
 from secops.chronicle.parser import activate_parser as _activate_parser
 from secops.chronicle.parser import (
     activate_release_candidate_parser as _activate_release_candidate_parser,
@@ -562,6 +565,23 @@ class ChronicleClient:
             timeout,
             debug,
         )
+
+    def find_udm_field_values(
+        self, query: str, page_size: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Fetch UDM field values that match a query.
+
+        Args:
+            query: The partial UDM field value to match
+            page_size: The maximum number of value matches to return
+
+        Returns:
+            Dictionary containing field values that match the query
+
+           Raises:
+            APIError: If the API request fails
+        """
+        return _find_udm_field_values(self, query=query, page_size=page_size)
 
     def summarize_entity(
         self,

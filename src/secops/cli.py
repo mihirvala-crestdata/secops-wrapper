@@ -452,6 +452,26 @@ def setup_search_command(subparsers):
     add_time_range_args(search_parser)
     search_parser.set_defaults(func=handle_search_command)
 
+    search_subparser = search_parser.add_subparsers(
+        dest="search_sub_commands", help="Search Sub Commands"
+    )
+    udm_field_value_search_parser = search_subparser.add_parser(
+        "udm-field-values", help="Search UDM field values"
+    )
+    udm_field_value_search_parser.add_argument(
+        "--query", required=True, help="UDM query string"
+    )
+    udm_field_value_search_parser.add_argument(
+        "--page-size",
+        "--page_size",
+        dest="page_size",
+        type=int,
+        help="Maximum page size to return",
+    )
+    udm_field_value_search_parser.set_defaults(
+        func=handle_find_udm_field_values_command
+    )
+
 
 def handle_search_command(args, chronicle):
     """Handle the search command.
@@ -488,6 +508,19 @@ def handle_search_command(args, chronicle):
                 max_events=args.max_events,
             )
             output_formatter(result, args.output)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_find_udm_field_values_command(args, chronicle):
+    """Handle find UDM field values command."""
+    try:
+        result = chronicle.find_udm_field_values(
+            query=args.query,
+            page_size=args.page_size,
+        )
+        output_formatter(result, args.output)
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
