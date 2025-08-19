@@ -215,7 +215,7 @@ The SecOps SDK testing structure follows these conventions:
 The project uses GitHub Actions for continuous integration:
 
 - **Unit Tests**: Automatically run on every pull request
-- **Integration Tests**: Triggered with `/run-integration-tests` comment on pull requests by code owners.
+- **Integration Tests**: Triggered with `/run-integration-tests <commit_SHA>` comment on pull requests by code owners.
 
 ## Common Issues and Solutions
 
