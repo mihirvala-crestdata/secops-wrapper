@@ -176,7 +176,6 @@ jobs:
       CHRONICLE_UNIVERSE_DOMAIN: ${{ vars.CHRONICLE_UNIVERSE_DOMAIN }}
 
     steps:
-      # Use the SHA specified in the comment to prevent TOCTOU attacks
       - name: Checkout code
         uses: actions/checkout@v5
         with:
@@ -199,7 +198,6 @@ jobs:
         with:
           credentials_json: ${{ secrets.SERVICE_ACCOUNT_JSON }}
 
-      # Create a check for the PR to show in the checks section
       - name: Create in-progress check
         id: create-check
         uses: actions/github-script@v7
@@ -260,7 +258,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Use the SHA specified in the comment, not the PR head SHA
             const sha = '${{ needs.check-authorization.outputs.commit_sha }}';
             const run_id = process.env.GITHUB_RUN_ID;
             const run_url = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${run_id}`;
