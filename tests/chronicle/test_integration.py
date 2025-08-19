@@ -1576,3 +1576,47 @@ def test_chronicle_generate_udm_key_value_mapping():
     except Exception as e:
         print(f"Error during generate UDM key/value mapping test: {e}")
         raise
+
+
+@pytest.mark.integration
+def test_find_udm_field_values():
+    """Test find_udm_field_values functionality."""
+    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+
+    try:
+        # Test with page_size parameter
+        page_size = 1  # Small page size to ensure we get a next page token
+        query = "source"  # Common term that should exist in most environments
+        paged_results = chronicle.find_udm_field_values(
+            query=query, page_size=page_size
+        )
+
+        assert paged_results
+        assert "valueMatches" in paged_results
+        assert "fieldMatches" in paged_results
+        assert "fieldMatchRegex" in paged_results
+        assert paged_results["fieldMatchRegex"]
+        # Verify pagination works
+        assert (
+            len(paged_results["valueMatches"]) <= page_size
+        ), f"Should return at most {page_size} value matches"
+
+        print(
+            f"Pagination test: got {len(paged_results['valueMatches'])} "
+            f"value matches with page_size={page_size}"
+        )
+
+        # Check if we have a next page token
+        if "nextPageToken" in paged_results:
+            # Check next page token
+            assert paged_results["nextPageToken"]
+        else:
+            print("No next page token found")
+
+    except APIError as e:
+        print(f"API Error during find_udm_field_values test: {str(e)}")
+        pytest.fail(f"Test failed due to API error: {str(e)}")
+    except Exception as e:
+        print(f"Unexpected error in find_udm_field_values test: {str(e)}")
+        raise

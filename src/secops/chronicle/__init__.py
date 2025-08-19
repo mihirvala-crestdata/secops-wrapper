@@ -131,7 +131,10 @@ from secops.chronicle.udm_mapping import (
     RowLogFormat,
     generate_udm_key_value_mappings,
 )
-from secops.chronicle.udm_search import fetch_udm_search_csv
+from secops.chronicle.udm_search import (
+    fetch_udm_search_csv,
+    find_udm_field_values,
+)
 from secops.chronicle.validate import validate_query
 
 __all__ = [
@@ -141,6 +144,7 @@ __all__ = [
     "ValueType",
     # UDM and Search
     "fetch_udm_search_csv",
+    "find_udm_field_values",
     "validate_query",
     "get_stats",
     "search_udm",

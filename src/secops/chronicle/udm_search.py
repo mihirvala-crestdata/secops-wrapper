@@ -15,8 +15,9 @@
 """UDM search functionality for Chronicle."""
 
 from datetime import datetime
+from typing import Any, Dict, Optional
 
-from secops.exceptions import APIError
+from secops.exceptions import APIError, SecOpsError
 
 
 def fetch_udm_search_csv(
@@ -77,3 +78,39 @@ def fetch_udm_search_csv(
             raise APIError(f"Failed to parse CSV response: {str(e)}") from e
 
     return response.text
+
+
+def find_udm_field_values(
+    client, query: str, page_size: Optional[int] = None
+) -> Dict[str, Any]:
+    """Fetch UDM field values that match a query.
+
+    Args:
+        client: ChronicleClient instance
+        query: The partial UDM field value to match
+        page_size: The maximum number of value matches to return
+
+    Returns:
+        Dictionary containing field values that match the query
+
+    Raises:
+        APIError: If the API request fails
+    """
+    # Construct the URL for the findUdmFieldValues endpoint
+    url = f"{client.base_url}/{client.instance_id}:findUdmFieldValues"
+
+    # Prepare query parameters
+    params = {"query": query}
+    if page_size is not None:
+        params["pageSize"] = page_size
+
+    # Send the request
+    response = client.session.get(url, params=params)
+
+    if response.status_code != 200:
+        raise APIError(f"Chronicle API request failed: {response.text}")
+
+    try:
+        return response.json()
+    except ValueError as e:
+        raise SecOpsError(f"Failed to parse response as JSON: {str(e)}") from e
