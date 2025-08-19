@@ -1,3 +1,10 @@
+# Integration Tests Workflow
+#
+# USAGE INSTRUCTIONS:
+# 1. Get the exact commit SHA you want to test (must be in the PR)
+# 2. Comment on the PR with: /run-integration-tests <SHA>
+# 3. The workflow will checkout that specific commit and run integration tests
+
 name: Integration Tests
 
 on:
@@ -20,9 +27,64 @@ jobs:
     outputs:
       authorized: ${{ steps.auth-check.outputs.authorized }}
       pr_number: ${{ github.event.issue.number }}
+      # The commit SHA extracted from the comment
+      commit_sha: ${{ steps.extract-sha.outputs.result }}
+      # Whether a valid SHA was found in the comment
+      has_sha: ${{ steps.extract-sha.outputs.result != '' }}
       
     steps:
       - uses: actions/checkout@v5
+      
+      - name: Extract commit SHA from comment
+        id: extract-sha
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const commentBody = context.payload.comment.body;
+            // Look for SHA pattern after '/run-integration-tests' command
+            // SHA must be a 40-character hex string
+            const shaMatch = commentBody.match(/\/run-integration-tests\s+([0-9a-f]{40})(?:\s|$)/i);
+            
+            if (shaMatch && shaMatch[1]) {
+              const sha = shaMatch[1];
+              console.log(`Found SHA in comment: ${sha}`);
+              
+              // Verify the SHA belongs to this PR
+              try {
+                // Get PR number from the issue
+                const prNumber = context.payload.issue.number;
+                
+                // Get list of commits in the PR
+                const { data: commits } = await github.rest.pulls.listCommits({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber
+                });
+                
+                // Check if the provided SHA exists in this PR's commits
+                const commitExists = commits.some(commit => commit.sha === sha);
+                
+                if (commitExists) {
+                  console.log(`Verified SHA ${sha} belongs to PR #${prNumber}`);
+                  core.setOutput('has_sha', 'true');
+                  return sha; // Return the SHA directly as the result
+                } else {
+                  console.log(`Error: SHA ${sha} does not belong to PR #${prNumber}`);
+                  console.log('The SHA must be from a commit in the current PR.');
+                  core.setOutput('has_sha', 'false');
+                  return ''; // Return empty string if SHA not in PR
+                }
+              } catch (error) {
+                console.error(`Error validating SHA: ${error.message}`);
+                core.setOutput('has_sha', 'false');
+                return ''; // Return empty string on error
+              }
+            } else {
+              console.log(`No valid SHA found in comment. Format should be: /run-integration-tests <40-character-SHA>`);
+              core.setOutput('has_sha', 'false');
+              return ''; // Return empty string if no SHA found
+            }
       
       - name: Check CODEOWNERS authorization
         id: auth-check
@@ -84,8 +146,10 @@ jobs:
   integration-tests:
     name: Run Integration Tests
     needs: check-authorization
-    # Only run if the user is authorized
-    if: needs.check-authorization.outputs.authorized == 'true'
+    # Only run if the user is authorized AND provided a valid SHA
+    if: |
+      needs.check-authorization.outputs.authorized == 'true' && 
+      needs.check-authorization.outputs.commit_sha != ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -112,10 +176,11 @@ jobs:
       CHRONICLE_UNIVERSE_DOMAIN: ${{ vars.CHRONICLE_UNIVERSE_DOMAIN }}
 
     steps:
+      # Use the SHA specified in the comment to prevent TOCTOU attacks
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-          ref: refs/pull/${{ github.event.issue.number }}/head
+          ref: ${{ needs.check-authorization.outputs.commit_sha }}
       
       - name: Set up Python
         uses: actions/setup-python@v4
