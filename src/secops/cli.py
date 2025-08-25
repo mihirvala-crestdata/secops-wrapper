@@ -2239,6 +2239,47 @@ def setup_data_table_command(subparsers):
     )
     delete_rows_parser.set_defaults(func=handle_dt_delete_rows_command)
 
+    # Update data table command
+    update_parser = dt_subparsers.add_parser(
+        "update", help="Update a data table"
+    )
+    update_parser.add_argument("--name", required=True, help="Data table name")
+    update_parser.add_argument(
+        "--description", help="New data table description"
+    )
+    update_parser.add_argument(
+        "--row-time-to-live",
+        "--row_time_to_live",
+        dest="row_time_to_live",
+        help="New row time to live (e.g., '24h', '7d')",
+    )
+    update_parser.set_defaults(func=handle_dt_update_command)
+
+    # Replace rows command
+    replace_rows_parser = dt_subparsers.add_parser(
+        "replace-rows", help="Replace all rows in a data table with new rows"
+    )
+    replace_rows_parser.add_argument(
+        "--name", required=True, help="Data table name"
+    )
+    replace_rows_group = replace_rows_parser.add_mutually_exclusive_group(
+        required=True
+    )
+    replace_rows_group.add_argument(
+        "--rows",
+        help=(
+            "Rows as a JSON array of arrays. Example: "
+            '\'[["value1","192.168.1.1"],'
+            '["value2","10.0.0.0/8"]]\''
+        ),
+    )
+    replace_rows_group.add_argument(
+        "--rows-file",
+        "--rows_file",
+        help="Path to a JSON file containing rows as an array of arrays",
+    )
+    replace_rows_parser.set_defaults(func=handle_dt_replace_rows_command)
+
 
 def setup_reference_list_command(subparsers):
     """Set up the reference list command parser."""
@@ -2436,6 +2477,76 @@ def handle_dt_delete_rows_command(args, chronicle):
     try:
         row_ids = [id.strip() for id in args.row_ids.split(",")]
         result = chronicle.delete_data_table_rows(args.name, row_ids)
+        output_formatter(result, args.output)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dt_replace_rows_command(args, chronicle):
+    """Handle data table replace rows command.
+
+    Replaces all rows in a data table with new rows from JSON input.
+    """
+    try:
+        # Parse rows from either JSON string or file
+        rows = None
+        if args.rows:
+            try:
+                rows = json.loads(args.rows)
+            except json.JSONDecodeError as e:
+                print(f"Error parsing rows: {e}", file=sys.stderr)
+                print("Rows should be a JSON array of arrays.", file=sys.stderr)
+                sys.exit(1)
+        elif args.rows_file:
+            try:
+                with open(args.rows_file, "r", encoding="utf-8") as f:
+                    rows = json.load(f)
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Error reading from file: {e}", file=sys.stderr)
+                sys.exit(1)
+        else:
+            print("Either --rows or --file must be specified", file=sys.stderr)
+            sys.exit(1)
+
+        result = chronicle.replace_data_table_rows(args.name, rows)
+        output_formatter(result, args.output)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_dt_update_command(args, chronicle):
+    """Handle data table update command.
+
+    Args:
+        args: Command line arguments
+        chronicle: Chronicle client
+    """
+    try:
+        # Determine which fields need to be updated based on provided arguments
+        update_mask = []
+        if args.description is not None:
+            update_mask.append("description")
+        if args.row_time_to_live is not None:
+            update_mask.append("row_time_to_live")
+
+        # If no fields were specified, inform the user
+        if not update_mask:
+            print(
+                "Error: At least one of --description or --row-time-to-live "
+                "must be specified",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Call the API to update the data table
+        result = chronicle.update_data_table(
+            name=args.name,
+            description=args.description,
+            row_time_to_live=args.row_time_to_live,
+            update_mask=update_mask,
+        )
         output_formatter(result, args.output)
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)

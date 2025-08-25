@@ -1575,6 +1575,138 @@ def test_cli_config_lifecycle(cli_env):
 
 
 @pytest.mark.integration
+def test_cli_replace_data_table_rows(cli_env, common_args):
+    """Test the data-table replace-rows command.
+    """
+    # Generate unique name for data table using timestamp
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    table_name = f"test_replace_rows_{timestamp}"
+    
+    try:
+        # 1. Create a data table with initial rows
+        print("\n>>> Creating data table with initial rows")
+        header = json.dumps(
+            {"hostname": "STRING", "ip_address": "STRING", "description": "STRING"}
+        )
+        initial_rows = json.dumps(
+            [
+                ["initial1.example.com", "10.0.0.1", "Initial host 1"],
+                ["initial2.example.com", "10.0.0.2", "Initial host 2"],
+                ["initial3.example.com", "10.0.0.3", "Initial host 3"],
+            ]
+        )
+        
+        # Create the data table
+        create_cmd = (
+            ["secops"]
+            + common_args
+            + [
+                "data-table",
+                "create",
+                "--name",
+                table_name,
+                "--description",
+                "CLI Test for Replace Rows",
+                "--header",
+                header,
+                "--rows",
+                initial_rows,
+            ]
+        )
+        
+        create_result = subprocess.run(
+            create_cmd, env=cli_env, capture_output=True, text=True
+        )
+        
+        # Check that creation was successful
+        assert create_result.returncode == 0, f"Creation failed: {create_result.stderr}"
+        print("Data table created successfully")
+        
+        # 2. List rows to verify initial state
+        print("Verifying initial rows")
+        list_rows_cmd = (
+            ["secops"]
+            + common_args
+            + ["data-table", "list-rows", "--name", table_name]
+        )
+        
+        list_rows_result = subprocess.run(
+            list_rows_cmd, env=cli_env, capture_output=True, text=True
+        )
+        
+        assert list_rows_result.returncode == 0
+        initial_rows_data = json.loads(list_rows_result.stdout)
+        assert len(initial_rows_data) == 3, f"Expected 3 initial rows, got {len(initial_rows_data)}"
+        print(f"Verified {len(initial_rows_data)} initial rows")
+        
+        # 3. Replace rows with new data
+        print("\n>>> Replacing rows with new data")
+        replacement_rows = json.dumps(
+            [
+                ["replaced1.example.com", "192.168.1.1", "Replaced host 1"],
+                ["replaced2.example.com", "192.168.1.2", "Replaced host 2"],
+            ]
+        )
+        
+        replace_rows_cmd = (
+            ["secops"]
+            + common_args
+            + [
+                "data-table", 
+                "replace-rows", 
+                "--name", 
+                table_name, 
+                "--rows", 
+                replacement_rows
+            ]
+        )
+        
+        replace_result = subprocess.run(
+            replace_rows_cmd, env=cli_env, capture_output=True, text=True
+        )
+        
+        # Check that replacement was successful
+        assert replace_result.returncode == 0, f"Replacement failed: {replace_result.stderr}"
+        print("Rows replaced successfully")
+        
+        # 4. List rows again to verify replacement
+        print("Verifying replaced rows")
+        list_rows_result = subprocess.run(
+            list_rows_cmd, env=cli_env, capture_output=True, text=True
+        )
+        
+        assert list_rows_result.returncode == 0
+        replaced_rows_data = json.loads(list_rows_result.stdout)
+        assert len(replaced_rows_data) == 2, f"Expected 2 rows after replacement, got {len(replaced_rows_data)}"
+        print(f"Verified {len(replaced_rows_data)} rows after replacement")
+        
+        # Verify the content of the replaced rows
+        found_hosts = set(row["values"][0] for row in replaced_rows_data)
+        expected_hosts = {"replaced1.example.com", "replaced2.example.com"}
+        assert found_hosts == expected_hosts, f"Expected hosts {expected_hosts}, got {found_hosts}"
+        print("Row content verified successfully")
+        
+    except Exception as e:
+        # Clean up in case of test failure
+        pytest.fail(f"Replace rows CLI test failed: {e}")
+        
+    finally:
+        # Clean up the data table
+        try:
+            subprocess.run(
+                [
+                    "secops",
+                ]
+                + common_args
+                + ["data-table", "delete", "--name", table_name, "--force"],
+                env=cli_env,
+                capture_output=True,
+            )
+        except Exception as cleanup_error:
+            print(f"Warning: Failed to clean up data table {table_name}: {cleanup_error}")
+
+
+@pytest.mark.integration
 def test_cli_data_tables(cli_env, common_args):
     """Test the data-table command lifecycle."""
     # Generate unique name for data table using timestamp

@@ -615,6 +615,22 @@ secops data-table create \
 secops data-table list-rows --name "suspicious_ips"
 ```
 
+#### Update a data table's properties:
+
+```bash
+# Update both description and row TTL
+secops data-table update \
+  --name "suspicious_ips" \
+  --description "Updated description for suspicious IPs" \
+  --row-ttl "72h"
+
+# Update only the description with explicit update mask
+secops data-table update \
+  --name "suspicious_ips" \
+  --description "Only updating description" \
+  --update-mask "description"
+```
+
 #### Add rows to a data table:
 
 ```bash
@@ -627,6 +643,19 @@ secops data-table add-rows \
 
 ```bash
 secops data-table delete-rows --name "suspicious_ips" --row-ids "row123,row456"
+```
+
+#### Replace all rows in a data table:
+
+```bash
+secops data-table replace-rows \
+  --name "suspicious_ips" \
+  --rows '[["192.168.100.1","Critical","Active scanning"],["10.1.1.5","High","Brute force attempts"],["172.16.5.10","Medium","Suspicious traffic"]]'
+
+# Replace rows with a file
+secops data-table replace-rows \
+  --name "suspicious_ips" \
+  --rows-file "/path/to/rows.json"
 ```
 
 #### Delete a data table:

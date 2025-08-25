@@ -1396,6 +1396,177 @@ def test_chronicle_data_tables_cidr():
 
 
 @pytest.mark.integration
+def test_replace_data_table_rows():
+    """Test replace_data_table_rows functionality with real API.
+    
+    This test creates a data table with initial rows, replaces all rows with new ones,
+    verifies the replacement, and then cleans up by deleting the data table.
+    """
+    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+    
+    # Create a unique data table name for this test using timestamp
+    dt_name = f"replace_rows_test_{int(time.time())}"
+    
+    try:
+        print(f"\n>>> Testing replace_data_table_rows for: {dt_name}")
+        
+        # Create a data table with initial rows
+        created_dt = chronicle.create_data_table(
+            name=dt_name,
+            description="Test Data Table for Replace Rows",
+            header={
+                "hostname": DataTableColumnType.STRING,
+                "ip_address": DataTableColumnType.STRING,
+                "description": DataTableColumnType.STRING,
+            },
+            rows=[
+                ["initial1.example.com", "10.0.0.1", "Initial host 1"],
+                ["initial2.example.com", "10.0.0.2", "Initial host 2"],
+                ["initial3.example.com", "10.0.0.3", "Initial host 3"],
+            ],
+        )
+        
+        print(f"Created data table: {dt_name} with 3 initial rows")
+        assert created_dt.get("name").endswith(dt_name)
+        
+        # Verify initial rows
+        initial_rows = chronicle.list_data_table_rows(dt_name)
+        assert len(initial_rows) == 3, f"Expected 3 initial rows, got {len(initial_rows)}"
+        
+        # Prepare new rows to replace existing ones
+        replacement_rows = [
+            ["replaced1.example.com", "192.168.1.1", "Replaced host 1"],
+            ["replaced2.example.com", "192.168.1.2", "Replaced host 2"],
+        ]
+        
+        print(f"Replacing all rows in data table: {dt_name}")
+        # Replace all rows with new ones
+        replace_results = chronicle.replace_data_table_rows(dt_name, replacement_rows)
+        
+        # Verify replacement response
+        assert len(replace_results) == 1, "Expected single response for batch replacement"
+        assert "dataTableRows" in replace_results[0], "Response should contain dataTableRows"
+        
+        # Verify rows after replacement
+        updated_rows = chronicle.list_data_table_rows(dt_name)
+        assert len(updated_rows) == 2, f"Expected 2 rows after replacement, got {len(updated_rows)}"
+        
+    except Exception as e:
+        print(f"Error in test_replace_data_table_rows: {str(e)}")
+        pytest.fail(f"Replace data table rows test failed: {e}")
+        
+    finally:
+        # Clean up - delete the test data table
+        try:
+            print(f"Cleaning up - deleting data table: {dt_name}")
+            chronicle.delete_data_table(dt_name, force=True)
+            print("Data table deleted successfully")
+        except Exception as cleanup_error:
+            print(f"Warning: Failed to clean up data table {dt_name}: {cleanup_error}")
+
+
+@pytest.mark.integration
+def test_update_data_table():
+    """Test update_data_table functionality with real API.
+    
+    This test creates a data table, updates its properties, verifies the
+    changes, and then cleans up by deleting the data table.
+    """
+    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+    
+    # Create a unique data table name for this test using timestamp
+    dt_name = f"update_dt_test_{int(time.time())}"
+    
+    try:
+        print(f"\n>>> Testing update_data_table for: {dt_name}")
+        
+        # Create a data table
+        initial_description = "Initial data table description"
+        
+        created_dt = chronicle.create_data_table(
+            name=dt_name,
+            description=initial_description,
+            header={
+                "hostname": DataTableColumnType.STRING,
+                "ip_address": DataTableColumnType.STRING,
+                "description": DataTableColumnType.STRING,
+            },
+            rows=[
+                ["host1.example.com", "192.168.1.10", "Test host"],
+            ],
+        )
+        
+        print(f"Created data table: {dt_name}")
+        assert created_dt.get("name").endswith(dt_name)
+        assert created_dt.get("description") == initial_description
+        
+        # Update the data table - change description and row TTL
+        updated_description = "Updated data table description"
+        updated_ttl = "48h"
+        
+        print(f"Updating data table with new description and TTL")
+        update_result = chronicle.update_data_table(
+            name=dt_name,
+            description=updated_description,
+            row_time_to_live=updated_ttl
+        )
+        
+        # Verify the update was successful
+        assert update_result.get("name").endswith(dt_name)
+        
+        # Retrieve the data table to double-check changes persisted
+        retrieved_dt = chronicle.get_data_table(dt_name)
+        assert retrieved_dt.get("description") == updated_description
+        assert retrieved_dt.get("rowTimeToLive") == updated_ttl
+        
+        # Test partial update - only update description
+        final_description = "Final description"
+        
+        print(f"Updating only the description")
+        partial_update = chronicle.update_data_table(
+            name=dt_name,
+            description=final_description
+        )
+        
+        assert dt_name in partial_update.get("name")
+        
+        # Test update with explicit update_mask
+        masked_ttl = "72h"
+        masked_desc = "This description should not be applied"
+        
+        print(f"Testing update with update_mask")
+        chronicle.update_data_table(
+            name=dt_name,
+            description=masked_desc,
+            row_time_to_live=masked_ttl,
+            update_mask=["row_time_to_live"]  # Only update TTL
+        )
+    
+
+        # Retrieve the data table to check changes persisted
+        retrieved_updated_dt = chronicle.get_data_table(dt_name)
+        assert retrieved_updated_dt.get("description") == final_description
+        assert retrieved_updated_dt.get("rowTimeToLive") == masked_ttl
+        
+        print("All update_data_table tests passed successfully")
+        
+    except Exception as e:
+        print(f"Error in test_update_data_table: {str(e)}")
+        pytest.fail(f"Update data table test failed: {e}")
+        
+    finally:
+        # Clean up - delete the test data table
+        try:
+            print(f"Cleaning up - deleting data table: {dt_name}")
+            chronicle.delete_data_table(dt_name, force=True)
+            print("Data table deleted successfully")
+        except Exception as cleanup_error:
+            print(f"Warning: Failed to clean up data table {dt_name}: {cleanup_error}")
+
+
+@pytest.mark.integration
 def test_chronicle_reference_lists():
     """Test Chronicle reference list functionality with real API."""
     client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
