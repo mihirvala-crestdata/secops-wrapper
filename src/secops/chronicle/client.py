@@ -58,6 +58,9 @@ from secops.chronicle.data_table import create_data_table as _create_data_table
 from secops.chronicle.data_table import (
     create_data_table_rows as _create_data_table_rows,
 )
+from secops.chronicle.data_table import (
+    replace_data_table_rows as _replace_data_table_rows,
+)
 from secops.chronicle.data_table import delete_data_table as _delete_data_table
 from secops.chronicle.data_table import (
     delete_data_table_rows as _delete_data_table_rows,
@@ -67,6 +70,7 @@ from secops.chronicle.data_table import (
     list_data_table_rows as _list_data_table_rows,
 )
 from secops.chronicle.data_table import list_data_tables as _list_data_tables
+from secops.chronicle.data_table import update_data_table as _update_data_table
 from secops.chronicle.entity import _detect_value_type_for_query
 from secops.chronicle.entity import summarize_entity as _summarize_entity
 from secops.chronicle.feeds import CreateFeedModel, UpdateFeedModel
@@ -2199,6 +2203,57 @@ class ChronicleClient:
             APIError: If the API request fails
         """
         return _delete_data_table_rows(self, name, row_ids)
+
+    def replace_data_table_rows(
+        self, name: str, rows: List[List[str]]
+    ) -> List[Dict[str, Any]]:
+        """Replace all data table rows with new rows, chunking if necessary.
+
+        This method replaces all existing rows in a data table with the provided
+        new rows. It handles chunking to stay within API limits.
+
+        Args:
+            name: Data table name
+            rows: List of rows where each row is a list of string values
+
+        Returns:
+            List of response objects, one per chunk
+
+        Raises:
+            APIError: If the API request fails
+            SecOpsError: If a row is too large to process
+        """
+        return _replace_data_table_rows(self, name, rows)
+
+    def update_data_table(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        row_time_to_live: Optional[str] = None,
+        update_mask: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Update a data table using the PATCH method.
+
+        Args:
+            name: The name of the data table to update
+            description: Description for the data table
+            row_time_to_live: TTL for the data table rows
+            update_mask: list of fields to update.
+                        When no field mask is supplied, all non-empty fields
+                        will be updated.
+                        Supported fields include:
+                            'description', 'row_time_to_live'.
+
+        Returns:
+            Dictionary containing the updated data table
+
+        Raises:
+            APIError: If the API request fails
+            SecOpsError: If validation fails
+        """
+        return _update_data_table(
+            self, name, description, row_time_to_live, update_mask
+        )
 
     # Rule Exclusion methods
 

@@ -1570,6 +1570,15 @@ for table in tables:
 table_details = chronicle.get_data_table("suspicious_ips")
 print(f"Column count: {len(table_details.get('columnInfo', []))}")
 
+# Update a data table's properties
+updated_table = chronicle.update_data_table(
+    "suspicious_ips",
+    description="Updated description for suspicious IPs",
+    row_time_to_live="72h"  # Set TTL for rows to 72 hours
+    update_mask=["description", "row_time_to_live"]
+)
+print(f"Updated data table: {updated_table['name']}")
+
 # Add rows to a data table
 chronicle.create_data_table_rows(
     "suspicious_ips",
@@ -1589,6 +1598,16 @@ for row in rows:
 # Delete specific rows by ID
 row_ids = [rows[0]["name"].split("/")[-1], rows[1]["name"].split("/")[-1]]
 chronicle.delete_data_table_rows("suspicious_ips", row_ids)
+
+# Replace all rows in a data table with new rows
+chronicle.replace_data_table_rows(
+    name="suspicious_ips", # Data table Name
+    rows=[
+        ["192.168.100.1", "Critical", "Active scanning"],
+        ["10.1.1.5", "High", "Brute force attempts"],
+        ["172.16.5.10", "Medium", "Suspicious traffic"]
+    ]
+)
 
 # Delete a data table
 chronicle.delete_data_table("suspicious_ips", force=True)  # force=True deletes even if it has rows

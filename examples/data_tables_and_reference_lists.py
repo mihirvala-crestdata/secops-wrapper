@@ -99,7 +99,74 @@ def main():
         except Exception as cleanup_error:
             print(f"Error during cleanup: {cleanup_error}")
 
-    # Example 2: Create a data table with CIDR column
+    # Example 2: Update data table using update_data_table
+    dt_patch_name = f"example_dt_patch_{timestamp}"
+    print(f"\nCreating data table for Update example: {dt_patch_name}")
+    
+    try:
+        # First, create a data table that we'll update
+        dt_patch = chronicle.create_data_table(
+            name=dt_patch_name,
+            description="Original description - to be updated",
+            header={
+                "hostname": DataTableColumnType.STRING,
+                "ip_address": DataTableColumnType.STRING,
+            },
+            rows=[
+                ["host1.example.com", "192.168.1.10"],
+                ["host2.example.com", "192.168.1.11"],
+            ],
+        )
+        print(f"Created data table: {dt_patch['name']}")
+        print(f"Original description: {dt_patch.get('description')}")
+        
+        # Get the original TTL (if any)
+        original_ttl = dt_patch.get("rowTimeToLive", "Not set")
+        print(f"Original TTL: {original_ttl}")
+        
+        # Update only the description
+        print("\nUpdating only the description...")
+        updated_dt = chronicle.update_data_table(
+            name=dt_patch_name,
+            description="Updated description via PATCH",
+            update_mask=["description"],
+        )
+        print(f"Updated description: {updated_dt.get('description')}")
+        print(f"TTL after first update: {updated_dt.get('rowTimeToLive', 'Not set')}")
+        
+        # Update only the TTL
+        print("\nUpdating only the TTL...")
+        updated_dt = chronicle.update_data_table(
+            name=dt_patch_name,
+            row_time_to_live="24h",
+            update_mask=["row_time_to_live"],
+        )
+        print(f"TTL after second update: {updated_dt.get('rowTimeToLive', 'Not set')}")
+        print(f"Description after second update: {updated_dt.get('description')}")
+        
+        # Update both fields at once
+        print("\nUpdating both description and TTL at once...")
+        updated_dt = chronicle.update_data_table(
+            name=dt_patch_name,
+            description="Final description - both fields updated",
+            row_time_to_live="48h",
+            # When no update_mask is provided, all non-empty fields are updated
+        )
+        print(f"Final description: {updated_dt.get('description')}")
+        print(f"Final TTL: {updated_dt.get('rowTimeToLive', 'Not set')}")
+        
+    except (APIError, SecOpsError) as e:
+        print(f"Error in data table patch example: {e}")
+    finally:
+        # Clean up - delete the data table
+        try:
+            print(f"Cleaning up - deleting patched data table: {dt_patch_name}")
+            chronicle.delete_data_table(dt_patch_name, force=True)
+            print("Patched data table deleted")
+        except Exception as cleanup_error:
+            print(f"Error during cleanup: {cleanup_error}")
+    
+    # Example 3: Create a data table with CIDR column
     dt_cidr_name = f"example_dt_cidr_{timestamp}"
     print(f"\nCreating CIDR data table: {dt_cidr_name}")
 
@@ -134,6 +201,93 @@ def main():
             print(f"Cleaning up - deleting CIDR data table: {dt_cidr_name}")
             chronicle.delete_data_table(dt_cidr_name, force=True)
             print("CIDR data table deleted")
+        except Exception as cleanup_error:
+            print(f"Error during cleanup: {cleanup_error}")
+
+    # Example 4: Bulk replace data table rows
+    dt_bulk_name = f"example_dt_bulk_{timestamp}"
+    print(f"\nCreating data table for rows replace example: {dt_bulk_name}")
+
+    try:
+        # Define the table structure
+        dt_bulk = chronicle.create_data_table(
+            name=dt_bulk_name,
+            description="Example data table for bulk replace demonstration",
+            header={
+                "hostname": DataTableColumnType.STRING,
+                "ip_address": DataTableColumnType.STRING,
+                "description": DataTableColumnType.STRING,
+            },
+            # Initial rows
+            rows=[
+                ["host1.example.com", "192.168.1.10", "Primary server"],
+                ["host2.example.com", "192.168.1.11", "Backup server"],
+            ],
+        )
+        print(f"Created data table: {dt_bulk['name']}")
+
+        # List the initial rows
+        initial_rows = chronicle.list_data_table_rows(dt_bulk_name)
+        print(f"Data table initially has {len(initial_rows)} rows")
+        print("Initial rows:")
+        for row in initial_rows:
+            print(f"  - {row.get('values', [])}")
+
+        # Use bulk_replace_data_table_rows to replace all rows
+        print("\nReplacing ALL rows with new data...")
+        chronicle.replace_data_table_rows(
+            dt_bulk_name,
+            [
+                ["new-host1.example.com", "10.0.0.1", "New primary server"],
+                ["new-host2.example.com", "10.0.0.2", "New backup server"],
+                ["new-host3.example.com", "10.0.0.3", "New development server"],
+            ],
+        )
+
+        # List the updated rows
+        updated_rows = chronicle.list_data_table_rows(dt_bulk_name)
+        print(f"Data table now has {len(updated_rows)} rows after bulk replace")
+        print("New rows:")
+        for row in updated_rows:
+            print(f"  - {row.get('values', [])}")
+
+        # Demonstrate chunking with larger dataset
+        print("\nDemonstrating bulk replace with a larger dataset...")
+
+        # Generate a larger dataset that will be chunked
+        large_dataset = []
+        for i in range(
+            15
+        ):  # Small enough for an example but will demonstrate chunking
+            large_dataset.append(
+                [f"server{i}.example.com", f"10.1.1.{i}", f"Server {i}"]
+            )
+
+        # Replace all rows with the larger dataset
+        print(f"Replacing with {len(large_dataset)} rows...")
+        chronicle.replace_data_table_rows(dt_bulk_name, large_dataset)
+
+        # List rows after bulk replace with chunking
+        final_rows = chronicle.list_data_table_rows(dt_bulk_name)
+        print(
+            f"Data table now has {len(final_rows)} rows after bulk replace with chunking"
+        )
+        print(f"First 5 rows of the final dataset:")
+        for row in final_rows[:5]:
+            print(f"  - {row.get('values', [])}")
+
+        print("..." if len(final_rows) > 5 else "")
+
+    except (APIError, SecOpsError) as e:
+        print(f"Error in bulk replace example: {e}")
+    finally:
+        # Clean up - delete the data table
+        try:
+            print(
+                f"Cleaning up - deleting bulk replace data table: {dt_bulk_name}"
+            )
+            chronicle.delete_data_table(dt_bulk_name, force=True)
+            print("Bulk replace data table deleted")
         except Exception as cleanup_error:
             print(f"Error during cleanup: {cleanup_error}")
 
