@@ -2136,6 +2136,7 @@ def test_cli_update_data_table(cli_env, common_args):
             pass
 
 
+@pytest.mark.integration
 def test_cli_reference_lists(cli_env, common_args):
     """Test the reference-list command lifecycle."""
     # Generate unique name for reference list using timestamp
