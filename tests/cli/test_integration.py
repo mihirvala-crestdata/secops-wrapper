@@ -144,7 +144,9 @@ def test_cli_parser_lifecycle(cli_env, common_args):
             created_data = json.loads(create_result.stdout)
             # The API returns 'parserId', which is what we need to use for subsequent calls.
             created_parser_id = created_data.get("name").split("/")[-1]
-            assert created_parser_id, "Failed to get parser ID from creation response."
+            assert (
+                created_parser_id
+            ), "Failed to get parser ID from creation response."
         except json.JSONDecodeError:
             pytest.fail(
                 f"Could not parse JSON from create command output: {create_result.stdout}"
@@ -156,7 +158,14 @@ def test_cli_parser_lifecycle(cli_env, common_args):
                 "secops",
             ]
             + common_args
-            + ["parser", "get", "--log-type", test_log_type, "--id", created_parser_id]
+            + [
+                "parser",
+                "get",
+                "--log-type",
+                test_log_type,
+                "--id",
+                created_parser_id,
+            ]
         )
 
         get_result = subprocess.run(
@@ -319,7 +328,9 @@ def test_cli_parser_get(cli_env, common_args):
         + ["parser", "list"]
     )
 
-    list_result = subprocess.run(list_cmd, env=cli_env, capture_output=True, text=True)
+    list_result = subprocess.run(
+        list_cmd, env=cli_env, capture_output=True, text=True
+    )
 
     # Check that we have at least one rule to test with
     assert list_result.returncode == 0
@@ -341,7 +352,9 @@ def test_cli_parser_get(cli_env, common_args):
         + ["parser", "get", "--log-type", log_type, "--id", parser_id]
     )
 
-    get_result = subprocess.run(get_cmd, env=cli_env, capture_output=True, text=True)
+    get_result = subprocess.run(
+        get_cmd, env=cli_env, capture_output=True, text=True
+    )
 
     # Check that the command executed successfully
     assert get_result.returncode == 0
@@ -627,9 +640,13 @@ def test_cli_parser_run_error_cases(cli_env, common_args):
         ]
     )
 
-    run_result = subprocess.run(run_cmd, env=cli_env, capture_output=True, text=True)
+    run_result = subprocess.run(
+        run_cmd, env=cli_env, capture_output=True, text=True
+    )
 
-    assert run_result.returncode != 0, "Should fail with missing required arguments"
+    assert (
+        run_result.returncode != 0
+    ), "Should fail with missing required arguments"
 
     # Test 2: Invalid file path
     run_cmd = (
@@ -649,7 +666,9 @@ def test_cli_parser_run_error_cases(cli_env, common_args):
         ]
     )
 
-    run_result = subprocess.run(run_cmd, env=cli_env, capture_output=True, text=True)
+    run_result = subprocess.run(
+        run_cmd, env=cli_env, capture_output=True, text=True
+    )
 
     assert run_result.returncode != 0, "Should fail with invalid file paths"
     assert "Error reading" in run_result.stderr
@@ -809,7 +828,7 @@ order:
             "--max-values",
             "5",
             "--timeout",
-            "180"
+            "180",
         ]
     )
 
@@ -889,7 +908,9 @@ def test_cli_rule_get(cli_env, common_args):
         + ["rule", "list"]
     )
 
-    list_result = subprocess.run(list_cmd, env=cli_env, capture_output=True, text=True)
+    list_result = subprocess.run(
+        list_cmd, env=cli_env, capture_output=True, text=True
+    )
 
     # Check that we have at least one rule to test with
     assert list_result.returncode == 0
@@ -910,7 +931,9 @@ def test_cli_rule_get(cli_env, common_args):
         + ["rule", "get", "--id", rule_id]
     )
 
-    get_result = subprocess.run(get_cmd, env=cli_env, capture_output=True, text=True)
+    get_result = subprocess.run(
+        get_cmd, env=cli_env, capture_output=True, text=True
+    )
 
     # Check that the command executed successfully
     assert get_result.returncode == 0
@@ -956,7 +979,9 @@ rule test_rule {
             + ["rule", "validate", "--file", temp_file_path]
         )
 
-        result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
+        result = subprocess.run(
+            cmd, env=cli_env, capture_output=True, text=True
+        )
 
         # Check that the command executed successfully
         assert result.returncode == 0
@@ -1012,7 +1037,9 @@ rule test_network_connection {
             ]
         )
 
-        result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
+        result = subprocess.run(
+            cmd, env=cli_env, capture_output=True, text=True
+        )
 
         # The command may fail in some environments due to permissions or lack of data
         # So we'll skip the test rather than fail it in those cases
@@ -1020,7 +1047,9 @@ rule test_network_connection {
             "permission" in result.stderr.lower()
             or "not authorized" in result.stderr.lower()
         ):
-            pytest.skip(f"Skipping test due to permission issues: {result.stderr}")
+            pytest.skip(
+                f"Skipping test due to permission issues: {result.stderr}"
+            )
 
         # If we get a success response, check that it contains expected output elements
         if result.returncode == 0:
@@ -1066,7 +1095,9 @@ rule test_network_connection {
                 # Should be a list (array) of events
                 assert isinstance(output, list)
             except json.JSONDecodeError:
-                pytest.fail(f"Expected JSON output but got: {result_date_range.stdout}")
+                pytest.fail(
+                    f"Expected JSON output but got: {result_date_range.stdout}"
+                )
 
     except Exception as e:
         pytest.fail(f"Unexpected error in CLI rule test command: {str(e)}")
@@ -1236,7 +1267,9 @@ def test_cli_alert(cli_env, common_args):
 
         # If there are alerts with cases, test case retrieval
         alerts = output.get("alerts", {}).get("alerts", [])
-        case_ids = [alert.get("caseName") for alert in alerts if alert.get("caseName")]
+        case_ids = [
+            alert.get("caseName") for alert in alerts if alert.get("caseName")
+        ]
 
         if case_ids:
             # Test case retrieval with the found case IDs
@@ -1267,7 +1300,9 @@ def test_cli_alert(cli_env, common_args):
                 except json.JSONDecodeError:
                     print("Could not parse case output as JSON")
             else:
-                print(f"Case retrieval failed (this is OK): {case_result.stderr}")
+                print(
+                    f"Case retrieval failed (this is OK): {case_result.stderr}"
+                )
 
     except json.JSONDecodeError:
         # If not valid JSON, check for expected error messages
@@ -1282,7 +1317,9 @@ def test_cli_log_ingest_with_labels(cli_env, common_args):
         suffix=".json", mode="w+", delete=False
     ) as temp_file:
         # Create an OKTA log similar to the examples/ingest_logs.py format
-        current_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        current_time = (
+            datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        )
         okta_log = {
             "actor": {
                 "displayName": "CLI Test User",
@@ -1302,7 +1339,9 @@ def test_cli_log_ingest_with_labels(cli_env, common_args):
 
     try:
         # Test 1: Test with JSON format labels
-        json_labels = '{"environment": "test", "source": "cli_test", "version": "1.0"}'
+        json_labels = (
+            '{"environment": "test", "source": "cli_test", "version": "1.0"}'
+        )
 
         json_cmd = (
             [
@@ -1340,7 +1379,9 @@ def test_cli_log_ingest_with_labels(cli_env, common_args):
             assert "Error:" not in json_result.stdout
 
         # Test 2: Test with key=value format labels
-        kv_labels = "environment=integration,source=cli_integration_test,team=security"
+        kv_labels = (
+            "environment=integration,source=cli_integration_test,team=security"
+        )
 
         kv_cmd = (
             [
@@ -1359,7 +1400,9 @@ def test_cli_log_ingest_with_labels(cli_env, common_args):
             ]
         )
 
-        kv_result = subprocess.run(kv_cmd, env=cli_env, capture_output=True, text=True)
+        kv_result = subprocess.run(
+            kv_cmd, env=cli_env, capture_output=True, text=True
+        )
 
         # Check that the command executed successfully with key=value labels
         assert (
@@ -1423,7 +1466,9 @@ def test_cli_gemini(cli_env, common_args):
     # Check that the command executed successfully
     # Note: this may fail if Gemini is not enabled for the account
     if "users must opt-in before using Gemini" in result.stderr:
-        pytest.skip("Test skipped: User account has not been opted-in to Gemini.")
+        pytest.skip(
+            "Test skipped: User account has not been opted-in to Gemini."
+        )
 
     assert result.returncode == 0
 
@@ -1576,17 +1621,20 @@ def test_cli_config_lifecycle(cli_env):
 
 @pytest.mark.integration
 def test_cli_replace_data_table_rows(cli_env, common_args):
-    """Test the data-table replace-rows command.
-    """
+    """Test the data-table replace-rows command."""
     # Generate unique name for data table using timestamp
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     table_name = f"test_replace_rows_{timestamp}"
-    
+
     try:
         # 1. Create a data table with initial rows
         print("\n>>> Creating data table with initial rows")
         header = json.dumps(
-            {"hostname": "STRING", "ip_address": "STRING", "description": "STRING"}
+            {
+                "hostname": "STRING",
+                "ip_address": "STRING",
+                "description": "STRING",
+            }
         )
         initial_rows = json.dumps(
             [
@@ -1595,7 +1643,7 @@ def test_cli_replace_data_table_rows(cli_env, common_args):
                 ["initial3.example.com", "10.0.0.3", "Initial host 3"],
             ]
         )
-        
+
         # Create the data table
         create_cmd = (
             ["secops"]
@@ -1613,15 +1661,17 @@ def test_cli_replace_data_table_rows(cli_env, common_args):
                 initial_rows,
             ]
         )
-        
+
         create_result = subprocess.run(
             create_cmd, env=cli_env, capture_output=True, text=True
         )
-        
+
         # Check that creation was successful
-        assert create_result.returncode == 0, f"Creation failed: {create_result.stderr}"
+        assert (
+            create_result.returncode == 0
+        ), f"Creation failed: {create_result.stderr}"
         print("Data table created successfully")
-        
+
         # 2. List rows to verify initial state
         print("Verifying initial rows")
         list_rows_cmd = (
@@ -1629,16 +1679,18 @@ def test_cli_replace_data_table_rows(cli_env, common_args):
             + common_args
             + ["data-table", "list-rows", "--name", table_name]
         )
-        
+
         list_rows_result = subprocess.run(
             list_rows_cmd, env=cli_env, capture_output=True, text=True
         )
-        
+
         assert list_rows_result.returncode == 0
         initial_rows_data = json.loads(list_rows_result.stdout)
-        assert len(initial_rows_data) == 3, f"Expected 3 initial rows, got {len(initial_rows_data)}"
+        assert (
+            len(initial_rows_data) == 3
+        ), f"Expected 3 initial rows, got {len(initial_rows_data)}"
         print(f"Verified {len(initial_rows_data)} initial rows")
-        
+
         # 3. Replace rows with new data
         print("\n>>> Replacing rows with new data")
         replacement_rows = json.dumps(
@@ -1647,49 +1699,55 @@ def test_cli_replace_data_table_rows(cli_env, common_args):
                 ["replaced2.example.com", "192.168.1.2", "Replaced host 2"],
             ]
         )
-        
+
         replace_rows_cmd = (
             ["secops"]
             + common_args
             + [
-                "data-table", 
-                "replace-rows", 
-                "--name", 
-                table_name, 
-                "--rows", 
-                replacement_rows
+                "data-table",
+                "replace-rows",
+                "--name",
+                table_name,
+                "--rows",
+                replacement_rows,
             ]
         )
-        
+
         replace_result = subprocess.run(
             replace_rows_cmd, env=cli_env, capture_output=True, text=True
         )
-        
+
         # Check that replacement was successful
-        assert replace_result.returncode == 0, f"Replacement failed: {replace_result.stderr}"
+        assert (
+            replace_result.returncode == 0
+        ), f"Replacement failed: {replace_result.stderr}"
         print("Rows replaced successfully")
-        
+
         # 4. List rows again to verify replacement
         print("Verifying replaced rows")
         list_rows_result = subprocess.run(
             list_rows_cmd, env=cli_env, capture_output=True, text=True
         )
-        
+
         assert list_rows_result.returncode == 0
         replaced_rows_data = json.loads(list_rows_result.stdout)
-        assert len(replaced_rows_data) == 2, f"Expected 2 rows after replacement, got {len(replaced_rows_data)}"
+        assert (
+            len(replaced_rows_data) == 2
+        ), f"Expected 2 rows after replacement, got {len(replaced_rows_data)}"
         print(f"Verified {len(replaced_rows_data)} rows after replacement")
-        
+
         # Verify the content of the replaced rows
         found_hosts = set(row["values"][0] for row in replaced_rows_data)
         expected_hosts = {"replaced1.example.com", "replaced2.example.com"}
-        assert found_hosts == expected_hosts, f"Expected hosts {expected_hosts}, got {found_hosts}"
+        assert (
+            found_hosts == expected_hosts
+        ), f"Expected hosts {expected_hosts}, got {found_hosts}"
         print("Row content verified successfully")
-        
+
     except Exception as e:
         # Clean up in case of test failure
         pytest.fail(f"Replace rows CLI test failed: {e}")
-        
+
     finally:
         # Clean up the data table
         try:
@@ -1703,7 +1761,9 @@ def test_cli_replace_data_table_rows(cli_env, common_args):
                 capture_output=True,
             )
         except Exception as cleanup_error:
-            print(f"Warning: Failed to clean up data table {table_name}: {cleanup_error}")
+            print(
+                f"Warning: Failed to clean up data table {table_name}: {cleanup_error}"
+            )
 
 
 @pytest.mark.integration
@@ -1716,7 +1776,11 @@ def test_cli_data_tables(cli_env, common_args):
     try:
         # 1. Create a data table
         header = json.dumps(
-            {"hostname": "STRING", "ip_address": "STRING", "description": "STRING"}
+            {
+                "hostname": "STRING",
+                "ip_address": "STRING",
+                "description": "STRING",
+            }
         )
         rows = json.dumps(
             [
@@ -1749,7 +1813,9 @@ def test_cli_data_tables(cli_env, common_args):
         )
 
         # Check that creation was successful
-        assert create_result.returncode == 0, f"Creation failed: {create_result.stderr}"
+        assert (
+            create_result.returncode == 0
+        ), f"Creation failed: {create_result.stderr}"
 
         # 2. Get the data table
         get_cmd = (
@@ -1789,13 +1855,22 @@ def test_cli_data_tables(cli_env, common_args):
         assert len(rows_data) == 2  # We added 2 rows during creation
 
         # 4. Add more rows
-        new_rows = json.dumps([["host3.example.com", "192.168.1.12", "Test host 3"]])
+        new_rows = json.dumps(
+            [["host3.example.com", "192.168.1.12", "Test host 3"]]
+        )
         add_rows_cmd = (
             [
                 "secops",
             ]
             + common_args
-            + ["data-table", "add-rows", "--name", table_name, "--rows", new_rows]
+            + [
+                "data-table",
+                "add-rows",
+                "--name",
+                table_name,
+                "--rows",
+                new_rows,
+            ]
         )
 
         add_rows_result = subprocess.run(
@@ -1822,7 +1897,14 @@ def test_cli_data_tables(cli_env, common_args):
                 "secops",
             ]
             + common_args
-            + ["data-table", "delete-rows", "--name", table_name, "--row-ids", row_id]
+            + [
+                "data-table",
+                "delete-rows",
+                "--name",
+                table_name,
+                "--row-ids",
+                row_id,
+            ]
         )
 
         delete_row_result = subprocess.run(
@@ -1887,6 +1969,173 @@ def test_cli_data_tables(cli_env, common_args):
 
 
 @pytest.mark.integration
+def test_cli_update_data_table(cli_env, common_args):
+    """Test the data-table update command.
+
+    This test creates a data table, updates its properties, verifies the
+    changes, and then cleans up by deleting the data table.
+    """
+    # Generate unique name for data table using timestamp
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    table_name = f"test_cli_update_dt_{timestamp}"
+
+    try:
+        # 1. Create a data table
+        header = json.dumps(
+            {
+                "hostname": "STRING",
+                "ip_address": "STRING",
+                "description": "STRING",
+            }
+        )
+        initial_description = "Initial CLI data table description"
+
+        create_cmd = (
+            [
+                "secops",
+            ]
+            + common_args
+            + [
+                "data-table",
+                "create",
+                "--name",
+                table_name,
+                "--description",
+                initial_description,
+                "--header",
+                header,
+            ]
+        )
+
+        create_result = subprocess.run(
+            create_cmd, env=cli_env, capture_output=True, text=True
+        )
+
+        # Check that creation was successful
+        assert (
+            create_result.returncode == 0
+        ), f"Creation failed: {create_result.stderr}"
+
+        # 2. Update the data table with new description and TTL
+        updated_description = "Updated CLI data table description"
+        updated_ttl = "48h"
+
+        update_cmd = (
+            [
+                "secops",
+            ]
+            + common_args
+            + [
+                "data-table",
+                "update",
+                "--name",
+                table_name,
+                "--description",
+                updated_description,
+                "--row-time-to-live",
+                updated_ttl,
+            ]
+        )
+
+        update_result = subprocess.run(
+            update_cmd, env=cli_env, capture_output=True, text=True
+        )
+
+        # Check that update was successful
+        assert (
+            update_result.returncode == 0
+        ), f"Update failed: {update_result.stderr}"
+
+        # 3. Get the data table to verify updates
+        get_cmd = (
+            [
+                "secops",
+            ]
+            + common_args
+            + ["data-table", "get", "--name", table_name]
+        )
+
+        get_result = subprocess.run(
+            get_cmd, env=cli_env, capture_output=True, text=True
+        )
+
+        # Check that get was successful
+        assert get_result.returncode == 0
+        updated_table = json.loads(get_result.stdout)
+
+        # Verify the updates were applied
+        assert updated_table["description"] == updated_description
+        assert updated_table["rowTimeToLive"] == updated_ttl
+
+        # 4. Test partial update with only description
+        final_description = "Final CLI data table description"
+
+        partial_update_cmd = (
+            [
+                "secops",
+            ]
+            + common_args
+            + [
+                "data-table",
+                "update",
+                "--name",
+                table_name,
+                "--description",
+                final_description,
+            ]
+        )
+
+        partial_update_result = subprocess.run(
+            partial_update_cmd, env=cli_env, capture_output=True, text=True
+        )
+
+        # Check that partial update was successful
+        assert partial_update_result.returncode == 0
+
+        # 5. Get the data table again to verify partial update
+        get_result = subprocess.run(
+            get_cmd, env=cli_env, capture_output=True, text=True
+        )
+
+        # Check that get was successful
+        assert get_result.returncode == 0
+        final_table = json.loads(get_result.stdout)
+
+        # Verify only description was updated, TTL remained the same
+        assert final_table["description"] == final_description
+        assert final_table["rowTimeToLive"] == updated_ttl
+
+    except Exception as e:
+        # Clean up in case of test failure
+        try:
+            subprocess.run(
+                [
+                    "secops",
+                ]
+                + common_args
+                + ["data-table", "delete", "--name", table_name, "--force"],
+                env=cli_env,
+                capture_output=True,
+            )
+        except:
+            pass
+        raise e
+    finally:
+        # Clean up after test
+        try:
+            subprocess.run(
+                [
+                    "secops",
+                ]
+                + common_args
+                + ["data-table", "delete", "--name", table_name, "--force"],
+                env=cli_env,
+                capture_output=True,
+            )
+        except:
+            pass
+
+
 def test_cli_reference_lists(cli_env, common_args):
     """Test the reference-list command lifecycle."""
     # Generate unique name for reference list using timestamp
@@ -1928,7 +2177,9 @@ def test_cli_reference_lists(cli_env, common_args):
         )
 
         # Check that creation was successful
-        assert create_result.returncode == 0, f"Creation failed: {create_result.stderr}"
+        assert (
+            create_result.returncode == 0
+        ), f"Creation failed: {create_result.stderr}"
 
         # 2. Get the reference list
         get_cmd = (
@@ -2070,7 +2321,9 @@ def test_cli_reference_list_create_delete(cli_env, common_args):
         )
 
         # Check that creation was successful
-        assert create_result.returncode == 0, f"Creation failed: {create_result.stderr}"
+        assert (
+            create_result.returncode == 0
+        ), f"Creation failed: {create_result.stderr}"
         print(f"Reference list created: {list_name}")
 
         # 2. Get the reference list to confirm creation
@@ -2140,7 +2393,9 @@ def test_cli_reference_list_api_investigation(cli_env, common_args):
 
         # 2. Get the reference list
         print(f"\nGetting reference list: {list_name}")
-        retrieved = chronicle.get_reference_list(list_name, view=ReferenceListView.FULL)
+        retrieved = chronicle.get_reference_list(
+            list_name, view=ReferenceListView.FULL
+        )
         print(f"Get response: {retrieved}")
         print(f"Retrieved name: {retrieved.get('name', 'N/A')}")
 
@@ -2155,7 +2410,9 @@ def test_cli_reference_list_api_investigation(cli_env, common_args):
                 break
 
         if not found:
-            print(f"WARNING: Reference list {list_name} not found in list results")
+            print(
+                f"WARNING: Reference list {list_name} not found in list results"
+            )
 
         # 4. Examine delete endpoint
         # Print what the delete URL would be
@@ -2209,18 +2466,15 @@ def test_cli_parser_run_with_auto_parser(cli_env, common_args):
     )
 
     # Check the run executed successfully
-    assert (
-        run_result.returncode == 0
-    ), f"Parser run failed: {run_result.stderr}"
+    assert run_result.returncode == 0, f"Parser run failed: {run_result.stderr}"
 
     # Parse and verify output
     output = json.loads(run_result.stdout)
     assert "runParserResults" in output
 
     # Should have processed both logs
-    assert (
-        len(output["runParserResults"]) > 0
-    ), "Expected log parsing results"
+    assert len(output["runParserResults"]) > 0, "Expected log parsing results"
+
 
 @pytest.mark.integration
 def test_cli_generate_udm_key_value_mapping(cli_env, common_args):
@@ -2308,37 +2562,47 @@ def test_cli_generate_udm_key_value_mapping(cli_env, common_args):
 def test_cli_udm_field_values(cli_env, common_args):
     """Test the search udm-field-values command with pagination."""
     # Execute the CLI command with page size parameter
-    cmd = [
-        "secops",
-    ] + common_args + [
-        "search", 
-        "udm-field-values",
-        "--query", 
-        "source",
-        "--page-size",
-        "2"  # Small page size to test pagination
-    ]
+    cmd = (
+        [
+            "secops",
+        ]
+        + common_args
+        + [
+            "search",
+            "udm-field-values",
+            "--query",
+            "source",
+            "--page-size",
+            "2",  # Small page size to test pagination
+        ]
+    )
 
     result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
-    
+
     # Check that the command executed successfully
     assert result.returncode == 0, f"Command failed: {result.stderr}"
-    
+
     # Try to parse the output as JSON
     try:
         output = json.loads(result.stdout)
-        
+
         # Verify basic response structure
         assert "valueMatches" in output, "Response should contain valueMatches"
         assert "fieldMatches" in output, "Response should contain fieldMatches"
-        assert "fieldMatchRegex" in output, "Response should contain fieldMatchRegex"
-        
+        assert (
+            "fieldMatchRegex" in output
+        ), "Response should contain fieldMatchRegex"
+
         # Verify query is reflected in response
-        assert output["fieldMatchRegex"] == "source", "Field match regex should match query"
-        
+        assert (
+            output["fieldMatchRegex"] == "source"
+        ), "Field match regex should match query"
+
         # Verify pagination is working
-        assert len(output["valueMatches"]) <= 2, "Should respect page size parameter"
-        
+        assert (
+            len(output["valueMatches"]) <= 2
+        ), "Should respect page size parameter"
+
     except json.JSONDecodeError:
         # If not valid JSON, fail the test
         assert False, f"Output is not valid JSON: {result.stdout}"
