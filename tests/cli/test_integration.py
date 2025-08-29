@@ -1415,7 +1415,7 @@ Description:   The system has rebooted without cleanly shutting down first.
             "log",
             "ingest",
             "--type",
-            "WINDOWS_SYSMON",
+            "WINDOWS_SYSTEM",
             "--file",
             temp_file_path,
         ]

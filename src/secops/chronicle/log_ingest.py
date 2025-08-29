@@ -82,19 +82,33 @@ def initialize_multi_line_formats() -> None:
     # Define mappings of multi-line formats to their variants/aliases
     multi_line_variants = {
         "WINDOWS": [
+            "WINDOWS",
             "WINEVTLOG",
-            "WINEVTLOG_XML",
             "WINDOWS_SYSMON",
-            "WINDOWS_DEFENDER",
             "WINDOWS_DHCP",
-            "WINDOWS_POWERSHELL",
             "WINDOWS_SECURITY",
-            "WINDOWS_SYSTEM",
             "WINDOWS_DNS",
             "WINDOWS_FIREWALL",
         ],
-        "XML": ["XML_LOGS", "OFFICE_365", "EXCHANGE", "MICROSOFT_IIS"],
-        "JSON": ["MULTILINE_JSON", "PRETTY_JSON", "STACKDRIVER", "GCP_LOGGING"],
+        "XML": [
+            "XML",
+            "WINEVTLOG_XML",
+            "MCAFEE_EPO_XML",
+            "SYMANTEC_AV_XML",
+            "CISCO_ISE",
+            "VMWARE_ESX",
+            "VMWARE_VCENTER",
+            "VMRAY_FLOG_XML",
+        ],
+        "JSON": [
+            "JSON",
+            "AWS_CLOUDTRAIL",
+            "OKTA",
+            "GITHUB",
+            "SALESFORCE",
+            "SLACK_AUDIT",
+            "CLOUDFLARE",
+        ],
     }
 
     # Register all multi-line format variants
@@ -138,21 +152,10 @@ def split_logs(log_type: str, log_content: str) -> List[str]:
     [
         "JSON",
         "AWS_CLOUDTRAIL",
-        "AWS_CONFIG",
-        "ELASTIC_SEARCH",
         "OKTA",
-        "GOOGLE_WORKSPACE",
-        "CROWDSTRIKE_FALCON",
         "GITHUB",
-        "AZURE_AD",
-        "GCP_AUDIT",
-        "AZURE_ACTIVITY_LOG",
-        "MICROSOFT_GRAPH",
-        "MICROSOFT_365",
         "SALESFORCE",
-        "SENTINEL_ONE",
-        "SLACK",
-        "ZOOM",
+        "SLACK_AUDIT",
         "CLOUDFLARE",
     ]
 )
@@ -211,13 +214,9 @@ def split_json_logs(log_content: str) -> List[str]:
     [
         "WINDOWS",
         "WINEVTLOG",
-        "WINEVTLOG_XML",
         "WINDOWS_SYSMON",
-        "WINDOWS_DEFENDER",
         "WINDOWS_DHCP",
-        "WINDOWS_POWERSHELL",
         "WINDOWS_SECURITY",
-        "WINDOWS_SYSTEM",
         "WINDOWS_DNS",
         "WINDOWS_FIREWALL",
     ]
@@ -237,55 +236,37 @@ def split_windows_logs(log_content: str) -> List[str]:
     if not log_content or not log_content.strip():
         return [log_content]
 
-    # Pattern to detect Windows Event log headers
-    # Matches common Windows event log header patterns
-    event_pattern = re.compile(
-        r"^(Log Name:|Event\[|EventID:|Event ID:|<Event|Log Type:|System Time:|Provider)\s"  # pylint: disable=line-too-long
-    )
+    # Only use FIRST known markers as the start of a log
+    # - Event Viewer export: "Log Name:"
+    # - wevtutil export: "LogName="
+    # - XML export: "<Event"
+    event_pattern = re.compile(r"^(Log Name:|LogName=|<Event)")
 
     lines = log_content.splitlines()
 
-    # Find all potential event header lines
-    header_indices = []
-    for i, line in enumerate(lines):
-        if event_pattern.match(line.strip()):
-            header_indices.append(i)
+    # Find header indices (ignore blanks)
+    header_indices = [
+        i
+        for i, line in enumerate(lines)
+        if line.strip() and event_pattern.match(line.strip())
+    ]
 
-    # Single event case - return the original content
     if len(header_indices) <= 1:
-        return [log_content]
+        return [log_content.strip()]
 
     results = []
+    for i, start_idx in enumerate(header_indices):
+        end_idx = (
+            header_indices[i + 1] if i + 1 < len(header_indices) else len(lines)
+        )
 
-    # Group by headers considering empty line separation
-    # Windows logs often have empty lines between events
-    for i in range(len(header_indices)):
-        start_idx = header_indices[i]
+        # Collect only non-empty lines
+        event_lines = [ln for ln in lines[start_idx:end_idx] if ln.strip()]
 
-        # Calculate where this event ends
-        if i < len(header_indices) - 1:
-            # Find if there's an empty line before the next header
-            next_header = header_indices[i + 1]
-            end_idx = next_header
-
-            # Look for empty lines before the next header
-            # that might be separators
-            for j in range(next_header - 1, start_idx, -1):
-                if j >= 0 and not lines[j].strip():
-                    # Found an empty line - exclude it from current event
-                    end_idx = j
-                    break
-        else:
-            # Last event goes to the end
-            end_idx = len(lines)
-
-        # Collect the event content
-        event_lines = lines[start_idx:end_idx]
-        if event_lines:  # Only add non-empty events
+        if event_lines:
             results.append("\n".join(event_lines))
 
-    # If we couldn't split properly, return the original content
-    return results if results else [log_content]
+    return results
 
 
 @register_log_splitter(
@@ -297,6 +278,7 @@ def split_windows_logs(log_content: str) -> List[str]:
         "CISCO_ISE",
         "VMWARE_ESX",
         "VMWARE_VCENTER",
+        "VMRAY_FLOG_XML",
     ]
 )
 def split_xml_logs(log_content: str) -> List[str]:
