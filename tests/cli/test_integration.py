@@ -838,7 +838,7 @@ def test_cli_iocs(cli_env, common_args):
             "secops",
         ]
         + common_args
-        + ["iocs", "--time-window", "24", "--max-matches", "5"]
+        + ["iocs", "--time-window", "48", "--max-matches", "5"]
     )
 
     result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
