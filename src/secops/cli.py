@@ -1529,17 +1529,29 @@ def setup_rule_command(subparsers):
     )
 
     # Detection list
-    detection_parser = rule_subparsers.add_parser("detections", help="List detections")
+    detection_parser = rule_subparsers.add_parser(
+        "detections", help="List detections"
+    )
     detection_parser.set_defaults(func=handle_rule_detections_command)
     detection_parser.add_argument(
         "--rule-id", required=False, default="-", help="Rule ID"
     )
-    detection_parser.add_argument("--start-time", required=False, help="Start time")
+    detection_parser.add_argument(
+        "--start-time", required=False, help="Start time"
+    )
     detection_parser.add_argument("--end-time", required=False, help="End time")
-    detection_parser.add_argument("--list-basis", required=False, help="List basis")
-    detection_parser.add_argument("--alert-state", required=False, help="Alert state")
-    detection_parser.add_argument("--page-size", required=False, help="Page size")
-    detection_parser.add_argument("--page-token", required=False, help="Alert state")
+    detection_parser.add_argument(
+        "--list-basis", required=False, help="List basis"
+    )
+    detection_parser.add_argument(
+        "--alert-state", required=False, help="Alert state"
+    )
+    detection_parser.add_argument(
+        "--page-size", required=False, help="Page size"
+    )
+    detection_parser.add_argument(
+        "--page-token", required=False, help="Alert state"
+    )
 
 
 def handle_rule_detections_command(args, chronicle):
@@ -1553,12 +1565,13 @@ def handle_rule_detections_command(args, chronicle):
             args.list_basis,
             args.alert_state,
             args.page_size,
-            args.page_token
+            args.page_token,
         )
         output_formatter(result, args.output)
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
 
 def handle_rule_list_command(args, chronicle):
     """Handle rule list command."""

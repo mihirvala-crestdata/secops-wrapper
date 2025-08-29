@@ -41,7 +41,11 @@ def list_detections(
             - {rule_id}@- (all versions)
         start_time: If provided, filter by start time.
         end_time: If provided, filter by end time.
-        list_basis: If provided, sort detections by list basis. Valid values are:
+        list_basis: If provided, sort detections by list basis. Valid values
+          are:
+            - "LIST_BASIS_UNSPECIFIED"
+            - "DETECTION_TIME"
+            - "RULE_TIME"
         alert_state: If provided, filter by alert state. Valid values are:
             - "UNSPECIFIED"
             - "NOT_ALERTING"
@@ -56,7 +60,9 @@ def list_detections(
         APIError: If the API request fails
         ValueError: If an invalid alert_state is provided
     """
-    url = f"{client.base_url}/{client.instance_id}/legacy:legacySearchDetections"
+    url = (
+        f"{client.base_url}/{client.instance_id}/legacy:legacySearchDetections"
+    )
 
     # Define valid alert states
     valid_alert_states = ["UNSPECIFIED", "NOT_ALERTING", "ALERTING"]
@@ -78,7 +84,8 @@ def list_detections(
     if list_basis:
         if list_basis not in valid_list_basis:
             raise ValueError(
-                f"list_basis must be one of {valid_list_basis}, " f"got {list_basis}"
+                f"list_basis must be one of {valid_list_basis}, "
+                f"got {list_basis}"
             )
         params["listBasis"] = list_basis
 

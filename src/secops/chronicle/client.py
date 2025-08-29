@@ -1349,7 +1349,8 @@ class ChronicleClient:
                 - {rule_id}@- (all versions)
             start_time: If provided, filter by start time.
             end_time: If provided, filter by end time.
-            list_basis: If provided, sort detections by list basis. Valid values are:
+            list_basis: If provided, sort detections by list basis. Valid values
+              are:
                 - "LIST_BASIS_UNSPECIFIED"
                 - "DETECTION_TIME"
                 - "RULE_TIME"
