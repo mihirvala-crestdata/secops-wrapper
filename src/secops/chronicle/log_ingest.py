@@ -15,17 +15,316 @@
 """Chronicle log ingestion functionality."""
 
 import base64
-import uuid
 import copy
+import json
+import re
+import uuid
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from secops.exceptions import APIError
 from secops.chronicle.log_types import is_valid_log_type
+from secops.exceptions import APIError
 
 # Forward declaration for type hinting to avoid circular import
 if False:  # pylint: disable=using-constant-test
     from secops.chronicle.client import ChronicleClient
+
+
+# Mapping of log types to their corresponding splitter functions
+_LOG_SPLITTERS = {}
+
+# Mapping of log type aliases to base formats
+# (e.g. 'OKTA' -> 'JSON', 'CISCO_ASA' -> 'SYSLOG')
+_LOG_TYPE_ALIASES = {}
+
+# List of log formats that are known to contain multi-line log entries
+# and require special handling beyond simple line splitting
+MULTI_LINE_LOG_FORMATS = ["WINDOWS", "XML", "JSON"]
+
+
+def register_log_splitter(log_types: Union[str, List[str]]) -> Callable:
+    """Register a function as a log splitter for specific log types.
+
+    Args:
+        log_types: A list of log types this splitter handles,
+                or a single log type string.
+
+    Returns:
+        Decorator function that registers the decorated function as a splitter
+
+    Example:
+        ```python
+        @register_log_splitter(["WINDOWS", "WINDOWS_SECURITY"])
+        def split_windows_logs(log_content):
+            # Logic to split Windows log content
+            return log_entries
+        ```
+    """
+    # Handle single string
+    if isinstance(log_types, str):
+        log_types = [log_types]
+
+    def decorator(func):
+        # Register the function for each log type
+        for log_type in log_types:
+            _LOG_SPLITTERS[log_type.upper()] = func
+        return func
+
+    return decorator
+
+
+def initialize_multi_line_formats() -> None:
+    """Initialize mapping of log types to multi-line format handlers.
+
+    This function identifies which log types require specialized multi-line
+    log processing versus which can use simple line splitting.
+    """
+    # Define mappings of multi-line formats to their variants/aliases
+    multi_line_variants = {
+        "WINDOWS": [
+            "WINEVTLOG",
+            "WINEVTLOG_XML",
+            "WINDOWS_SYSMON",
+            "WINDOWS_DEFENDER",
+            "WINDOWS_DHCP",
+            "WINDOWS_POWERSHELL",
+            "WINDOWS_SECURITY",
+            "WINDOWS_SYSTEM",
+            "WINDOWS_DNS",
+            "WINDOWS_FIREWALL",
+        ],
+        "XML": ["XML_LOGS", "OFFICE_365", "EXCHANGE", "MICROSOFT_IIS"],
+        "JSON": ["MULTILINE_JSON", "PRETTY_JSON", "STACKDRIVER", "GCP_LOGGING"],
+    }
+
+    # Register all multi-line format variants
+    for base_format, variants in multi_line_variants.items():
+        # Make sure the base format itself is registered
+        _LOG_TYPE_ALIASES[base_format.upper()] = base_format.upper()
+
+        # Register all variants to their base format
+        for variant in variants:
+            _LOG_TYPE_ALIASES[variant.upper()] = base_format.upper()
+
+
+def split_logs(log_type: str, log_content: str) -> List[str]:
+    """Split a log content string into individual log entries based on log type.
+
+    Args:
+        log_type: Type of log (e.g., "SYSLOG", "WINDOWS", etc.)
+        log_content: String containing log entries
+
+    Returns:
+        List of individual log entries
+    """
+    log_type = log_type.upper() if log_type else ""
+
+    # Check if this log type has a direct specialized splitter
+    if log_type in _LOG_SPLITTERS:
+        return _LOG_SPLITTERS[log_type](log_content)
+
+    # Check if it's an alias for a multi-line format
+    if log_type in _LOG_TYPE_ALIASES:
+        base_type = _LOG_TYPE_ALIASES[log_type]
+        if base_type in _LOG_SPLITTERS:
+            print(f"Using {base_type} splitter for {log_type} logs")
+            return _LOG_SPLITTERS[base_type](log_content)
+
+    # Default for all other log types: just split by newlines
+    return [line for line in log_content.splitlines() if line.strip()]
+
+
+@register_log_splitter(
+    [
+        "JSON",
+        "AWS_CLOUDTRAIL",
+        "AWS_CONFIG",
+        "ELASTIC_SEARCH",
+        "OKTA",
+        "GOOGLE_WORKSPACE",
+        "CROWDSTRIKE_FALCON",
+        "GITHUB",
+        "AZURE_AD",
+        "GCP_AUDIT",
+        "AZURE_ACTIVITY_LOG",
+        "MICROSOFT_GRAPH",
+        "MICROSOFT_365",
+        "SALESFORCE",
+        "SENTINEL_ONE",
+        "SLACK",
+        "ZOOM",
+        "CLOUDFLARE",
+    ]
+)
+def split_json_logs(log_content: str) -> List[str]:
+    """Split JSON log content into individual JSON objects.
+
+    This splitter handles multi-line JSON formats:
+    1. Single JSON object with line breaks (pretty-printed)
+    2. JSON array of objects with line breaks
+    3. JSON Lines format (one JSON object per line)
+
+    Args:
+        log_content: String containing JSON log entries
+
+    Returns:
+        List of individual JSON log entries as strings
+    """
+    log_content = log_content.strip()
+    results = []
+
+    # Single JSON object or array
+    try:
+        data = json.loads(log_content)
+        if isinstance(data, list):
+            for item in data:
+                results.append(json.dumps(item))
+            return results
+        else:
+            return [log_content]
+    except json.JSONDecodeError:
+        # Not a single valid JSON object or array, try other formats
+        pass
+
+    # JSON Lines (one object per line)
+    lines = log_content.splitlines()
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            json.loads(line)
+            results.append(line)
+        except json.JSONDecodeError:
+            # Not valid JSON
+            continue
+
+    # If we found valid JSON lines, return them
+    if results:
+        return results
+
+    # If no valid JSON was found, just split by newlines
+    return [line for line in lines if line.strip()]
+
+
+@register_log_splitter(
+    [
+        "WINDOWS",
+        "WINEVTLOG",
+        "WINEVTLOG_XML",
+        "WINDOWS_SYSMON",
+        "WINDOWS_DEFENDER",
+        "WINDOWS_DHCP",
+        "WINDOWS_POWERSHELL",
+        "WINDOWS_SECURITY",
+        "WINDOWS_SYSTEM",
+        "WINDOWS_DNS",
+        "WINDOWS_FIREWALL",
+    ]
+)
+def split_windows_logs(log_content: str) -> List[str]:
+    """Split Windows Event logs.
+
+    This function handles various Windows log formats including single events
+    and multiple events with different separator patterns.
+
+    Args:
+        log_content: String containing Windows Event log entries
+
+    Returns:
+        List of individual Windows Event log entries
+    """
+    if not log_content or not log_content.strip():
+        return [log_content]
+
+    # Pattern to detect Windows Event log headers
+    # Matches common Windows event log header patterns
+    event_pattern = re.compile(
+        r"^(Log Name:|Event\[|EventID:|Event ID:|<Event|Log Type:|System Time:|Provider)\s"  # pylint: disable=line-too-long
+    )
+
+    lines = log_content.splitlines()
+
+    # Find all potential event header lines
+    header_indices = []
+    for i, line in enumerate(lines):
+        if event_pattern.match(line.strip()):
+            header_indices.append(i)
+
+    # Single event case - return the original content
+    if len(header_indices) <= 1:
+        return [log_content]
+
+    results = []
+
+    # Group by headers considering empty line separation
+    # Windows logs often have empty lines between events
+    for i in range(len(header_indices)):
+        start_idx = header_indices[i]
+
+        # Calculate where this event ends
+        if i < len(header_indices) - 1:
+            # Find if there's an empty line before the next header
+            next_header = header_indices[i + 1]
+            end_idx = next_header
+
+            # Look for empty lines before the next header
+            # that might be separators
+            for j in range(next_header - 1, start_idx, -1):
+                if j >= 0 and not lines[j].strip():
+                    # Found an empty line - exclude it from current event
+                    end_idx = j
+                    break
+        else:
+            # Last event goes to the end
+            end_idx = len(lines)
+
+        # Collect the event content
+        event_lines = lines[start_idx:end_idx]
+        if event_lines:  # Only add non-empty events
+            results.append("\n".join(event_lines))
+
+    # If we couldn't split properly, return the original content
+    return results if results else [log_content]
+
+
+@register_log_splitter(
+    [
+        "XML",
+        "WINEVTLOG_XML",
+        "MCAFEE_EPO_XML",
+        "SYMANTEC_AV_XML",
+        "CISCO_ISE",
+        "VMWARE_ESX",
+        "VMWARE_VCENTER",
+    ]
+)
+def split_xml_logs(log_content: str) -> List[str]:
+    """Split XML format logs.
+
+    Attempts to identify and separate individual XML documents.
+
+    Args:
+        log_content: String containing XML log entries
+
+    Returns:
+        List of individual XML log entries
+    """
+    # Pattern to find XML document boundaries
+    xml_pattern = re.compile(
+        r"(<\?xml[^>]*?>.*?</[\w\-]+>|<[\w\-]+[^>]*?>.*?</[\w\-]+>)", re.DOTALL
+    )
+
+    matches = list(xml_pattern.finditer(log_content))
+    results = []
+
+    if matches:
+        for match in matches:
+            results.append(match.group(0).strip())
+        return results
+
+    # If no XML was identified, fall back to line splitting
+    return [line for line in log_content.splitlines() if line.strip()]
 
 
 def create_forwarder(
@@ -329,8 +628,12 @@ def ingest_log(
     Args:
         client: ChronicleClient instance
         log_type: Chronicle log type (e.g., "OKTA", "WINDOWS", etc.)
-        log_message: Either a single log message string
-            or a list of log message strings
+        log_message: Can be one of:
+            - A single log message string
+            - A string containing multiple logs
+                (will be split based on log type)
+            - A list of log message strings
+                (each item treated as a separate log)
         log_entry_time: The time the log entry was created
             (defaults to current time)
         collection_time: The time the log was collected
@@ -396,10 +699,19 @@ def ingest_log(
         f"/{log_type}/logs:import"
     )
 
-    # Convert single log message to a list for unified processing
-    log_messages = (
-        log_message if isinstance(log_message, list) else [log_message]
-    )
+    if isinstance(log_message, str):
+        initialize_multi_line_formats()
+        # Split string into individual log entries based on log type
+        log_messages = split_logs(log_type, log_message)
+        if not log_messages:
+            # If splitting resulted in empty list, treat as a single log
+            log_messages = [log_message] if log_message.strip() else []
+        print(
+            f"Split {log_type} log into {len(log_messages)} "
+            "individual log entries"
+        )
+    else:
+        log_messages = log_message
 
     # Prepare logs for the payload
     logs = []
