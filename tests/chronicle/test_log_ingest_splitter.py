@@ -46,7 +46,7 @@ class TestLogSplitterRegistration(unittest.TestCase):
         )
         self.assertEqual(log_ingest._LOG_TYPE_ALIASES["WINEVTLOG"], "WINDOWS")
         self.assertEqual(log_ingest._LOG_TYPE_ALIASES["XML"], "XML")
-        self.assertEqual(log_ingest._LOG_TYPE_ALIASES["MICROSOFT_IIS"], "XML")
+        self.assertEqual(log_ingest._LOG_TYPE_ALIASES["WINEVTLOG_XML"], "XML")
 
         # Check that SYSLOG and other non-multiline formats are not in the mapping
         self.assertNotIn("SYSLOG", log_ingest._LOG_TYPE_ALIASES)
@@ -221,8 +221,8 @@ class TestMultiLineFormatHandling(unittest.TestCase):
         self.assertEqual(
             log_ingest._LOG_TYPE_ALIASES["WINDOWS_SECURITY"], "WINDOWS"
         )
-        self.assertEqual(log_ingest._LOG_TYPE_ALIASES["MICROSOFT_IIS"], "XML")
-        self.assertEqual(log_ingest._LOG_TYPE_ALIASES["PRETTY_JSON"], "JSON")
+        self.assertEqual(log_ingest._LOG_TYPE_ALIASES["WINEVTLOG_XML"], "XML")
+        self.assertEqual(log_ingest._LOG_TYPE_ALIASES["OKTA"], "JSON")
 
     def test_non_multi_line_formats_not_registered(self):
         """Test that non-multi-line formats are not registered as aliases."""
