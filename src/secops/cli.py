@@ -10,8 +10,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
-from google.auth import default
-
 from secops import SecOpsClient
 from secops.chronicle.data_table import DataTableColumnType
 from secops.chronicle.reference_list import (
@@ -3801,11 +3799,7 @@ def handle_dashboard_query_get_command(args, chronicle):
 
 
 def setup_forwarder_command(subparsers):
-    """Set up the forwarder command parser.
-
-    Args:
-        subparsers: Subparsers object from argparse to add the forwarder parser to
-    """
+    """Set up the forwarder command parser."""
     forwarder_parser = subparsers.add_parser(
         "forwarder", help="Manage log forwarders"
     )

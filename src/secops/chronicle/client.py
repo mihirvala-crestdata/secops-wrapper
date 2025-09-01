@@ -1845,7 +1845,8 @@ class ChronicleClient:
             display_name: User-specified name for the forwarder
             metadata: Optional forwarder metadata (asset_namespace, labels)
             upload_compression: Whether uploaded data should be compressed
-            enable_server: Whether server functionality is enabled on the forwarder
+            enable_server: Whether server functionality is enabled on
+                the forwarder
 
         Returns:
             Dictionary containing the created forwarder details
@@ -1884,9 +1885,7 @@ class ChronicleClient:
             page_token=page_token,
         )
 
-    def get_forwarder(
-        self, forwarder_id: str
-    ) -> Dict[str, Any]:
+    def get_forwarder(self, forwarder_id: str) -> Dict[str, Any]:
         """Get a forwarder by ID.
 
         Args:
