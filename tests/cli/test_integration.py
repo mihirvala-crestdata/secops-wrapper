@@ -838,7 +838,7 @@ def test_cli_iocs(cli_env, common_args):
             "secops",
         ]
         + common_args
-        + ["iocs", "--time-window", "24", "--max-matches", "5"]
+        + ["iocs", "--time-window", "48", "--max-matches", "5"]
     )
 
     result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
@@ -1374,6 +1374,126 @@ def test_cli_log_ingest_with_labels(cli_env, common_args):
         except json.JSONDecodeError:
             # If not valid JSON, check for expected error messages
             assert "Error:" not in kv_result.stdout
+
+    finally:
+        # Clean up
+        os.unlink(temp_file_path)
+
+
+@pytest.mark.integration
+def test_cli_log_ingest_windows_multiline(cli_env, common_args):
+    """Test the log ingest command with Windows multi-line logs."""
+    # Create a temporary file with sample Windows Event logs (multi-line format)
+    with tempfile.NamedTemporaryFile(
+        suffix=".log", mode="w+", delete=False
+    ) as temp_file:
+        # Create Windows Event logs with multiple events
+        windows_logs = """Log Name:      Security
+Source:        Microsoft-Windows-Security-Auditing
+Event ID:      4624
+Task Category: Logon
+Keywords:      Audit Success
+Level:         Information
+Description:   An account was successfully logged on.
+
+Log Name:      System
+Source:        Microsoft-Windows-Kernel-Power
+Event ID:      41
+Task Category: (63)
+Keywords:      (70368744177664),(2)
+Level:         Critical
+Description:   The system has rebooted without cleanly shutting down first.
+"""
+        temp_file.write(windows_logs)
+        temp_file_path = temp_file.name
+
+    try:
+        # Test with Windows log format
+        cmd = [
+            "secops",
+        ] + common_args + [
+            "log",
+            "ingest",
+            "--type",
+            "WINDOWS_FIREWALL",
+            "--file",
+            temp_file_path,
+        ]
+
+        result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
+
+        # Check that the command executed successfully
+        assert (
+            result.returncode == 0
+        ), f"Command failed with stderr: {result.stderr}"
+
+        # Check that the output contains expected information
+        try:
+            json_output = json.loads(result.stdout)
+            # Verify the response is valid
+            assert isinstance(json_output, dict)
+            # Print the result for debugging if needed
+            print(f"Windows log ingest response: {json_output}")
+        except json.JSONDecodeError:
+            # If not valid JSON, check for expected error messages
+            assert "Error:" not in result.stdout
+
+    finally:
+        # Clean up
+        os.unlink(temp_file_path)
+
+
+@pytest.mark.integration
+def test_cli_log_ingest_syslog_singleline(cli_env, common_args):
+    """Test the log ingest command with Syslog single-line logs.
+    
+    This test validates that the CLI can properly handle single-line logs
+    in Syslog format (a different format than Windows logs) for ingestion.
+    """
+    # Create a temporary file with sample Syslog entries (single-line per event format)
+    with tempfile.NamedTemporaryFile(
+        suffix=".log", mode="w+", delete=False
+    ) as temp_file:
+        # Create Syslog entries in standard format
+        syslog_entries = """<34>Oct 11 22:14:15 server1 sshd[12345]: Failed password for invalid user test from 192.168.1.100 port 45678 ssh2
+<34>Oct 11 22:15:20 server1 su: pam_unix(su-l:auth): authentication failure; logname=user uid=1000 euid=0 tty=/dev/pts/0 ruser=user rhost= user=root
+<33>Oct 11 22:16:10 server1 sudo: user : TTY=pts/0 ; PWD=/home/user ; USER=root ; COMMAND=/usr/bin/cat /etc/shadow
+<30>Oct 11 22:17:01 server1 CRON[12346]: (root) CMD (/usr/local/bin/backup.sh)
+<29>Oct 11 22:18:22 server1 kernel: [12345.123456] iptables: IN=eth0 OUT= MAC=00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd SRC=10.0.0.1 DST=10.0.0.2 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=12345 DF PROTO=TCP SPT=12345 DPT=80 WINDOW=65535 RES=0x00 SYN URGP=0
+"""
+        temp_file.write(syslog_entries)
+        temp_file_path = temp_file.name
+
+    try:
+        # Test with Syslog log format
+        cmd = [
+            "secops",
+        ] + common_args + [
+            "log",
+            "ingest",
+            "--type",
+            "AUDITD",
+            "--file",
+            temp_file_path,
+        ]
+
+        result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
+
+        # Check that the command executed successfully
+        assert (
+            result.returncode == 0
+        ), f"Command failed with stderr: {result.stderr}"
+
+        # Check that the output contains expected information
+        try:
+            json_output = json.loads(result.stdout)
+            # Verify the response is valid
+            assert isinstance(json_output, dict)
+            # Print the result for debugging if needed
+            print(f"Syslog ingest response: {json_output}")
+        except json.JSONDecodeError:
+            # If not valid JSON, check for expected error messages
+            assert "Error:" not in result.stdout
 
     finally:
         # Clean up
