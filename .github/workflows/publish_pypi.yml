@@ -140,7 +140,7 @@ jobs:
           import re
           import sys
           
-          target_version = "${{ steps.version-check.outputs.target-version }}"
+          target_version = "${{ steps.get-version.outputs.target-version }}"
           current_version = "${{ steps.version-check.outputs.current-version }}"
           
           # Validate inputs (extra safety)
