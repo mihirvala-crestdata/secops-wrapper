@@ -138,6 +138,7 @@ jobs:
           import subprocess
           import os
           import re
+          import sys
           
           target_version = "${{ steps.version-check.outputs.target-version }}"
           current_version = "${{ steps.version-check.outputs.current-version }}"
