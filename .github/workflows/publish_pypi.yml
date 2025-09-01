@@ -104,6 +104,7 @@ jobs:
                   print(f"Using pyproject.toml version as baseline: {current_ver}")
                   print("This appears to be the first TestPyPI release.")
                   new_package = True
+                  should_deploy = "true"
               elif response.status_code == 200:
                   data = response.json()
                   current_ver = data["info"]["version"]
