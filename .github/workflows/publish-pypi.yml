@@ -19,9 +19,9 @@ jobs:
     name: Check Version and Generate Summary
     runs-on: ubuntu-latest
     outputs:
-      should-deploy: ${{ steps.version-check.outputs.should-deploy }}
-      current-version: ${{ steps.version-check.outputs.current-version }}
-      target-version: ${{ steps.version-check.outputs.target-version }}
+      should-deploy: ${{ steps.check-version.outputs.should-deploy }}
+      current-version: ${{ steps.check-version.outputs.current-version }}
+      target-version: ${{ steps.check-version.outputs.target-version }}
       change-summary: ${{ steps.generate-summary.outputs.summary }}
     
     steps:
@@ -77,8 +77,9 @@ jobs:
         shell: python
       
       - name: Check version against PyPI
-        id: version-check
+        id: check-version
         run: |
+          import os
           import requests
           import sys
           import tomllib
@@ -86,6 +87,8 @@ jobs:
           
           target_ver = "${{ steps.get-version.outputs.target-version }}"
           package_name = "secops"
+          current_ver = "0.0.0"
+          should_deploy = "false"
           
           print(f"Checking version {target_ver} against PyPI...")
           
@@ -95,12 +98,10 @@ jobs:
                                     timeout=10)
               
               if response.status_code == 404:
-                  # Package not on PyPI, get version from pyproject.toml
+                  # Package not on PyPI, this is a new package
                   print(f"Package {package_name} not found on PyPI.")
-                  with open('pyproject.toml', 'rb') as f:
-                      pyproject_data = tomllib.load(f)
-                      current_ver = pyproject_data['project']['version']
-                  print(f"Using pyproject.toml version as baseline: {current_ver}")
+                  current_ver = "0.0.0"  # Use baseline for new packages
+                  print(f"Using baseline version for new package: {current_ver}")
                   print("This appears to be the first PyPI release.")
               elif response.status_code == 200:
                   data = response.json()
@@ -119,7 +120,7 @@ jobs:
                   should_deploy = "false"
               
               # Set outputs
-              with open("$GITHUB_OUTPUT", "a") as f:
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
                   f.write(f"should-deploy={should_deploy}\n")
                   f.write(f"current-version={current_ver}\n")
                   f.write(f"target-version={target_ver}\n")
@@ -130,6 +131,11 @@ jobs:
                   
           except Exception as e:
               print(f"Error during version check: {e}")
+              # Ensure outputs are set even on error
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write(f"should-deploy=false\n")
+                  f.write(f"current-version={current_ver}\n")
+                  f.write(f"target-version={target_ver}\n")
               sys.exit(1)
         shell: python
       
@@ -139,9 +145,10 @@ jobs:
           import subprocess
           import os
           import re
+          import sys
           
-          target_version = "${{ steps.version-check.outputs.target-version }}"
-          current_version = "${{ steps.version-check.outputs.current-version }}"
+          target_version = "${{ steps.check-version.outputs.target-version }}"
+          current_version = "${{ steps.check-version.outputs.current-version }}"
           
           # Validate inputs (extra safety)
           version_pattern = r'^[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9\-\.]+)?$'
@@ -209,13 +216,18 @@ jobs:
           - **Triggered by:** ${{ github.actor }}
           """
           
-          # Save summary safely
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write("summary<<EOF\n")
+          # Write to output using the proper multi-line syntax
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
               f.write(summary)
-              f.write("\nEOF\n")
           
-          print("Change summary generated successfully")
+          print("Change summary written to GITHUB_STEP_SUMMARY")
+          
+          # Write summary to GITHUB_OUTPUT for downstream jobs to use
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              # Use simplified format to avoid delimiter issues
+              simple_summary = f"Publishing from {current_version} to {target_version}"
+              f.write(f"summary={simple_summary}\n")
+              
         shell: python
 
   approval:
@@ -225,7 +237,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: 
       name: pypi-publish
-      url: https://pypi.org/project/secops/
     
     steps:
       - name: Display deployment summary
@@ -236,6 +247,8 @@ jobs:
           echo ""
           echo "**Action Required:** A maintainer must approve this deployment"
           echo "   to proceed with publishing to PyPI."
+        env:
+          SUMMARY: ${{ needs.version-check.outputs.change-summary }}
       
       - name: Approval checkpoint
         run: |
@@ -260,7 +273,7 @@ jobs:
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build==0.10.0 twine==4.0.2
+          pip install build twine
       
       - name: Verify version in pyproject.toml
         run: |
@@ -309,15 +322,16 @@ jobs:
           python -m twine check dist/*
       
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          verbose: true
-          print-hash: true
+        run: |
+          python -m twine upload dist/* --verbose
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          TWINE_NON_INTERACTIVE: 1
       
       - name: Create deployment summary
         run: |
+          import os
           import re
           from datetime import datetime
           
@@ -343,4 +357,9 @@ jobs:
           print(f"Published by:** {github_actor}")
           print(f"Published at:** {current_time}")
           print("")
+
+          # Write summary to GITHUB_OUTPUT for downstream jobs to use
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              simple_summary = f"Published secops v{target_version} to PyPI"
+              f.write(simple_summary)
         shell: python
