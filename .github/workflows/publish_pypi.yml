@@ -110,7 +110,7 @@ jobs:
               
               
               # Compare versions
-              elif version.parse(target_ver) > version.parse(current_ver):
+              if version.parse(target_ver) > version.parse(current_ver):
                   print(f"Version {target_ver} is newer than {current_ver}")
                   should_deploy = "true"
               else:
