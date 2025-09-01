@@ -333,6 +333,7 @@ jobs:
       
       - name: Create deployment summary
         run: |
+          import os
           import re
           from datetime import datetime
           
