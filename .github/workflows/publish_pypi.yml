@@ -13,7 +13,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # For trusted publishing to TestPyPI
 
 jobs:
   version-check:
@@ -224,6 +223,9 @@ jobs:
     needs: version-check
     if: needs.version-check.outputs.should-deploy == 'true'
     runs-on: ubuntu-latest
+    environment: 
+      name: pypi-publish
+      url: https://test.pypi.org/project/secops-mihir/
     
     steps:
       - name: Display deployment summary
@@ -310,6 +312,8 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
           verbose: true
           print-hash: true
       
