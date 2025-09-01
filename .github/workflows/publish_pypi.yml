@@ -79,6 +79,7 @@ jobs:
       - name: Check version against TestPyPI
         id: check-version
         run: |
+          import os
           import requests
           import sys
           import tomllib
@@ -120,7 +121,7 @@ jobs:
                   should_deploy = "false"
               
               # Set outputs
-              with open("$GITHUB_OUTPUT", "a") as f:
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
                   f.write(f"should-deploy={should_deploy}\n")
                   f.write(f"current-version={current_ver}\n")
                   f.write(f"target-version={target_ver}\n")
@@ -132,7 +133,7 @@ jobs:
           except Exception as e:
               print(f"Error during version check: {e}")
               # Ensure outputs are set even on error
-              with open("$GITHUB_OUTPUT", "a") as f:
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
                   f.write(f"should-deploy=false\n")
                   f.write(f"current-version={current_ver}\n")
                   f.write(f"target-version={target_ver}\n")
@@ -147,12 +148,8 @@ jobs:
           import re
           import sys
           
-          target_version = "${{ steps.get-version.outputs.target-version }}"
+          target_version = "${{ steps.check-version.outputs.target-version }}"
           current_version = "${{ steps.check-version.outputs.current-version }}"
-          
-          print(f"Debug generate-summary: target_version='{target_version}'")
-          print(f"Debug generate-summary: current_version='{current_version}'")
-          print(f"Debug generate-summary: len(current_version)={len(current_version)}")
           
           # Validate inputs (extra safety)
           version_pattern = r'^[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9\-\.]+)?$'
