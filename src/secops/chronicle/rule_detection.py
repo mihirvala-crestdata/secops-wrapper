@@ -25,7 +25,7 @@ def list_detections(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
     list_basis: Literal[
-        "LIST_BASIS_UNSPECIFIED", "DETECTION_TIME", "RULE_TIME"
+        "LIST_BASIS_UNSPECIFIED", "CREATED_TIME", "DETECTION_TIME"
     ] = "LIST_BASIS_UNSPECIFIED",
     alert_state: Optional[str] = None,
     page_size: Optional[int] = None,
@@ -44,8 +44,8 @@ def list_detections(
         list_basis: If provided, sort detections by list basis. Valid values
           are:
             - "LIST_BASIS_UNSPECIFIED"
+            - "CREATED_TIME"
             - "DETECTION_TIME"
-            - "RULE_TIME"
         alert_state: If provided, filter by alert state. Valid values are:
             - "UNSPECIFIED"
             - "NOT_ALERTING"
@@ -66,7 +66,11 @@ def list_detections(
 
     # Define valid alert states
     valid_alert_states = ["UNSPECIFIED", "NOT_ALERTING", "ALERTING"]
-    valid_list_basis = ["LIST_BASIS_UNSPECIFIED", "DETECTION_TIME", "RULE_TIME"]
+    valid_list_basis = [
+        "LIST_BASIS_UNSPECIFIED",
+        "CREATED_TIME",
+        "DETECTION_TIME",
+    ]
 
     # Build request parameters
     params = {

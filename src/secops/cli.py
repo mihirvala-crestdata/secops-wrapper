@@ -1534,24 +1534,21 @@ def setup_rule_command(subparsers):
     )
     detection_parser.set_defaults(func=handle_rule_detections_command)
     detection_parser.add_argument(
-        "--rule-id", required=False, default="-", help="Rule ID"
+        "--rule-id", "--rule_id", required=False, default="-", help="Rule ID"
     )
     detection_parser.add_argument(
-        "--start-time", required=False, help="Start time"
-    )
-    detection_parser.add_argument("--end-time", required=False, help="End time")
-    detection_parser.add_argument(
-        "--list-basis", required=False, help="List basis"
+        "--list-basis", "--list_basis", required=False, help="List basis"
     )
     detection_parser.add_argument(
-        "--alert-state", required=False, help="Alert state"
+        "--alert-state", "--alert_state", required=False, help="Alert state"
     )
     detection_parser.add_argument(
-        "--page-size", required=False, help="Page size"
+        "--page-size", "--page_size", required=False, help="Page size"
     )
     detection_parser.add_argument(
-        "--page-token", required=False, help="Alert state"
+        "--page-token", "--page_token", required=False, help="Alert state"
     )
+    add_time_range_args(detection_parser)
 
 
 def handle_rule_detections_command(args, chronicle):

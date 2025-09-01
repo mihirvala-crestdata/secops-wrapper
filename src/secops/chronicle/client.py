@@ -1334,7 +1334,7 @@ class ChronicleClient:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         list_basis: Optional[
-            Literal["LIST_BASIS_UNSPECIFIED", "DETECTION_TIME", "RULE_TIME"]
+            Literal["LIST_BASIS_UNSPECIFIED", "CREATED_TIME", "DETECTION_TIME"]
         ] = None,
         alert_state: Optional[str] = None,
         page_size: Optional[int] = None,
@@ -1352,8 +1352,8 @@ class ChronicleClient:
             list_basis: If provided, sort detections by list basis. Valid values
               are:
                 - "LIST_BASIS_UNSPECIFIED"
+                - "CREATED_TIME"
                 - "DETECTION_TIME"
-                - "RULE_TIME"
             alert_state: If provided, filter by alert state. Valid values are:
                 - "UNSPECIFIED"
                 - "NOT_ALERTING"
