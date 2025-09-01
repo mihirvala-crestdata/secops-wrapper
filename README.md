@@ -314,6 +314,78 @@ result = chronicle.ingest_log(
 )
 ```
 
+### Forwarder Management
+
+Chronicle log forwarders are essential for handling log ingestion with specific configurations. The SDK provides comprehensive methods for creating and managing forwarders:
+
+#### Create a new forwarder
+
+```python
+# Create a basic forwarder with just a display name
+forwarder = chronicle.create_forwarder(display_name="MyApplicationForwarder")
+
+# Create a forwarder with optional configuration
+forwarder = chronicle.create_forwarder(
+    display_name="ProductionForwarder",
+    metadata={"environment": "production", "team": "security-ops"},
+    upload_compression=True,  # Enable upload compression for efficiency
+    enable_server=False  # Server functionality disabled
+)
+
+print(f"Created forwarder with ID: {forwarder['name'].split('/')[-1]}")
+```
+
+#### List all forwarders
+
+Retrieve all forwarders in your Chronicle environment with pagination support:
+
+```python
+# Get the default page size (50)
+forwarders = chronicle.list_forwarders()
+
+# Get forwarders with custom page size
+forwarders = chronicle.list_forwarders(page_size=100)
+
+# Process the forwarders
+for forwarder in forwarders.get("forwarders", []):
+    forwarder_id = forwarder.get("name", "").split("/")[-1]
+    display_name = forwarder.get("displayName", "")
+    create_time = forwarder.get("createTime", "")
+    print(f"Forwarder ID: {forwarder_id}, Name: {display_name}, Created: {create_time}")
+```
+
+#### Get forwarder details
+
+Retrieve details about a specific forwarder using its ID:
+
+```python
+# Get a specific forwarder using its ID
+forwarder_id = "1234567890"
+forwarder = chronicle.get_forwarder(forwarder_id=forwarder_id)
+
+# Access forwarder properties
+display_name = forwarder.get("displayName", "")
+metadata = forwarder.get("metadata", {})
+server_enabled = forwarder.get("enableServer", False)
+
+print(f"Forwarder {display_name} details:")
+print(f"  Metadata: {metadata}")
+print(f"  Server enabled: {server_enabled}")
+```
+
+#### Get or create a forwarder
+
+Retrieve an existing forwarder by display name or create a new one if it doesn't exist:
+
+```python
+# Try to find a forwarder with the specified display name
+# If not found, create a new one with that display name
+forwarder = chronicle.get_or_create_forwarder(display_name="ApplicationLogForwarder")
+
+# Extract the forwarder ID for use in log ingestion
+forwarder_id = forwarder["name"].split("/")[-1]
+```
+
 5. Use custom timestamps:
 ```python
 from datetime import datetime, timedelta, timezone

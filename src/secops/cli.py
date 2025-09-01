@@ -10,6 +10,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
+from google.auth import default
+
 from secops import SecOpsClient
 from secops.chronicle.data_table import DataTableColumnType
 from secops.chronicle.reference_list import (
@@ -3798,6 +3800,176 @@ def handle_dashboard_query_get_command(args, chronicle):
         sys.exit(1)
 
 
+def setup_forwarder_command(subparsers):
+    """Set up the forwarder command parser.
+
+    Args:
+        subparsers: Subparsers object from argparse to add the forwarder parser to
+    """
+    forwarder_parser = subparsers.add_parser(
+        "forwarder", help="Manage log forwarders"
+    )
+    forwarder_subparsers = forwarder_parser.add_subparsers(
+        dest="forwarder_command", help="Forwarder command"
+    )
+
+    # Create forwarder command
+    create_parser = forwarder_subparsers.add_parser(
+        "create", help="Create a new forwarder"
+    )
+    create_parser.add_argument(
+        "--display-name",
+        "--display_name",
+        dest="display_name",
+        required=True,
+        help="Display name for the new forwarder",
+    )
+    create_parser.add_argument(
+        "--metadata", help="JSON string of metadata to attach to the forwarder"
+    )
+    create_parser.add_argument(
+        "--upload-compression",
+        "--upload_compression",
+        dest="upload_compression",
+        choices=["true", "false"],
+        help="Enable upload compression",
+    )
+    create_parser.add_argument(
+        "--enable-server",
+        "--enable_server",
+        dest="enable_server",
+        choices=["true", "false"],
+        help="Enable server functionality on the forwarder",
+    )
+    create_parser.set_defaults(func=handle_forwarder_create_command)
+
+    # List forwarders command
+    list_parser = forwarder_subparsers.add_parser(
+        "list", help="List all forwarders"
+    )
+    list_parser.add_argument(
+        "--page-size",
+        "--page_size",
+        dest="page_size",
+        type=int,
+        default=50,
+        help="Maximum number of forwarders to return (1-1000)",
+    )
+    list_parser.add_argument(
+        "--page-token",
+        "--page_token",
+        dest="page_token",
+        type=str,
+        help="Page token for pagination",
+    )
+    list_parser.set_defaults(func=handle_forwarder_list_command)
+
+    # Get forwarder command
+    get_parser = forwarder_subparsers.add_parser(
+        "get", help="Get details of a specific forwarder"
+    )
+    get_parser.add_argument(
+        "--id", required=True, help="ID of the forwarder to retrieve"
+    )
+    get_parser.set_defaults(func=handle_forwarder_get_command)
+
+    # Get or create forwarder command
+    get_or_create_parser = forwarder_subparsers.add_parser(
+        "get-or-create", help="Get an existing forwarder or create a new one"
+    )
+    get_or_create_parser.add_argument(
+        "--display-name",
+        "--display_name",
+        dest="display_name",
+        required=True,
+        help="Display name to find or create (default: Wrapper-SDK-Forwarder)",
+    )
+    get_or_create_parser.set_defaults(
+        func=handle_forwarder_get_or_create_command
+    )
+
+
+def handle_forwarder_create_command(args, chronicle):
+    """Handle creating a new forwarder.
+
+    Args:
+        args: Command line arguments
+        chronicle: ChronicleClient instance
+    """
+    try:
+        metadata = None
+        if args.metadata:
+            try:
+                metadata = json.loads(args.metadata)
+            except json.JSONDecodeError:
+                print("Error: Metadata must be valid JSON", file=sys.stderr)
+                sys.exit(1)
+
+        result = chronicle.create_forwarder(
+            display_name=args.display_name,
+            metadata=metadata,
+            upload_compression=args.upload_compression,
+            enable_server=args.enable_server,
+        )
+
+        print(json.dumps(result, indent=2))
+    except APIError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_forwarder_list_command(args, chronicle):
+    """Handle listing all forwarders.
+
+    Args:
+        args: Command line arguments
+        chronicle: ChronicleClient instance
+    """
+    try:
+        result = chronicle.list_forwarders(
+            page_size=args.page_size, page_token=args.page_token
+        )
+        print(json.dumps(result, indent=2))
+    except APIError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_forwarder_get_command(args, chronicle):
+    """Handle getting a specific forwarder.
+
+    Args:
+        args: Command line arguments
+        chronicle: ChronicleClient instance
+    """
+    try:
+        result = chronicle.get_forwarder(forwarder_id=args.id)
+        print(json.dumps(result, indent=2))
+    except APIError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_forwarder_get_or_create_command(args, chronicle):
+    """Handle getting or creating a forwarder.
+
+    Args:
+        args: Command line arguments
+        chronicle: ChronicleClient instance
+    """
+    try:
+        result = chronicle.get_or_create_forwarder(
+            display_name=args.display_name
+        )
+        print(json.dumps(result, indent=2))
+    except APIError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error getting query: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(description="Google SecOps CLI")
@@ -3828,6 +4000,7 @@ def main() -> None:
     setup_data_table_command(subparsers)  # Add data table command
     setup_reference_list_command(subparsers)  # Add reference list command
     setup_rule_exclusion_command(subparsers)  # Add rule exclusion command
+    setup_forwarder_command(subparsers)  # Add forwarder command
     setup_config_command(subparsers)
     setup_help_command(subparsers)
     setup_dashboard_command(subparsers)
@@ -3857,6 +4030,7 @@ def main() -> None:
         "export",
         "gemini",
         "rule-exclusion",
+        "forwarder",
         "dashboard",
     ]
     requires_chronicle = any(cmd in args.command for cmd in chronicle_commands)

@@ -87,7 +87,10 @@ from secops.chronicle.gemini import opt_in_to_gemini as _opt_in_to_gemini
 from secops.chronicle.gemini import query_gemini as _query_gemini
 from secops.chronicle.ioc import list_iocs as _list_iocs
 from secops.chronicle.log_ingest import (
+    create_forwarder as _create_forwarder,
+    get_forwarder as _get_forwarder,
     get_or_create_forwarder as _get_or_create_forwarder,
+    list_forwarders as _list_forwarders,
 )
 from secops.chronicle.log_ingest import ingest_log as _ingest_log
 from secops.chronicle.log_ingest import ingest_udm as _ingest_udm
@@ -1828,6 +1831,74 @@ class ChronicleClient:
             namespace=namespace,
             labels=labels,
         )
+
+    def create_forwarder(
+        self,
+        display_name: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        upload_compression: bool = False,
+        enable_server: bool = False,
+    ) -> Dict[str, Any]:
+        """Create a new forwarder in Chronicle.
+
+        Args:
+            display_name: User-specified name for the forwarder
+            metadata: Optional forwarder metadata (asset_namespace, labels)
+            upload_compression: Whether uploaded data should be compressed
+            enable_server: Whether server functionality is enabled on the forwarder
+
+        Returns:
+            Dictionary containing the created forwarder details
+
+        Raises:
+            APIError: If the API request fails
+        """
+        return _create_forwarder(
+            self,
+            display_name=display_name,
+            metadata=metadata,
+            upload_compression=upload_compression,
+            enable_server=enable_server,
+        )
+
+    def list_forwarders(
+        self,
+        page_size: int = 50,
+        page_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """List forwarders in Chronicle.
+
+        Args:
+            page_size: Maximum number of forwarders to return (1-1000)
+            page_token: Token for pagination
+
+        Returns:
+            Dictionary containing list of forwarders and next page token
+
+        Raises:
+            APIError: If the API request fails
+        """
+        return _list_forwarders(
+            self,
+            page_size=page_size,
+            page_token=page_token,
+        )
+
+    def get_forwarder(
+        self, forwarder_id: str
+    ) -> Dict[str, Any]:
+        """Get a forwarder by ID.
+
+        Args:
+            forwarder_id: ID of the forwarder to retrieve
+
+        Returns:
+            Dictionary containing the forwarder details
+
+        Raises:
+            APIError: If the API request fails
+        """
+        return _get_forwarder(self, forwarder_id=forwarder_id)
 
     def get_or_create_forwarder(
         self, display_name: str = "Wrapper-SDK-Forwarder"

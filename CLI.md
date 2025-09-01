@@ -204,6 +204,43 @@ secops log types --search "windows"
 
 > **Note:** Chronicle uses parsers to process and normalize raw log data into UDM format. If you're ingesting logs for a custom format, you may need to create or configure parsers. See the [Parser Management](#parser-management) section for details on managing parsers.
 
+### Forwarder Management
+
+Log forwarders in Chronicle are used to ingest logs with specific configurations. The CLI provides commands for creating and managing forwarders.
+
+#### Create a new forwarder:
+
+```bash
+# Create a basic forwarder
+secops forwarder create --display-name "my-custom-forwarder"
+
+# Create a forwarder with metadata
+secops forwarder create --display-name "my-forwarder" --metadata '{"environment":"prod","team":"security"}' --upload-compression true --enable-server true
+```
+
+#### List all forwarders:
+
+```bash
+# List forwarders with default page size (50)
+secops forwarder list
+
+# List forwarders with custom page size
+secops forwarder list --page-size 100
+```
+
+#### Get forwarder details:
+
+```bash
+# Get a specific forwarder by ID
+secops forwarder get --id "1234567890"
+```
+
+#### Get or create a forwarder:
+
+```bash
+# Get an existing forwarder by display name or create a new one if it doesn't exist
+secops forwarder get-or-create --display-name "my-app-forwarder"
+```
 
 ### Generate UDM Key/Value Mapping
 
