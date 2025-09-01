@@ -217,13 +217,13 @@ jobs:
           - **Triggered by:** ${{ github.actor }}
           """
           
-          # Save summary safely
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+          # Write to output using the proper multi-line syntax
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
               f.write("summary<<EOF\n")
               f.write(summary)
               f.write("\nEOF\n")
           
-          print("Change summary generated successfully")
+          print("Change summary written to GITHUB_STEP_SUMMARY")
         shell: python
 
   approval:
@@ -233,7 +233,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: 
       name: pypi-publish
-      url: https://test.pypi.org/project/secops-mihir/
     
     steps:
       - name: Display deployment summary
@@ -244,6 +243,8 @@ jobs:
           echo ""
           echo "**Action Required:** A maintainer must approve this deployment"
           echo "   to proceed with publishing to TestPyPI."
+        env:
+          SUMMARY: ${{ needs.version-check.outputs.change-summary }}
       
       - name: Approval checkpoint
         run: |
