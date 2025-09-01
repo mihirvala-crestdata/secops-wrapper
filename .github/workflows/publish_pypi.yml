@@ -86,6 +86,7 @@ jobs:
           
           target_ver = "${{ steps.get-version.outputs.target-version }}"
           package_name = "secops-mihir"
+          new_package = False
           
           print(f"Checking version {target_ver} against TestPyPI...")
           
@@ -102,6 +103,7 @@ jobs:
                       current_ver = pyproject_data['project']['version']
                   print(f"Using pyproject.toml version as baseline: {current_ver}")
                   print("This appears to be the first TestPyPI release.")
+                  new_package = True
               elif response.status_code == 200:
                   data = response.json()
                   current_ver = data["info"]["version"]
@@ -110,13 +112,14 @@ jobs:
                   print(f"Error fetching TestPyPI data: {response.status_code}")
                   sys.exit(1)
               
-              # Compare versions
-              if version.parse(target_ver) > version.parse(current_ver):
-                  print(f"Version {target_ver} is newer than {current_ver}")
-                  should_deploy = "true"
-              else:
-                  print(f"Version {target_ver} is not newer than {current_ver}")
-                  should_deploy = "false"
+              if not new_package:
+                # Compare versions
+                if version.parse(target_ver) > version.parse(current_ver):
+                    print(f"Version {target_ver} is newer than {current_ver}")
+                    should_deploy = "true"
+                else:
+                    print(f"Version {target_ver} is not newer than {current_ver}")
+                    should_deploy = "false"
               
               # Set outputs
               with open("$GITHUB_OUTPUT", "a") as f:
