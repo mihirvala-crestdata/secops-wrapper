@@ -13,7 +13,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   version-check:
@@ -327,7 +326,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
-          user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
           verbose: true
           print-hash: true
@@ -359,4 +357,9 @@ jobs:
           print(f"Published by:** {github_actor}")
           print(f"Published at:** {current_time}")
           print("")
+
+          # Write summary to GITHUB_OUTPUT for downstream jobs to use
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              simple_summary = f"Published secops-mihir v{target_version} to TestPyPI"
+              f.write(f"summary={simple_summary}\n")
         shell: python
