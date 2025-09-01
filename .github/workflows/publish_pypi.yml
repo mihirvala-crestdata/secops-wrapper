@@ -86,7 +86,8 @@ jobs:
           
           target_ver = "${{ steps.get-version.outputs.target-version }}"
           package_name = "secops-mihir"
-          current_ver = "0.0.0"  # Initialize with default value
+          current_ver = "0.0.0"  # Initialize to ensure it's always defined
+          should_deploy = "false"  # Initialize to ensure it's always defined
           
           print(f"Checking version {target_ver} against TestPyPI...")
           
@@ -124,10 +125,6 @@ jobs:
                   f.write(f"current-version={current_ver}\n")
                   f.write(f"target-version={target_ver}\n")
               
-              print(f"Debug - current_ver: '{current_ver}'")
-              print(f"Debug - target_ver: '{target_ver}'")
-              print(f"Debug - should_deploy: '{should_deploy}'")
-              
               if should_deploy == "false":
                   print("Stopping workflow: Version is not newer than TestPyPI.")
                   sys.exit(1)
@@ -152,6 +149,10 @@ jobs:
           
           target_version = "${{ steps.get-version.outputs.target-version }}"
           current_version = "${{ steps.check-version.outputs.current-version }}"
+          
+          print(f"Debug generate-summary: target_version='{target_version}'")
+          print(f"Debug generate-summary: current_version='{current_version}'")
+          print(f"Debug generate-summary: len(current_version)={len(current_version)}")
           
           # Validate inputs (extra safety)
           version_pattern = r'^[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9\-\.]+)?$'
