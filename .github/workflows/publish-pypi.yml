@@ -60,16 +60,16 @@ jobs:
           
           # Validate version format
           if not re.match(version_pattern, version):
-              print(f"❌ Invalid version format: {version}")
+              print(f"Invalid version format: {version}")
               print("Version must match pattern: X.Y.Z or X.Y.Z-suffix")
               sys.exit(1)
           
           # Additional length check for safety
           if len(version) > 50:
-              print(f"❌ Version string too long: {len(version)} characters")
+              print(f"Version string too long: {len(version)} characters")
               sys.exit(1)
           
-          print(f"✅ Valid version format: {version}")
+          print(f"Valid version format: {version}")
           
           # Set output safely
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
