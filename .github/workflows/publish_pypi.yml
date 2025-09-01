@@ -221,10 +221,14 @@ jobs:
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
               f.write(summary)
           
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f"summary={summary}\n")
-          
           print("Change summary written to GITHUB_STEP_SUMMARY")
+          
+          # Write summary to GITHUB_OUTPUT for downstream jobs to use
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              # Use simplified format to avoid delimiter issues
+              simple_summary = f"Publishing from {current_version} to {target_version}"
+              f.write(f"summary={simple_summary}\n")
+              
         shell: python
 
   approval:
