@@ -222,7 +222,7 @@ jobs:
               f.write(summary)
           
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f"change-summary={summary}\n")
+              f.write(f"summary={summary}\n")
           
           print("Change summary written to GITHUB_STEP_SUMMARY")
         shell: python
