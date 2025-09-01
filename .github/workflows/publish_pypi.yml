@@ -323,12 +323,13 @@ jobs:
           python -m twine check dist/*
       
       - name: Publish to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          verbose: true
-          print-hash: true
+        run: |
+          python -m twine upload --repository testpypi dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
+          TWINE_NON_INTERACTIVE: 1
       
       - name: Create deployment summary
         run: |
