@@ -19,9 +19,9 @@ jobs:
     name: Check Version and Generate Summary
     runs-on: ubuntu-latest
     outputs:
-      should-deploy: ${{ steps.version-check.outputs.should-deploy }}
-      current-version: ${{ steps.version-check.outputs.current-version }}
-      target-version: ${{ steps.version-check.outputs.target-version }}
+      should-deploy: ${{ steps.check-version.outputs.should-deploy }}
+      current-version: ${{ steps.check-version.outputs.current-version }}
+      target-version: ${{ steps.check-version.outputs.target-version }}
       change-summary: ${{ steps.generate-summary.outputs.summary }}
     
     steps:
@@ -77,7 +77,7 @@ jobs:
         shell: python
       
       - name: Check version against TestPyPI
-        id: version-check
+        id: check-version
         run: |
           import requests
           import sys
@@ -86,6 +86,7 @@ jobs:
           
           target_ver = "${{ steps.get-version.outputs.target-version }}"
           package_name = "secops-mihir"
+          current_ver = "0.0.0"  # Initialize with default value
           
           print(f"Checking version {target_ver} against TestPyPI...")
           
@@ -123,12 +124,21 @@ jobs:
                   f.write(f"current-version={current_ver}\n")
                   f.write(f"target-version={target_ver}\n")
               
+              print(f"Debug - current_ver: '{current_ver}'")
+              print(f"Debug - target_ver: '{target_ver}'")
+              print(f"Debug - should_deploy: '{should_deploy}'")
+              
               if should_deploy == "false":
                   print("Stopping workflow: Version is not newer than TestPyPI.")
                   sys.exit(1)
                   
           except Exception as e:
               print(f"Error during version check: {e}")
+              # Ensure outputs are set even on error
+              with open("$GITHUB_OUTPUT", "a") as f:
+                  f.write(f"should-deploy=false\n")
+                  f.write(f"current-version={current_ver}\n")
+                  f.write(f"target-version={target_ver}\n")
               sys.exit(1)
         shell: python
       
@@ -141,7 +151,7 @@ jobs:
           import sys
           
           target_version = "${{ steps.get-version.outputs.target-version }}"
-          current_version = "${{ steps.version-check.outputs.current-version }}"
+          current_version = "${{ steps.check-version.outputs.current-version }}"
           
           # Validate inputs (extra safety)
           version_pattern = r'^[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9\-\.]+)?$'
