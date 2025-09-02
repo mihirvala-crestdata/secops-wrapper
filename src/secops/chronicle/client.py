@@ -87,10 +87,12 @@ from secops.chronicle.gemini import opt_in_to_gemini as _opt_in_to_gemini
 from secops.chronicle.gemini import query_gemini as _query_gemini
 from secops.chronicle.ioc import list_iocs as _list_iocs
 from secops.chronicle.log_ingest import (
+    delete_forwarder as _delete_forwarder,
     create_forwarder as _create_forwarder,
     get_forwarder as _get_forwarder,
     get_or_create_forwarder as _get_or_create_forwarder,
     list_forwarders as _list_forwarders,
+    update_forwarder as _update_forwarder,
 )
 from secops.chronicle.log_ingest import ingest_log as _ingest_log
 from secops.chronicle.log_ingest import ingest_udm as _ingest_udm
@@ -1838,6 +1840,10 @@ class ChronicleClient:
         metadata: Optional[Dict[str, Any]] = None,
         upload_compression: bool = False,
         enable_server: bool = False,
+        regex_filters: Optional[List[Dict[str, Any]]] = None,
+        graceful_timeout: Optional[str] = None,
+        drain_timeout: Optional[str] = None,
+        http_settings: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Create a new forwarder in Chronicle.
 
@@ -1847,6 +1853,13 @@ class ChronicleClient:
             upload_compression: Whether uploaded data should be compressed
             enable_server: Whether server functionality is enabled on
                 the forwarder
+            regex_filters: Regex filters applied at the forwarder level
+            graceful_timeout: Timeout, after which the forwarder returns a bad
+                readiness/health check and still accepts new connections
+            drain_timeout: Timeout, after which the forwarder waits for active
+                connections to successfully close on their own before being closed
+                by the server
+            http_settings: HTTP-specific server settings
 
         Returns:
             Dictionary containing the created forwarder details
@@ -1860,11 +1873,15 @@ class ChronicleClient:
             metadata=metadata,
             upload_compression=upload_compression,
             enable_server=enable_server,
+            regex_filters=regex_filters,
+            graceful_timeout=graceful_timeout,
+            drain_timeout=drain_timeout,
+            http_settings=http_settings,
         )
 
     def list_forwarders(
         self,
-        page_size: int = 50,
+        page_size: Optional[int] = None,
         page_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """List forwarders in Chronicle.
@@ -1898,6 +1915,68 @@ class ChronicleClient:
             APIError: If the API request fails
         """
         return _get_forwarder(self, forwarder_id=forwarder_id)
+
+    def update_forwarder(
+        self,
+        forwarder_id: str,
+        display_name: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        upload_compression: Optional[bool] = None,
+        enable_server: Optional[bool] = None,
+        regex_filters: Optional[List[Dict[str, Any]]] = None,
+        graceful_timeout: Optional[str] = None,
+        drain_timeout: Optional[str] = None,
+        http_settings: Optional[Dict[str, Any]] = None,
+        update_mask: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Update a forwarder in Chronicle.
+
+        Args:
+            forwarder_id: ID of the forwarder to update
+            display_name: New display name for the forwarder
+            metadata: New metadata key-value pairs for the forwarder
+            upload_compression: New upload compression setting
+            enable_server: New server enabled setting
+            regex_filters: New regex filter patterns and actions
+            graceful_timeout: New graceful timeout duration for server
+            drain_timeout: New drain timeout duration for server
+            http_settings: New HTTP server settings
+            update_mask: List of field paths to update. If not provided, all fields
+                with non-None values will be updated.
+
+        Returns:
+            Dictionary containing the updated forwarder details
+
+        Raises:
+            APIError: If the API request fails
+        """
+        return _update_forwarder(
+            self,
+            forwarder_id=forwarder_id,
+            display_name=display_name,
+            metadata=metadata,
+            upload_compression=upload_compression,
+            enable_server=enable_server,
+            regex_filters=regex_filters,
+            graceful_timeout=graceful_timeout,
+            drain_timeout=drain_timeout,
+            http_settings=http_settings,
+            update_mask=update_mask,
+        )
+
+    def delete_forwarder(self, forwarder_id: str) -> Dict[str, Any]:
+        """Delete a forwarder from Chronicle.
+
+        Args:
+            forwarder_id: ID of the forwarder to delete
+
+        Returns:
+            Dictionary containing the empty response (usually {})
+
+        Raises:
+            APIError: If the API request fails
+        """
+        return _delete_forwarder(self, forwarder_id=forwarder_id)
 
     def get_or_create_forwarder(
         self, display_name: str = "Wrapper-SDK-Forwarder"

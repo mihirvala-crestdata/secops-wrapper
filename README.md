@@ -322,14 +322,23 @@ Chronicle log forwarders are essential for handling log ingestion with specific 
 
 ```python
 # Create a basic forwarder with just a display name
-forwarder = chronicle.create_forwarder(display_name="MyApplicationForwarder")
+forwarder = chronicle.create_forwarder(display_name="MyAppForwarder")
 
 # Create a forwarder with optional configuration
 forwarder = chronicle.create_forwarder(
     display_name="ProductionForwarder",
-    metadata={"environment": "production", "team": "security-ops"},
+    metadata={"labels": {"env": "prod"}},
     upload_compression=True,  # Enable upload compression for efficiency
-    enable_server=False  # Server functionality disabled
+    enable_server=False  # Server functionality disabled,
+    http_settings={
+        "port":8080,
+        "host":"192.168.0.100",
+        "routeSettings":{
+            "availableStatusCode": 200,
+            "readyStatusCode": 200,
+            "unreadyStatusCode": 500
+        }
+    }
 )
 
 print(f"Created forwarder with ID: {forwarder['name'].split('/')[-1]}")
@@ -384,6 +393,40 @@ forwarder = chronicle.get_or_create_forwarder(display_name="ApplicationLogForwar
 
 # Extract the forwarder ID for use in log ingestion
 forwarder_id = forwarder["name"].split("/")[-1]
+```
+
+#### Update a forwarder
+
+Update an existing forwarder's configuration with specific properties:
+
+```python
+# Update a forwarder with new properties
+forwarder = chronicle.update_forwarder(
+    forwarder_id="1234567890",
+    display_name="UpdatedForwarderName",
+    metadata={"labels": {"env": "prod"}},
+    upload_compression=True
+)
+
+# Update specific fields using update mask
+forwarder = chronicle.update_forwarder(
+    forwarder_id="1234567890",
+    display_name="ProdForwarder",
+    update_mask=["display_name"]
+)
+
+print(f"Updated forwarder: {forwarder['name']}")
+```
+
+#### Delete a forwarder
+
+Delete an existing forwarder by its ID:
+
+```python
+# Delete a forwarder by ID
+chronicle.delete_forwarder(forwarder_id="1234567890")
+
+print("Forwarder deleted successfully")
 ```
 
 5. Use custom timestamps:

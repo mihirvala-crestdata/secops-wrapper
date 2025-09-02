@@ -214,8 +214,8 @@ Log forwarders in Chronicle are used to ingest logs with specific configurations
 # Create a basic forwarder
 secops forwarder create --display-name "my-custom-forwarder"
 
-# Create a forwarder with metadata
-secops forwarder create --display-name "my-forwarder" --metadata '{"environment":"prod","team":"security"}' --upload-compression true --enable-server true
+# Create a forwarder with metadata and http settings
+secops forwarder create --display-name "my-forwarder" --metadata '{"environment":"prod","team":"security"}' --upload-compression true --enable-server true --http-settings '{"port":80,"host":"example.com"}'
 ```
 
 #### List all forwarders:
@@ -240,6 +240,26 @@ secops forwarder get --id "1234567890"
 ```bash
 # Get an existing forwarder by display name or create a new one if it doesn't exist
 secops forwarder get-or-create --display-name "my-app-forwarder"
+```
+
+#### Update a forwarder:
+
+```bash
+# Update a forwarder's display name
+secops forwarder update --id "1234567890" --display-name "updated-forwarder-name"
+
+# Update a forwarder with multiple properties
+secops forwarder update --id "1234567890" --display-name "prod-forwarder" --upload-compression true --http-settings '{"port":80,"host":"example.com"}'
+
+# Update specific fields using update mask
+secops forwarder update --id "1234567890" --display-name "prod-forwarder" --update-mask "display_name"
+```
+
+#### Delete a forwarder:
+
+```bash
+# Delete a forwarder by ID
+secops forwarder delete --id "1234567890"
 ```
 
 ### Generate UDM Key/Value Mapping

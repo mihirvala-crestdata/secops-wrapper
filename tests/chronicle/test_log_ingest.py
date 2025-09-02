@@ -25,8 +25,10 @@ from secops.chronicle.log_ingest import (
     get_or_create_forwarder,
     list_forwarders,
     create_forwarder,
+    update_forwarder,
     extract_forwarder_id,
     ingest_udm,
+    delete_forwarder,
 )
 from secops.exceptions import APIError
 
@@ -53,7 +55,17 @@ def mock_forwarder_response():
         "displayName": "Wrapper-SDK-Forwarder",
         "createTime": "2025-01-01T00:00:00.000Z",
         "updateTime": "2025-01-01T00:00:00.000Z",
-        "config": {"uploadCompression": False, "metadata": {}},
+        "config": {
+            "uploadCompression": False,
+            "metadata": {"environment": "test"},
+            "regexFilters": [{"pattern": ".*error.*", "action": "INCLUDE"}],
+            "serverSettings": {
+                "enabled": True,
+                "gracefulTimeout": "30s",
+                "drainTimeout": "60s",
+                "httpSettings": {"routeSettings": {}},
+            },
+        },
     }
     return mock
 
@@ -74,6 +86,41 @@ def mock_forwarders_list_response():
             }
         ]
     }
+    return mock
+
+
+@pytest.fixture
+def mock_patch_forwarder_response():
+    """Create a mock patch forwarder API response."""
+    mock = Mock()
+    mock.status_code = 200
+    mock.json.return_value = {
+        "name": "projects/test-project/locations/us/instances/test-customer/forwarders/test-forwarder-id",
+        "displayName": "Updated-Forwarder-Name",
+        "createTime": "2025-01-01T00:00:00.000Z",
+        "updateTime": "2025-01-02T00:00:00.000Z",
+        "config": {
+            "uploadCompression": True,
+            "metadata": {"environment": "production"},
+            "regexFilters": [{"pattern": ".*error.*", "action": "INCLUDE"}],
+            "serverSettings": {
+                "enabled": True,
+                "gracefulTimeout": "45s",
+                "drainTimeout": "90s",
+                "httpSettings": {"routeSettings": {"port": 8080}},
+            },
+        },
+    }
+    return mock
+
+
+@pytest.fixture
+def mock_delete_forwarder_response():
+    """Create a mock delete forwarder API response."""
+    mock = Mock()
+    mock.status_code = 200
+    # DELETE operations typically return an empty response
+    mock.json.return_value = {}
     return mock
 
 
@@ -145,6 +192,13 @@ def test_create_forwarder(chronicle_client, mock_forwarder_response):
         )
         assert result["displayName"] == "Wrapper-SDK-Forwarder"
 
+        # Verify the request was called with default parameters
+        call_args = chronicle_client.session.post.call_args
+        assert call_args is not None
+        payload = call_args[1]["json"]
+        assert payload["displayName"] == "Wrapper-SDK-Forwarder"
+        assert payload["config"]["uploadCompression"] is False
+
 
 def test_create_forwarder_error(chronicle_client):
     """Test error handling when creating a forwarder."""
@@ -152,11 +206,65 @@ def test_create_forwarder_error(chronicle_client):
     error_response.status_code = 400
     error_response.text = "Invalid request"
 
-    with patch.object(chronicle_client.session, "post", return_value=error_response):
+    with patch.object(
+        chronicle_client.session, "post", return_value=error_response
+    ):
         with pytest.raises(APIError, match="Failed to create forwarder"):
             create_forwarder(
                 client=chronicle_client, display_name="Wrapper-SDK-Forwarder"
             )
+
+
+def test_create_forwarder_with_config(
+    chronicle_client, mock_forwarder_response
+):
+    """Test creating a forwarder with advanced configuration parameters."""
+    # Define test values for the advanced configuration
+    metadata = {"environment": "production", "team": "security"}
+    regex_filters = [{"pattern": ".*error.*", "action": "INCLUDE"}]
+    graceful_timeout = "45s"
+    drain_timeout = "90s"
+    http_settings = {"routeSettings": {"port": 8080}}
+
+    with patch.object(
+        chronicle_client.session, "post", return_value=mock_forwarder_response
+    ):
+        result = create_forwarder(
+            client=chronicle_client,
+            display_name="Advanced-Forwarder",
+            metadata=metadata,
+            upload_compression=True,
+            enable_server=True,
+            regex_filters=regex_filters,
+            graceful_timeout=graceful_timeout,
+            drain_timeout=drain_timeout,
+            http_settings=http_settings,
+        )
+
+        # Verify the result
+        assert result["displayName"] == "Wrapper-SDK-Forwarder"  # From the mock
+
+        # Verify the request payload contains all parameters
+        call_args = chronicle_client.session.post.call_args
+        assert call_args is not None
+        payload = call_args[1]["json"]
+
+        # Check all parameters were passed correctly
+        assert payload["displayName"] == "Advanced-Forwarder"
+        assert payload["config"]["uploadCompression"] is True
+        assert payload["config"]["metadata"] == metadata
+        assert payload["config"]["regexFilters"] == regex_filters
+        assert payload["config"]["serverSettings"]["enabled"] is True
+        assert (
+            payload["config"]["serverSettings"]["gracefulTimeout"]
+            == graceful_timeout
+        )
+        assert (
+            payload["config"]["serverSettings"]["drainTimeout"] == drain_timeout
+        )
+        assert (
+            payload["config"]["serverSettings"]["httpSettings"] == http_settings
+        )
 
 
 def test_list_forwarders(chronicle_client, mock_forwarders_list_response):
@@ -595,3 +703,269 @@ def test_ingest_log_backward_compatibility(
         assert "data" in log_entry
         decoded_data = base64.b64decode(log_entry["data"]).decode("utf-8")
         assert json.loads(decoded_data) == {"test": "log", "message": "Test message"}
+
+
+def test_patch_forwarder(chronicle_client, mock_patch_forwarder_response):
+    """Test basic patch forwarder functionality."""
+    with patch.object(
+        chronicle_client.session,
+        "patch",
+        return_value=mock_patch_forwarder_response,
+    ):
+        result = update_forwarder(
+            client=chronicle_client,
+            forwarder_id="test-forwarder-id",
+            display_name="Updated-Forwarder-Name",
+        )
+
+        # Verify the result
+        assert result["displayName"] == "Updated-Forwarder-Name"
+        assert (
+            result["name"]
+            == "projects/test-project/locations/us/instances/test-customer/forwarders/test-forwarder-id"
+        )
+
+        # Verify the request was made correctly
+        call_args = chronicle_client.session.patch.call_args
+        assert call_args is not None
+
+        # Check URL format
+        url = call_args[0][0]
+        assert (
+            "test-project/locations/us/instances/test-customer/forwarders/test-forwarder-id"
+            in url
+        )
+
+        # Check payload
+        payload = call_args[1]["json"]
+        assert payload["displayName"] == "Updated-Forwarder-Name"
+        assert len(payload.keys()) == 1  # Only displayName should be in payload
+
+        # Verify auto-generated update_mask query param
+        assert "params" in call_args[1]
+        assert call_args[1]["params"]["updateMask"] == "display_name"
+
+
+def test_patch_forwarder_error(chronicle_client):
+    """Test error handling when patching a forwarder."""
+    error_response = Mock()
+    error_response.status_code = 400
+    error_response.text = "Invalid request"
+
+    with patch.object(
+        chronicle_client.session, "patch", return_value=error_response
+    ):
+        with pytest.raises(APIError, match="Failed to update forwarder"):
+            update_forwarder(
+                client=chronicle_client,
+                forwarder_id="test-forwarder-id",
+                display_name="Updated-Name",
+            )
+
+
+def test_patch_forwarder_with_all_options(
+    chronicle_client, mock_patch_forwarder_response
+):
+    """Test patching a forwarder with all available options."""
+    # Define test values for configuration
+    metadata = {"environment": "production", "team": "security"}
+    regex_filters = [{"pattern": ".*error.*", "action": "INCLUDE"}]
+    graceful_timeout = "45s"
+    drain_timeout = "90s"
+    http_settings = {"routeSettings": {"port": 8080}}
+
+    with patch.object(
+        chronicle_client.session,
+        "patch",
+        return_value=mock_patch_forwarder_response,
+    ):
+        result = update_forwarder(
+            client=chronicle_client,
+            forwarder_id="test-forwarder-id",
+            display_name="Updated-Forwarder-Name",
+            metadata=metadata,
+            upload_compression=True,
+            enable_server=True,
+            regex_filters=regex_filters,
+            graceful_timeout=graceful_timeout,
+            drain_timeout=drain_timeout,
+            http_settings=http_settings,
+        )
+
+        # Verify the result
+        assert result["displayName"] == "Updated-Forwarder-Name"
+
+        # Verify the request payload contains all parameters
+        call_args = chronicle_client.session.patch.call_args
+        payload = call_args[1]["json"]
+
+        # Check all parameters were passed correctly
+        assert payload["displayName"] == "Updated-Forwarder-Name"
+        assert payload["config"]["uploadCompression"] is True
+        assert payload["config"]["metadata"] == metadata
+        assert payload["config"]["regexFilters"] == regex_filters
+        assert payload["config"]["serverSettings"]["enabled"] is True
+        assert (
+            payload["config"]["serverSettings"]["gracefulTimeout"]
+            == graceful_timeout
+        )
+        assert (
+            payload["config"]["serverSettings"]["drainTimeout"] == drain_timeout
+        )
+        assert (
+            payload["config"]["serverSettings"]["httpSettings"] == http_settings
+        )
+
+
+def test_patch_forwarder_with_update_mask(
+    chronicle_client, mock_patch_forwarder_response
+):
+    """Test patching a forwarder with update mask."""
+    update_mask = ["display_name", "config.metadata"]
+    metadata = {"environment": "staging"}
+
+    with patch.object(
+        chronicle_client.session,
+        "patch",
+        return_value=mock_patch_forwarder_response,
+    ):
+        result = update_forwarder(
+            client=chronicle_client,
+            forwarder_id="test-forwarder-id",
+            display_name="Updated-Name",
+            metadata=metadata,
+            upload_compression=True,  # This should be ignored by update_mask
+            update_mask=update_mask,
+        )
+
+        # Verify the result
+        assert (
+            result["displayName"] == "Updated-Forwarder-Name"
+        )  # From the mock
+
+        # Verify update_mask query parameter
+        call_args = chronicle_client.session.patch.call_args
+        assert "params" in call_args[1]
+        assert (
+            call_args[1]["params"]["updateMask"]
+            == "display_name,config.metadata"
+        )
+
+        # Verify payload contains all fields regardless of update_mask
+        # (API should respect update_mask parameter)
+        payload = call_args[1]["json"]
+        assert payload["displayName"] == "Updated-Name"
+        assert payload["config"]["metadata"] == metadata
+        assert payload["config"]["uploadCompression"] is True
+
+
+def test_patch_forwarder_partial_update(
+    chronicle_client, mock_patch_forwarder_response
+):
+    """Test patching only specific fields of a forwarder."""
+    with patch.object(
+        chronicle_client.session,
+        "patch",
+        return_value=mock_patch_forwarder_response,
+    ):
+        result = update_forwarder(
+            client=chronicle_client,
+            forwarder_id="test-forwarder-id",
+            upload_compression=True,
+        )
+
+        # Verify the result
+        assert (
+            result["displayName"] == "Updated-Forwarder-Name"
+        )  # From the mock
+
+        # Verify the request payload contains only the specified parameter
+        call_args = chronicle_client.session.patch.call_args
+        payload = call_args[1]["json"]
+
+        assert "displayName" not in payload
+        assert "config" in payload
+        assert payload["config"]["uploadCompression"] is True
+        assert len(payload["config"]) == 1  # Only uploadCompression
+
+        # Verify auto-generated update_mask contains the correct field path
+        assert "params" in call_args[1]
+        assert (
+            call_args[1]["params"]["updateMask"] == "config.upload_compression"
+        )
+
+
+def test_auto_generated_update_mask_multiple_fields(
+    chronicle_client, mock_patch_forwarder_response
+):
+    """Test auto-generation of update_mask with multiple fields."""
+    metadata = {"environment": "staging"}
+    http_settings = {"routeSettings": {"port": 8080}}
+
+    with patch.object(
+        chronicle_client.session,
+        "patch",
+        return_value=mock_patch_forwarder_response,
+    ):
+        result = update_forwarder(
+            client=chronicle_client,
+            forwarder_id="test-forwarder-id",
+            display_name="New-Name",
+            metadata=metadata,
+            http_settings=http_settings,
+        )
+
+        # Verify the result
+        assert (
+            result["displayName"] == "Updated-Forwarder-Name"
+        )  # From the mock
+
+        # Verify auto-generated update_mask contains all modified fields
+        call_args = chronicle_client.session.patch.call_args
+        assert "params" in call_args[1]
+        update_mask = call_args[1]["params"]["updateMask"]
+
+        # Check that all fields are included in update_mask
+        assert "display_name" in update_mask
+        assert "config.metadata" in update_mask
+        assert "config.server_settings.http_settings" in update_mask
+
+        # Verify payload contains all specified fields
+        payload = call_args[1]["json"]
+        assert payload["displayName"] == "New-Name"
+        assert payload["config"]["metadata"] == metadata
+        assert (
+            payload["config"]["serverSettings"]["httpSettings"] == http_settings
+        )
+
+def test_delete_forwarder(chronicle_client, mock_delete_forwarder_response):
+    """Test deleting a forwarder."""
+    with patch.object(
+        chronicle_client.session, "delete", return_value=mock_delete_forwarder_response
+    ):
+        result = delete_forwarder(client=chronicle_client, forwarder_id="test-forwarder-id")
+        
+        # Verify the result (should be empty for delete operations)
+        assert result == {}
+        
+        # Verify the request was made with the correct URL
+        call_args = chronicle_client.session.delete.call_args
+        assert call_args is not None
+        
+        # Check URL format contains the forwarder ID
+        url = call_args[0][0]
+        assert (
+            "test-project/locations/us/instances/test-customer/forwarders/test-forwarder-id"
+            in url
+        )
+
+
+def test_delete_forwarder_error(chronicle_client):
+    """Test error handling when deleting a forwarder."""
+    error_response = Mock()
+    error_response.status_code = 400
+    error_response.text = "Invalid request"
+    
+    with patch.object(chronicle_client.session, "delete", return_value=error_response):
+        with pytest.raises(APIError, match="Failed to delete forwarder"):
+            delete_forwarder(client=chronicle_client, forwarder_id="test-forwarder-id")

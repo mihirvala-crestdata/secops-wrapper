@@ -315,6 +315,10 @@ def create_forwarder(
     metadata: Optional[Dict[str, Any]] = None,
     upload_compression: bool = False,
     enable_server: bool = False,
+    regex_filters: Optional[List[Dict[str, Any]]] = None,
+    graceful_timeout: Optional[str] = None,
+    drain_timeout: Optional[str] = None,
+    http_settings: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Create a new forwarder in Chronicle.
 
@@ -324,6 +328,13 @@ def create_forwarder(
         metadata: Optional forwarder metadata (asset_namespace, labels)
         upload_compression: Whether uploaded data should be compressed
         enable_server: Whether server functionality is enabled on the forwarder
+        regex_filters: Regex filters applied at the forwarder level
+        graceful_timeout: Timeout, after which the forwarder returns a bad
+            readiness/health check and still accepts new connections
+        drain_timeout: Timeout, after which the forwarder waits for active
+            connections to successfully close on their own before being closed
+            by the server
+        http_settings: HTTP-specific server settings
 
     Returns:
         Dictionary containing the created forwarder details
@@ -341,10 +352,26 @@ def create_forwarder(
             "metadata": metadata or {},
             "serverSettings": {
                 "enabled": enable_server,
+                "gracefulTimeout": graceful_timeout,
+                "drainTimeout": drain_timeout,
                 "httpSettings": {"routeSettings": {}},
             },
         },
     }
+
+    if regex_filters:
+        payload["config"]["regexFilters"] = regex_filters
+
+    if graceful_timeout:
+        payload["config"]["serverSettings"][
+            "gracefulTimeout"
+        ] = graceful_timeout
+
+    if drain_timeout:
+        payload["config"]["serverSettings"]["drainTimeout"] = drain_timeout
+
+    if http_settings:
+        payload["config"]["serverSettings"]["httpSettings"] = http_settings
 
     # Send the request
     response = client.session.post(url, json=payload)
@@ -358,7 +385,7 @@ def create_forwarder(
 
 def list_forwarders(
     client: "ChronicleClient",
-    page_size: int = 50,
+    page_size: Optional[int] = None,
     page_token: Optional[str] = None,
 ) -> Dict[str, Any]:
     """List forwarders in Chronicle.
@@ -393,7 +420,7 @@ def list_forwarders(
     result = response.json()
 
     # If there's a next page token, fetch additional pages and combine results
-    if "nextPageToken" in result and result["nextPageToken"]:
+    if not page_size and "nextPageToken" in result and result["nextPageToken"]:
         next_page = list_forwarders(client, page_size, result["nextPageToken"])
         if "forwarders" in next_page and next_page["forwarders"]:
             # Combine the forwarders from both pages
@@ -427,6 +454,160 @@ def get_forwarder(
     # Check for errors
     if response.status_code != 200:
         raise APIError(f"Failed to get forwarder: {response.text}")
+
+    return response.json()
+
+
+def update_forwarder(
+    client: "ChronicleClient",
+    forwarder_id: str,
+    display_name: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    upload_compression: Optional[bool] = None,
+    enable_server: Optional[bool] = None,
+    regex_filters: Optional[List[Dict[str, Any]]] = None,
+    graceful_timeout: Optional[str] = None,
+    drain_timeout: Optional[str] = None,
+    http_settings: Optional[Dict[str, Any]] = None,
+    update_mask: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Update an existing forwarder.
+
+    Args:
+        client: The initialized Chronicle client.
+        forwarder_id: ID of the forwarder to update.
+        display_name: Display name for the forwarder.
+        metadata: Metadata key-value pairs for the forwarder.
+        upload_compression: Upload compression setting.
+        enable_server: Server enabled setting.
+        regex_filters: Regex filter patterns and actions.
+        graceful_timeout: Graceful timeout duration for server.
+        drain_timeout: Drain timeout duration for server.
+        http_settings: HTTP server settings.
+        update_mask: List of field paths to update. If not provided, all fields
+            with non-None values will be updated.
+
+    Returns:
+        Dict containing the updated forwarder details.
+
+    Raises:
+        APIError: If the API returns an error response.
+    """
+    url = f"{client.base_url}/{client.instance_id}/forwarders/{forwarder_id}"
+
+    auto_mask = []  # Update mask if not provided in argument
+    payload = {}
+
+    if display_name is not None:
+        payload["displayName"] = display_name
+        auto_mask.append("display_name")
+
+    # Check if we need to include config and its fields
+    has_config = any(
+        param is not None
+        for param in [
+            metadata,
+            upload_compression,
+            regex_filters,
+            enable_server,
+            graceful_timeout,
+            drain_timeout,
+            http_settings,
+        ]
+    )
+
+    if has_config:
+        payload["config"] = {}
+
+        # Add metadata if provided
+        if metadata:
+            payload["config"]["metadata"] = metadata
+            auto_mask.append("config.metadata")
+
+        # Add upload compression if provided
+        if upload_compression is not None:
+            payload["config"]["uploadCompression"] = upload_compression
+            auto_mask.append("config.upload_compression")
+
+        # Add regex filters if provided
+        if regex_filters:
+            payload["config"]["regexFilters"] = regex_filters
+            auto_mask.append("config.regex_filters")
+
+        # Initialize serverSettings if any server-related fields are provided
+        if any(
+            param is not None
+            for param in [
+                enable_server,
+                graceful_timeout,
+                drain_timeout,
+                http_settings,
+            ]
+        ):
+            payload["config"]["serverSettings"] = {}
+
+            if enable_server is not None:
+                payload["config"]["serverSettings"]["enabled"] = enable_server
+                auto_mask.append("config.server_settings.enabled")
+
+            if graceful_timeout:
+                payload["config"]["serverSettings"][
+                    "gracefulTimeout"
+                ] = graceful_timeout
+                auto_mask.append("config.server_settings.graceful_timeout")
+
+            if drain_timeout:
+                payload["config"]["serverSettings"][
+                    "drainTimeout"
+                ] = drain_timeout
+                auto_mask.append("config.server_settings.drain_timeout")
+
+            if http_settings:
+                payload["config"]["serverSettings"][
+                    "httpSettings"
+                ] = http_settings
+                auto_mask.append("config.server_settings.http_settings")
+
+    # Prepare query parameters for update mask
+    params = {}
+    if update_mask:
+        # Use user-provided update mask
+        params["updateMask"] = ",".join(update_mask)
+    else:
+        params["updateMask"] = ",".join(auto_mask)
+
+    # Send the request
+    response = client.session.patch(url, json=payload, params=params)
+
+    # Check for errors
+    if response.status_code != 200:
+        raise APIError(f"Failed to update forwarder: {response.text}")
+
+    return response.json()
+
+
+def delete_forwarder(
+    client: "ChronicleClient",
+    forwarder_id: str,
+) -> Dict[str, Any]:
+    """Delete a forwarder from Chronicle.
+
+    Args:
+        client: ChronicleClient instance
+        forwarder_id: ID of the forwarder to delete
+
+    Returns:
+        Dict containing the empty response (usually {})
+
+    Raises:
+        APIError: If the API returns an error response.
+    """
+    url = f"{client.base_url}/{client.instance_id}/forwarders/{forwarder_id}"
+
+    response = client.session.delete(url)
+
+    if response.status_code != 200:
+        raise APIError(f"Failed to delete forwarder: {response.text}")
 
     return response.json()
 
