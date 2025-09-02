@@ -197,13 +197,13 @@ Following shows mapping between SecOps [REST Resource](https://cloud.google.com/
 |forwarders.collectors.get                                                     |v1alpha|                                                            |                                       |
 |forwarders.collectors.list                                                    |v1alpha|                                                            |                                       |
 |forwarders.collectors.patch                                                   |v1alpha|                                                            |                                       |
-|forwarders.create                                                             |v1alpha|chronicle.log_ingest.create_forwarder                       |                                       |
-|forwarders.delete                                                             |v1alpha|                                                            |                                       |
+|forwarders.create                                                             |v1alpha|chronicle.log_ingest.create_forwarder                       |secops forwarder create                                       |
+|forwarders.delete                                                             |v1alpha|chronicle.log_ingest.delete_forwarder                       |secops forwarder delete                                       |
 |forwarders.generateForwarderFiles                                             |v1alpha|                                                            |                                       |
-|forwarders.get                                                                |v1alpha|chronicle.log_ingest.get_forwarder                          |                                       |
+|forwarders.get                                                                |v1alpha|chronicle.log_ingest.get_forwarder                       |secops forwarder get                                       |
 |forwarders.importStatsEvents                                                  |v1alpha|                                                            |                                       |
-|forwarders.list                                                               |v1alpha|chronicle.log_ingest.list_forwarders                        |                                       |
-|forwarders.patch                                                              |v1alpha|                                                            |                                       |
+|forwarders.list                                                               |v1alpha|chronicle.log_ingest.list_forwarder                       |secops forwarder list                                       |
+|forwarders.patch                                                              |v1alpha|chronicle.log_ingest.update_forwarder                       |secops forwarder update                                       |
 |generateCollectionAgentAuth                                                   |v1alpha|                                                            |                                       |
 |generateSoarAuthJwt                                                           |v1alpha|                                                            |                                       |
 |generateUdmKeyValueMappings                                                   |v1alpha|                                                            |                                       |
