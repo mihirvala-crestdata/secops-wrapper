@@ -4095,7 +4095,8 @@ def handle_forwarder_patch_command(args, chronicle):
                 regex_filters = json.loads(args.regex_filters)
             except json.JSONDecodeError:
                 print(
-                    f"Error: Invalid JSON in regex_filters: {args.regex_filters}",
+                    "Error: Invalid JSON in regex_filters: "
+                    f"{args.regex_filters}",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -4107,7 +4108,8 @@ def handle_forwarder_patch_command(args, chronicle):
                 http_settings = json.loads(args.http_settings)
             except json.JSONDecodeError:
                 print(
-                    f"Error: Invalid JSON in http_settings: {args.http_settings}",
+                    "Error: Invalid JSON in http_settings: "
+                    f"{args.http_settings}",
                     file=sys.stderr,
                 )
                 sys.exit(1)

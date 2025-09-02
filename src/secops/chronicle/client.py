@@ -1857,8 +1857,8 @@ class ChronicleClient:
             graceful_timeout: Timeout, after which the forwarder returns a bad
                 readiness/health check and still accepts new connections
             drain_timeout: Timeout, after which the forwarder waits for active
-                connections to successfully close on their own before being closed
-                by the server
+                connections to successfully close on their own before being
+                closed by the server
             http_settings: HTTP-specific server settings
 
         Returns:
@@ -1941,8 +1941,9 @@ class ChronicleClient:
             graceful_timeout: New graceful timeout duration for server
             drain_timeout: New drain timeout duration for server
             http_settings: New HTTP server settings
-            update_mask: List of field paths to update. If not provided, all fields
-                with non-None values will be updated.
+            update_mask: List of field paths to update.
+                If not provided, all fields with non-None values
+                will be updated.
 
         Returns:
             Dictionary containing the updated forwarder details
