@@ -272,7 +272,8 @@ def test_cli_forwarder_lifecycle(cli_env, common_args):
                 verify_delete_result.returncode != 0
             ), "Forwarder still exists after deletion"
 
-            forwarder_ids.remove(f_id)
+            if verify_delete_result.returncode == 0:
+                forwarder_ids.remove(f_id)
             print(f"Successfully deleted forwarder with ID: {f_id}")
 
     except Exception as e:
