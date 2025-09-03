@@ -1339,8 +1339,17 @@ is_complete = retrohunt_status.get("metadata", {}).get("done", False)
 Monitor rule detections and execution errors:
 
 ```python
+from datetime import datetime, timedelta
+
+start_time = datetime.now(timezone.utc)
+end_time = start_time - timedelta(days=7)
 # List detections for a rule
-detections = chronicle.list_detections(rule_id)
+detections = chronicle.list_detections(
+    rule_id=rule_id,
+    start_time=start_time,
+    end_time=end_time,
+    list_basis="CREATED_TIME"
+)
 for detection in detections.get("detections", []):
     detection_id = detection.get("id", "")
     event_time = detection.get("eventTime", "")

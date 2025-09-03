@@ -779,6 +779,12 @@ secops rule create --file "new_rule.yaral"
 secops rule enable --id "ru_abcdef" --enabled true
 ```
 
+### Get Rule Detections
+
+```bash
+secops rule detections --rule-id "ru_abcdef" --time-window 24 --list-basis "CREATED_TIME"
+```
+
 ### Get Critical Alerts
 
 ```bash
