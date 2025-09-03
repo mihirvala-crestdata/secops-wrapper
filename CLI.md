@@ -765,6 +765,12 @@ secops log ingest --type "CUSTOM_JSON" --file "logs.json" --force
 secops log ingest --type "OKTA" --file "auth_logs.json" --labels "environment=production,application=web-app,region=us-central"
 ```
 
+### Ingest Logs from a File(Multiple Logs)
+
+```bash
+secops log ingest --type "OKTA" --file "auth_multi_logs.json"
+```
+
 ### Create and Enable a Detection Rule
 
 ```bash
