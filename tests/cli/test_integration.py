@@ -1553,6 +1553,72 @@ def test_cli_gemini(cli_env, common_args):
 
 
 @pytest.mark.integration
+def test_cli_rule_detections(cli_env, common_args):
+    """Test the rule detections command"""
+    # First list rules to get a valid rule ID
+    list_cmd = (
+        [
+            "secops",
+        ]
+        + common_args
+        + ["rule", "list"]
+    )
+
+    list_result = subprocess.run(list_cmd, env=cli_env, capture_output=True, text=True)
+
+    # Check that we have at least one rule to test with
+    assert list_result.returncode == 0
+
+    rules = json.loads(list_result.stdout)
+    if not rules.get("rules"):
+        pytest.skip("No rules available to test the detections command")
+
+    # Get the first rule's ID
+    rule_id = rules["rules"][0]["name"].split("/")[-1]
+
+    # Create time range parameters
+    start_time = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    end_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    # Test with both time range and list_basis parameters
+    list_basis = "CREATED_TIME"  # Could be one of "LIST_BASIS_UNSPECIFIED", "CREATED_TIME", "DETECTION_TIME"
+    
+    cmd = (
+        [
+            "secops",
+        ]
+        + common_args
+        + [
+            "rule",
+            "detections",
+            "--rule_id",
+            rule_id,
+            "--start-time",
+            start_time,
+            "--end-time",
+            end_time,
+            "--list-basis",
+            list_basis,
+        ]
+    )
+
+    result = subprocess.run(cmd, env=cli_env, capture_output=True, text=True)
+
+    # Check that the command executed successfully
+    assert result.returncode == 0
+
+    # Try to parse the output as JSON
+    try:
+        output = json.loads(result.stdout)
+        assert isinstance(output, dict)
+        print(f"Successfully retrieved detections with time range and list_basis for rule {rule_id}")
+    except json.JSONDecodeError:
+        pytest.fail(f"Expected JSON output but got: {result.stdout}")
+
+
+@pytest.mark.integration
 def test_cli_help(cli_env):
     """Test the help command."""
     # Execute the CLI command

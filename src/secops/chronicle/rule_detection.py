@@ -14,13 +14,19 @@
 #
 """Detection functionality for Chronicle rules."""
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Literal
+from datetime import datetime
 from secops.exceptions import APIError
 
 
 def list_detections(
     client,
     rule_id: str,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    list_basis: Literal[
+        "LIST_BASIS_UNSPECIFIED", "CREATED_TIME", "DETECTION_TIME"
+    ] = "LIST_BASIS_UNSPECIFIED",
     alert_state: Optional[str] = None,
     page_size: Optional[int] = None,
     page_token: Optional[str] = None,
@@ -33,6 +39,13 @@ def list_detections(
             - {rule_id} (latest version)
             - {rule_id}@v_<seconds>_<nanoseconds> (specific version)
             - {rule_id}@- (all versions)
+        start_time: If provided, filter by start time.
+        end_time: If provided, filter by end time.
+        list_basis: If provided, sort detections by list basis. Valid values
+          are:
+            - "LIST_BASIS_UNSPECIFIED"
+            - "CREATED_TIME"
+            - "DETECTION_TIME"
         alert_state: If provided, filter by alert state. Valid values are:
             - "UNSPECIFIED"
             - "NOT_ALERTING"
@@ -53,6 +66,11 @@ def list_detections(
 
     # Define valid alert states
     valid_alert_states = ["UNSPECIFIED", "NOT_ALERTING", "ALERTING"]
+    valid_list_basis = [
+        "LIST_BASIS_UNSPECIFIED",
+        "CREATED_TIME",
+        "DETECTION_TIME",
+    ]
 
     # Build request parameters
     params = {
@@ -66,6 +84,19 @@ def list_detections(
                 f"got {alert_state}"
             )
         params["alertState"] = alert_state
+
+    if list_basis:
+        if list_basis not in valid_list_basis:
+            raise ValueError(
+                f"list_basis must be one of {valid_list_basis}, "
+                f"got {list_basis}"
+            )
+        params["listBasis"] = list_basis
+
+    if start_time:
+        params["startTime"] = start_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    if end_time:
+        params["endTime"] = end_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
     if page_size:
         params["pageSize"] = page_size
