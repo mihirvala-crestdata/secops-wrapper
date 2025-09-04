@@ -46,8 +46,8 @@ from secops.chronicle.data_export import (
 # Import data table and reference list classes
 from secops.chronicle.data_table import (
     DataTableColumnType,
-    update_data_table,
     replace_data_table_rows,
+    update_data_table,
 )
 from secops.chronicle.entity import summarize_entity
 from secops.chronicle.gemini import (
@@ -59,11 +59,13 @@ from secops.chronicle.gemini import (
 from secops.chronicle.ioc import list_iocs
 from secops.chronicle.log_ingest import (
     create_forwarder,
+    delete_forwarder,
     extract_forwarder_id,
     get_forwarder,
     get_or_create_forwarder,
     ingest_log,
     list_forwarders,
+    update_forwarder,
 )
 from secops.chronicle.log_types import (
     LogType,
@@ -165,10 +167,12 @@ __all__ = [
     # Log Ingestion
     "ingest_log",
     "create_forwarder",
+    "delete_forwarder",
     "get_or_create_forwarder",
     "list_forwarders",
     "get_forwarder",
     "extract_forwarder_id",
+    "update_forwarder",
     # Log Types
     "LogType",
     "get_all_log_types",
