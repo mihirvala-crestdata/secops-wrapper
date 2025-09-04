@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2025-09-04
+### Added
+- Support for following forwarder methods:
+  - Patch forwarder
+  - Delete forwarder
+- CLI command for following forwarder:
+  - Create forwarder
+  - Get forwarder
+  - List Forwarder
+  - Get Or Create forwarder
+- Chronicle client methods for forwarder:
+  - Create forwarder
+  - Get forwarder
+  - List forwarder
+
 ## [0.14.2] - 2025-09-03
 ### Added
 - Support for list basis and time window params in list detections method.
