@@ -125,6 +125,41 @@ def create_dashboard(
     return response.json()
 
 
+def import_dashboard(
+        client,
+        dashboard: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Import a native dashboard.
+
+    Args:
+        client: ChronicleClient instance
+        dashboard: ImportNativeDashboardsInlineSource
+
+    Returns:
+        Dictionary containing the created dashboard details
+
+    Raises:
+        APIError: If the API request fails
+    """
+    url = f"{client.base_url}/{client.instance_id}/nativeDashboards:import"
+
+    payload = {
+        "source": {
+            "dashboards":[dashboard]
+        }
+    }
+
+    response = client.session.post(url, json=payload)
+
+    if response.status_code != 200:
+        raise APIError(
+            f"Failed to import dashboard: Status {response.status_code}, "
+            f"Response: {response.text}"
+        )
+
+    return response.json()
+
+
 def list_dashboards(
     client,
     page_size: Optional[int] = None,
