@@ -1331,6 +1331,11 @@ class ChronicleClient:
     def list_detections(
         self,
         rule_id: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        list_basis: Optional[
+            Literal["LIST_BASIS_UNSPECIFIED", "CREATED_TIME", "DETECTION_TIME"]
+        ] = None,
         alert_state: Optional[str] = None,
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
@@ -1342,6 +1347,13 @@ class ChronicleClient:
                 - {rule_id} (latest version)
                 - {rule_id}@v_<seconds>_<nanoseconds> (specific version)
                 - {rule_id}@- (all versions)
+            start_time: If provided, filter by start time.
+            end_time: If provided, filter by end time.
+            list_basis: If provided, sort detections by list basis. Valid values
+              are:
+                - "LIST_BASIS_UNSPECIFIED"
+                - "CREATED_TIME"
+                - "DETECTION_TIME"
             alert_state: If provided, filter by alert state. Valid values are:
                 - "UNSPECIFIED"
                 - "NOT_ALERTING"
@@ -1357,7 +1369,14 @@ class ChronicleClient:
             ValueError: If an invalid alert_state is provided
         """
         return _list_detections(
-            self, rule_id, alert_state, page_size, page_token
+            self,
+            rule_id,
+            start_time,
+            end_time,
+            list_basis,
+            alert_state,
+            page_size,
+            page_token,
         )
 
     def list_errors(self, rule_id: str) -> Dict[str, Any]:

@@ -689,6 +689,64 @@ def test_chronicle_rule_detections():
 
 
 @pytest.mark.integration
+def test_chronicle_rule_detections_with_time_range():
+    """Test Chronicle rule detections functionality with time range parameters."""
+    client = SecOpsClient()
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+
+    # Use the specific rule ID provided
+    rule_id = "ru_b2caeac4-c3bd-4b61-9007-bd1e481eff85"
+    
+    # Set up time range for testing
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - timedelta(days=7)  # Look back 7 days
+
+    try:
+        # Test with time range parameters
+        detections = chronicle.list_detections(
+            rule_id,
+            start_time=start_time,
+            end_time=end_time
+        )
+        
+        assert isinstance(detections, dict)
+        print(f"Successfully retrieved detections with time range for rule {rule_id}")
+        
+    except APIError as e:
+        pytest.fail(f"API Error during rule detections time range test: {str(e)}")
+
+
+@pytest.mark.integration
+def test_chronicle_rule_detections_with_list_basis():
+    """Test Chronicle rule detections functionality with list_basis parameter."""
+    client = SecOpsClient()
+    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+
+    # Use the specific rule ID provided
+    rule_id = "ru_b2caeac4-c3bd-4b61-9007-bd1e481eff85"
+    
+    # Set up time range for testing
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - timedelta(days=7)  # Look back 7 days
+
+    try:
+        # Test with different list_basis values
+        for list_basis in ["LIST_BASIS_UNSPECIFIED", "DETECTION_TIME", "CREATED_TIME"]:
+            detections = chronicle.list_detections(
+                rule_id,
+                start_time=start_time,
+                end_time=end_time,
+                list_basis=list_basis
+            )
+            
+            assert isinstance(detections, dict)
+            print(f"Successfully retrieved detections with list_basis={list_basis}")
+        
+    except APIError as e:
+        pytest.fail(f"API Error during rule detections list_basis test: {str(e)}")
+
+
+@pytest.mark.integration
 def test_chronicle_rule_validation():
     """Test Chronicle rule validation functionality with real API."""
     client = SecOpsClient()

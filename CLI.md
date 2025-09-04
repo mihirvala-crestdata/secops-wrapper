@@ -765,12 +765,24 @@ secops log ingest --type "CUSTOM_JSON" --file "logs.json" --force
 secops log ingest --type "OKTA" --file "auth_logs.json" --labels "environment=production,application=web-app,region=us-central"
 ```
 
+### Ingest Logs from a File(Multiple Logs)
+
+```bash
+secops log ingest --type "OKTA" --file "auth_multi_logs.json"
+```
+
 ### Create and Enable a Detection Rule
 
 ```bash
 secops rule create --file "new_rule.yaral"
 # If successful, enable the rule using the returned rule ID
 secops rule enable --id "ru_abcdef" --enabled true
+```
+
+### Get Rule Detections
+
+```bash
+secops rule detections --rule-id "ru_abcdef" --time-window 24 --list-basis "CREATED_TIME"
 ```
 
 ### Get Critical Alerts
