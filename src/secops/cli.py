@@ -1528,6 +1528,33 @@ def setup_rule_command(subparsers):
         "--query", required=True, help="Rule query string in regex"
     )
 
+    # Get rule deployment
+    get_dep_parser = rule_subparsers.add_parser(
+        "get-deployment", help="Get rule deployment"
+    )
+    get_dep_parser.add_argument("--id", required=True, help="Rule ID")
+    get_dep_parser.set_defaults(func=handle_rule_get_deployment_command)
+
+    # List rule deployments
+    list_dep_parser = rule_subparsers.add_parser(
+        "list-deployments", help="List rule deployments"
+    )
+    list_dep_parser.add_argument(
+        "--page-size",
+        "--page_size",
+        dest="page_size",
+        type=int,
+        help="Page size for results",
+    )
+    list_dep_parser.add_argument(
+        "--page-token",
+        "--page_token",
+        dest="page_token",
+        type=str,
+        help="A page token, received from a previous `list` call.",
+    )
+    list_dep_parser.set_defaults(func=handle_rule_list_deployments_command)
+
     # Detection list
     detection_parser = rule_subparsers.add_parser(
         "detections", help="List detections"
@@ -1568,33 +1595,6 @@ def handle_rule_detections_command(args, chronicle):
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
-
-    # Get rule deployment
-    get_dep_parser = rule_subparsers.add_parser(
-        "get-deployment", help="Get rule deployment"
-    )
-    get_dep_parser.add_argument("--id", required=True, help="Rule ID")
-    get_dep_parser.set_defaults(func=handle_rule_get_deployment_command)
-
-    # List rule deployments
-    list_dep_parser = rule_subparsers.add_parser(
-        "list-deployments", help="List rule deployments"
-    )
-    list_dep_parser.add_argument(
-        "--page-size",
-        "--page_size",
-        dest="page_size",
-        type=int,
-        help="Page size for results",
-    )
-    list_dep_parser.add_argument(
-        "--page-token",
-        "--page_token",
-        dest="page_token",
-        type=str,
-        help="A page token, received from a previous `list` call.",
-    )
-    list_dep_parser.set_defaults(func=handle_rule_list_deployments_command)
 
 
 def handle_rule_list_command(args, chronicle):
