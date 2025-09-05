@@ -125,10 +125,7 @@ def create_dashboard(
     return response.json()
 
 
-def import_dashboard(
-        client,
-        dashboard: Dict[str, Any]
-) -> Dict[str, Any]:
+def import_dashboard(client, dashboard: Dict[str, Any]) -> Dict[str, Any]:
     """Import a native dashboard.
 
     Args:
@@ -143,11 +140,16 @@ def import_dashboard(
     """
     url = f"{client.base_url}/{client.instance_id}/nativeDashboards:import"
 
-    payload = {
-        "source": {
-            "dashboards":[dashboard]
-        }
-    }
+    # Validate dashboard data keys
+    valid_keys = ["dashboard", "dashboardCharts", "dashboardQueries"]
+    dashboard_keys = set(dashboard.keys())
+
+    if not any(key in dashboard_keys for key in valid_keys):
+        raise SecOpsError(
+            f"Dashboard must contain at least one of: {', '.join(valid_keys)}"
+        )
+
+    payload = {"source": {"dashboards": [dashboard]}}
 
     response = client.session.post(url, json=payload)
 
