@@ -701,6 +701,32 @@ def handle_iocs_command(args, chronicle):
         sys.exit(1)
 
 
+def setup_forwarder_command(subparsers):
+    """Set up the forwarder command parser."""
+    forwarder_parser = subparsers.add_parser(
+        "forwarder", help="Manage forwarders"
+    )
+    forwarder_subparsers = forwarder_parser.add_subparsers(
+        dest="forwarder_command", help="Forwarder command"
+    )
+
+    forwarder_subparsers.add_parser("create", help="Create a new forwarder")
+    forwarder_subparsers.add_parser("list", help="List forwarders")
+    forwarder_subparsers.add_parser("get", help="Get a forwarder")
+
+    forwarder_subparsers.set_defaults(func=handle_forwarder_command)
+
+
+def handle_forwarder_command(args, chronicle):
+    """Handle the forwarder command."""
+    try:
+        result = chronicle.create_forwarder()
+        output_formatter(result, args.output)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def setup_log_command(subparsers):
     """Set up the log command parser."""
     log_parser = subparsers.add_parser("log", help="Ingest logs")
@@ -1569,6 +1595,33 @@ def handle_rule_detections_command(args, chronicle):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
+    # Get rule deployment
+    get_dep_parser = rule_subparsers.add_parser(
+        "get-deployment", help="Get rule deployment"
+    )
+    get_dep_parser.add_argument("--id", required=True, help="Rule ID")
+    get_dep_parser.set_defaults(func=handle_rule_get_deployment_command)
+
+    # List rule deployments
+    list_dep_parser = rule_subparsers.add_parser(
+        "list-deployments", help="List rule deployments"
+    )
+    list_dep_parser.add_argument(
+        "--page-size",
+        "--page_size",
+        dest="page_size",
+        type=int,
+        help="Page size for results",
+    )
+    list_dep_parser.add_argument(
+        "--page-token",
+        "--page_token",
+        dest="page_token",
+        type=str,
+        help="A page token, received from a previous `list` call.",
+    )
+    list_dep_parser.set_defaults(func=handle_rule_list_deployments_command)
+
 
 def handle_rule_list_command(args, chronicle):
     """Handle rule list command."""
@@ -1714,6 +1767,29 @@ def handle_rule_search_command(args, chronicle):
     """Handle rule search command."""
     try:
         result = chronicle.search_rules(args.query)
+        output_formatter(result, args.output)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_rule_get_deployment_command(args, chronicle):
+    """Handle rule get-deployment command."""
+    try:
+        result = chronicle.get_rule_deployment(args.id)
+        output_formatter(result, args.output)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_rule_list_deployments_command(args, chronicle):
+    """Handle rule list-deployments command."""
+    try:
+        result = chronicle.list_rule_deployments(
+            page_size=args.page_size if hasattr(args, "page_size") else None,
+            page_token=args.page_token if hasattr(args, "page_token") else None,
+        )
         output_formatter(result, args.output)
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
