@@ -22,6 +22,7 @@ from typing import Any, Dict, Iterator, List, Literal, Optional, Union
 from google.auth.transport import requests as google_auth_requests
 
 from secops import auth as secops_auth
+from secops.auth import RetryConfig
 from secops.chronicle.alert import get_alerts as _get_alerts
 from secops.chronicle.case import get_cases_from_list
 from secops.chronicle.dashboard import DashboardAccessType, DashboardView
@@ -58,9 +59,6 @@ from secops.chronicle.data_table import create_data_table as _create_data_table
 from secops.chronicle.data_table import (
     create_data_table_rows as _create_data_table_rows,
 )
-from secops.chronicle.data_table import (
-    replace_data_table_rows as _replace_data_table_rows,
-)
 from secops.chronicle.data_table import delete_data_table as _delete_data_table
 from secops.chronicle.data_table import (
     delete_data_table_rows as _delete_data_table_rows,
@@ -70,6 +68,9 @@ from secops.chronicle.data_table import (
     list_data_table_rows as _list_data_table_rows,
 )
 from secops.chronicle.data_table import list_data_tables as _list_data_tables
+from secops.chronicle.data_table import (
+    replace_data_table_rows as _replace_data_table_rows,
+)
 from secops.chronicle.data_table import update_data_table as _update_data_table
 from secops.chronicle.entity import _detect_value_type_for_query
 from secops.chronicle.entity import summarize_entity as _summarize_entity
@@ -86,16 +87,16 @@ from secops.chronicle.gemini import GeminiResponse
 from secops.chronicle.gemini import opt_in_to_gemini as _opt_in_to_gemini
 from secops.chronicle.gemini import query_gemini as _query_gemini
 from secops.chronicle.ioc import list_iocs as _list_iocs
+from secops.chronicle.log_ingest import create_forwarder as _create_forwarder
+from secops.chronicle.log_ingest import delete_forwarder as _delete_forwarder
+from secops.chronicle.log_ingest import get_forwarder as _get_forwarder
 from secops.chronicle.log_ingest import (
-    delete_forwarder as _delete_forwarder,
-    create_forwarder as _create_forwarder,
-    get_forwarder as _get_forwarder,
     get_or_create_forwarder as _get_or_create_forwarder,
-    list_forwarders as _list_forwarders,
-    update_forwarder as _update_forwarder,
 )
 from secops.chronicle.log_ingest import ingest_log as _ingest_log
 from secops.chronicle.log_ingest import ingest_udm as _ingest_udm
+from secops.chronicle.log_ingest import list_forwarders as _list_forwarders
+from secops.chronicle.log_ingest import update_forwarder as _update_forwarder
 from secops.chronicle.log_types import LogType
 from secops.chronicle.log_types import get_all_log_types as _get_all_log_types
 from secops.chronicle.log_types import (
@@ -113,9 +114,6 @@ from secops.chronicle.models import (
 )
 from secops.chronicle.nl_search import nl_search as _nl_search
 from secops.chronicle.nl_search import translate_nl_to_udm
-from secops.chronicle.udm_search import (
-    find_udm_field_values as _find_udm_field_values,
-)
 from secops.chronicle.parser import activate_parser as _activate_parser
 from secops.chronicle.parser import (
     activate_release_candidate_parser as _activate_release_candidate_parser,
@@ -223,6 +221,9 @@ from secops.chronicle.udm_mapping import (
 from secops.chronicle.udm_search import (
     fetch_udm_search_csv as _fetch_udm_search_csv,
 )
+from secops.chronicle.udm_search import (
+    find_udm_field_values as _find_udm_field_values,
+)
 from secops.chronicle.validate import validate_query as _validate_query
 from secops.exceptions import SecOpsError
 
@@ -303,6 +304,7 @@ class ChronicleClient:
         session: Optional[Any] = None,
         extra_scopes: Optional[List[str]] = None,
         credentials: Optional[Any] = None,
+        retry_config: Optional[Union[RetryConfig, Dict[str, Any], bool]] = None,
     ):
         """Initialize ChronicleClient.
 
@@ -314,6 +316,8 @@ class ChronicleClient:
             session: Custom session object
             extra_scopes: Additional OAuth scopes
             credentials: Credentials object
+            retry_config: Request retry configurations.
+                If set to false, retry will be disabled.
         """
         self.project_id = project_id
         self.customer_id = customer_id
@@ -369,6 +373,7 @@ class ChronicleClient:
                     ]
                     + (extra_scopes or []),
                     credentials=credentials,
+                    retry_config=retry_config,
                 )
 
             self._session = auth.session
