@@ -14,7 +14,7 @@
 #
 """Unit tests for RetryConfig dataclass."""
 
-from http import HTTPStatus, HTTPMethod
+from http import HTTPStatus
 
 from secops.auth import RetryConfig
 
@@ -29,11 +29,11 @@ def test_retry_config_default_values():
     assert HTTPStatus.BAD_GATEWAY.value in config.retry_status_codes
     assert HTTPStatus.SERVICE_UNAVAILABLE.value in config.retry_status_codes
     assert HTTPStatus.GATEWAY_TIMEOUT.value in config.retry_status_codes
-    assert HTTPMethod.GET in config.allowed_methods
-    assert HTTPMethod.PUT in config.allowed_methods
-    assert HTTPMethod.DELETE in config.allowed_methods
-    assert HTTPMethod.POST in config.allowed_methods
-    assert HTTPMethod.PATCH in config.allowed_methods
+    assert "GET" in config.allowed_methods
+    assert "PUT" in config.allowed_methods
+    assert "DELETE" in config.allowed_methods
+    assert "POST" in config.allowed_methods
+    assert "PATCH" in config.allowed_methods
     assert config.backoff_factor == 0.3
 
 
