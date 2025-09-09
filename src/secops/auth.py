@@ -105,12 +105,12 @@ class LogRetry(Retry):
 
     def increment(
         self,
-        method: str | None = None,
-        url: str | None = None,
-        response: BaseHTTPResponse | None = None,
-        error: Exception | None = None,
-        _pool: ConnectionPool | None = None,
-        _stacktrace: TracebackType | None = None,
+        method: Optional[str] = None,
+        url: Optional[str] = None,
+        response: Optional[BaseHTTPResponse] = None,
+        error: Optional[Exception] = None,
+        _pool: Optional[ConnectionPool] = None,
+        _stacktrace: Optional[TracebackType] = None,
     ) -> Retry:
         """Return a new Retry object with incremented retry counters and logs
         retry attempt.
