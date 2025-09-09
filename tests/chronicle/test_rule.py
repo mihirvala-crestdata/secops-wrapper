@@ -369,9 +369,9 @@ def test_enable_rule_error(chronicle_client, mock_error_response):
     ):
         # Act & Assert
         with pytest.raises(APIError) as exc_info:
-            enable_rule(chronicle_client, rule_id)
+            enable_rule(chronicle_client, rule_id, True)
 
-        assert "Failed to enable rule" in str(exc_info.value)
+        assert "Failed to update rule deployment" in str(exc_info.value)
 
 
 def test_search_rules(chronicle_client, mock_response):
@@ -586,7 +586,9 @@ def test_list_rule_deployments_single_page(chronicle_client, mock_response):
             f"{chronicle_client.base_v1_url}/{chronicle_client.instance_id}/rules/-/deployments",
             params={},
         )
-        assert result == {"ruleDeployments": [{"name": "dep1"}, {"name": "dep2"}]}
+        assert result == {
+            "ruleDeployments": [{"name": "dep1"}, {"name": "dep2"}]
+        }
 
 
 def test_list_rule_deployments_pagination(chronicle_client):
@@ -622,7 +624,10 @@ def test_list_rule_deployments_pagination(chronicle_client):
         result = list_rule_deployments(chronicle_client)
 
         assert mock_get.call_count == 2
-        assert [d["name"] for d in result["ruleDeployments"]] == ["dep1", "dep2"]
+        assert [d["name"] for d in result["ruleDeployments"]] == [
+            "dep1",
+            "dep2",
+        ]
 
 
 def test_list_rule_deployments_error(chronicle_client, mock_error_response):

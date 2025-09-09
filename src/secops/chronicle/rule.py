@@ -14,7 +14,7 @@
 #
 """Rule management functionality for Chronicle."""
 
-from typing import Dict, Any, Iterator, Optional
+from typing import Dict, Any, Iterator, Optional, List
 from datetime import datetime, timezone
 import json
 from secops.exceptions import APIError, SecOpsError
@@ -206,25 +206,26 @@ def enable_rule(client, rule_id: str, enabled: bool = True) -> Dict[str, Any]:
     Raises:
         APIError: If the API request fails
     """
-    url = (
-        f"{client.base_v1_url}/{client.instance_id}/rules/{rule_id}/deployment"
-    )
+    return update_rule_deployment(client, rule_id, enabled=enabled)
 
-    body = {
-        "enabled": enabled,
-    }
 
-    params = {"update_mask": "enabled"}
+def set_rule_alerting(
+    client, rule_id: str, alerting_enabled: bool = True
+) -> Dict[str, Any]:
+    """Enables or disables alerting for a rule deployment.
 
-    response = client.session.patch(url, params=params, json=body)
+    Args:
+        client: ChronicleClient instance.
+        rule_id: Unique ID of the detection rule (e.g., "ru_<UUID>").
+        alerting_enabled: Whether to enable (True) or disable (False) alerting.
 
-    if response.status_code != 200:
-        raise APIError(
-            f'Failed to {"enable" if enabled else "disable"} '
-            f"rule: {response.text}"
-        )
+    Returns:
+        Dictionary containing rule deployment information.
 
-    return response.json()
+    Raises:
+        APIError: If the API request fails.
+    """
+    return update_rule_deployment(client, rule_id, alerting=alerting_enabled)
 
 
 def get_rule_deployment(client, rule_id: str) -> Dict[str, Any]:
@@ -448,3 +449,71 @@ def run_rule_test(
 
     except Exception as e:
         raise APIError(f"Error testing rule: {str(e)}") from e
+
+
+def update_rule_deployment(
+    client,
+    rule_id: str,
+    *,
+    enabled: Optional[bool] = None,
+    alerting: Optional[bool] = None,
+    archived: Optional[bool] = None,
+    run_frequency: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Update deployment settings for a rule.
+
+    This wraps the RuleDeployment update behavior and supports partial updates
+    by sending only provided fields with an appropriate ``update_mask``.
+
+    Args:
+        client: ChronicleClient instance.
+        rule_id: Rule identifier (for example, ``"ru_<UUID>"``).
+        enabled: Whether the rule is continuously executed against incoming data.
+        alerting: Whether detections from this deployment should generate alerts.
+        archived: Archive state. Must be set with ``enabled=False`` when ``True``;
+            setting ``archived=True`` implicitly disables ``alerting`` per API
+            semantics.
+        run_frequency: Run cadence for the rule (for example, ``"LIVE"``,
+            ``"HOURLY"``, or ``"DAILY"``).
+
+    Returns:
+        Dictionary representing the updated RuleDeployment.
+
+    Raises:
+        APIError: If no fields are provided or the API request fails.
+
+    Notes:
+        - Only fields explicitly provided are updated; others remain unchanged.
+        - The ``update_mask`` is derived from provided fields in the same order
+          they are specified by the caller.
+    """
+    url = (
+        f"{client.base_v1_url}/{client.instance_id}/rules/{rule_id}/deployment"
+    )
+
+    body: Dict[str, Any] = {}
+    fields: List[str] = []
+
+    if enabled is not None:
+        body["enabled"] = enabled
+        fields.append("enabled")
+    if alerting is not None:
+        body["alerting"] = alerting
+        fields.append("alerting")
+    if archived is not None:
+        body["archived"] = archived
+        fields.append("archived")
+    if run_frequency is not None:
+        body["runFrequency"] = run_frequency
+        fields.append("runFrequency")
+
+    if not fields:
+        raise APIError("No deployment fields provided to update")
+
+    params = {"update_mask": ",".join(fields)}
+
+    response = client.session.patch(url, params=params, json=body)
+    if response.status_code != 200:
+        raise APIError(f"Failed to update rule deployment: {response.text}")
+
+    return response.json()

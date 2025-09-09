@@ -169,6 +169,10 @@ from secops.chronicle.rule import list_rules as _list_rules
 from secops.chronicle.rule import run_rule_test
 from secops.chronicle.rule import search_rules as _search_rules
 from secops.chronicle.rule import update_rule as _update_rule
+from secops.chronicle.rule import set_rule_alerting as _set_rule_alerting
+from secops.chronicle.rule import (
+    update_rule_deployment as _update_rule_deployment,
+)
 from secops.chronicle.rule_alert import (
     bulk_update_alerts as _bulk_update_alerts,
 )
@@ -3085,4 +3089,43 @@ class ChronicleClient:
         """
         return _list_rule_deployments(
             self, page_size=page_size, page_token=page_token
+        )
+
+    def set_rule_alerting(
+        self, rule_id: str, enabled: bool = True
+    ) -> Dict[str, Any]:
+        """Enable or disable alerting for a rule deployment.
+
+        Args:
+            rule_id: Unique ID of the detection rule (e.g., "ru_<UUID>")
+            enabled: Whether to enable (True) or disable (False) alerting
+
+        Returns:
+            Dictionary containing the updated deployment information
+
+        Raises:
+            APIError: If the API request fails
+        """
+        return _set_rule_alerting(self, rule_id, alerting_enabled=enabled)
+
+    def update_rule_deployment(
+        self,
+        rule_id: str,
+        *,
+        enabled: Optional[bool] = None,
+        alerting: Optional[bool] = None,
+        archived: Optional[bool] = None,
+        run_frequency: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Generic updateDeployment wrapper.
+
+        See RuleDeployment fields: enabled, alerting, archived, runFrequency.
+        """
+        return _update_rule_deployment(
+            self,
+            rule_id,
+            enabled=enabled,
+            alerting=alerting,
+            archived=archived,
+            run_frequency=run_frequency,
         )
