@@ -14,7 +14,6 @@
 #
 """Unit tests for RetryConfig dataclass."""
 
-import http.client
 from http import HTTPStatus, HTTPMethod
 
 from secops.auth import RetryConfig
