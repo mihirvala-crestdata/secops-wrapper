@@ -1327,6 +1327,55 @@ deployment = chronicle.enable_rule(rule_id, enabled=False) # Disable
 chronicle.delete_rule(rule_id)
 ```
 
+### Rule Deployment
+
+Manage a rule's deployment (enabled/alerting/archive state and run frequency):
+
+```python
+# Get current deployment for a rule
+deployment = chronicle.get_rule_deployment(rule_id)
+
+# List deployments (paginated)
+page = chronicle.list_rule_deployments(page_size=10)
+
+# Update deployment fields (partial updates supported)
+chronicle.update_rule_deployment(
+    rule_id=rule_id,
+    enabled=True,          # continuously execute
+    alerting=False,        # detections do not generate alerts
+    run_frequency="LIVE" # LIVE | HOURLY | DAILY
+)
+
+# Archive a rule (must set enabled to False when archived=True)
+chronicle.update_rule_deployment(
+    rule_id=rule_id,
+    archived=True
+)
+```
+
+CLI examples:
+
+```bash
+
+# Toggle alerting for a rule
+secops rule alerting --id ru_123 --enabled true/false
+
+# Toggle enabled for a rule
+secops rule enable --id ru_123 --enabled true/false
+
+# Get deployment for a rule
+secops rule get-deployment --id ru_123
+
+# List deployments
+secops rule list-deployments --page-size 5 
+
+# Update multiple deployment fields
+secops rule update-deployment --id ru_123 --enabled true --alerting false --run-frequency LIVE
+
+# Archive a rule
+secops rule update-deployment --id ru_123 --archived true
+```
+
 ### Searching Rules
 
 Search for rules using regular expressions:
