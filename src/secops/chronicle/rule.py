@@ -468,11 +468,13 @@ def update_rule_deployment(
     Args:
         client: ChronicleClient instance.
         rule_id: Rule identifier (for example, ``"ru_<UUID>"``).
-        enabled: Whether the rule is continuously executed against incoming data.
-        alerting: Whether detections from this deployment should generate alerts.
-        archived: Archive state. Must be set with ``enabled=False`` when ``True``;
-            setting ``archived=True`` implicitly disables ``alerting`` per API
-            semantics.
+        enabled: Whether the rule is continuously executed against incoming
+            data.
+        alerting: Whether detections from this deployment should generate
+            alerts.
+        archived: Archive state. Must be set with ``enabled=False`` when
+            ``True``; setting ``archived=True`` implicitly disables
+            ``alerting`` per API semantics.
         run_frequency: Run cadence for the rule (for example, ``"LIVE"``,
             ``"HOURLY"``, or ``"DAILY"``).
 
