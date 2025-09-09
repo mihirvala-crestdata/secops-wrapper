@@ -14,8 +14,9 @@
 #
 """Authentication handling for Google SecOps SDK."""
 
+import sys
 from dataclasses import asdict, dataclass, field
-from http import HTTPMethod, HTTPStatus
+from http import HTTPStatus
 from types import TracebackType
 from typing import Any, Dict, List, Optional, Sequence, Union
 
@@ -30,6 +31,29 @@ from urllib3.connectionpool import ConnectionPool
 
 from secops.exceptions import AuthenticationError
 
+# Use built-in HTTPMethod from http if Python 3.11+,
+# otherwise create a compatible version
+if sys.version_info >= (3, 11):
+    from http import HTTPMethod
+else:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        """String enum implementation for Python versions before 3.11."""
+
+        def __str__(self) -> str:
+            return self.value
+
+    class HTTPMethod(StrEnum):
+        """HTTP method names."""
+
+        GET = "GET"
+        POST = "POST"
+        PUT = "PUT"
+        DELETE = "DELETE"
+        PATCH = "PATCH"
+
+
 # Define default scopes needed for Chronicle API
 CHRONICLE_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 
@@ -40,7 +64,8 @@ class RetryConfig:
 
     Attributes:
         total: Maximum number of retries to attempt.
-        retry_status_codes: List of HTTP status codes that should trigger a retry.
+        retry_status_codes: List of HTTP status codes that should trigger
+            a retry.
         allowed_methods: List of HTTP methods that are allowed to be retried.
         backoff_factor: A backoff factor to apply between retry attempts.
     """
