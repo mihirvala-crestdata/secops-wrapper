@@ -14,7 +14,7 @@
 #
 """Rule management functionality for Chronicle."""
 
-from typing import Dict, Any, Iterator, Optional, List
+from typing import Dict, Any, Iterator, Optional, List, Literal
 from datetime import datetime, timezone
 import json
 from secops.exceptions import APIError, SecOpsError
@@ -458,7 +458,7 @@ def update_rule_deployment(
     enabled: Optional[bool] = None,
     alerting: Optional[bool] = None,
     archived: Optional[bool] = None,
-    run_frequency: Optional[str] = None,
+    run_frequency: Optional[Literal["LIVE", "HOURLY", "DAILY"]] = None,
 ) -> Dict[str, Any]:
     """Update deployment settings for a rule.
 
