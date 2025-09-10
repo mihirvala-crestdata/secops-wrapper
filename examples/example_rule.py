@@ -97,6 +97,9 @@ def example_list_rules(chronicle):
 
         # Print details of each rule
         for idx, rule in enumerate(rules.get("rules", []), 1):
+            if idx > 5:
+                # Limit to 5 rules for demo purposes
+                break
             rule_id = rule.get("name", "").split("/")[-1]
             rule_text = rule.get("text", "").split("\n")[0]  # Just get the first line
             enabled = rule.get("deployment", {}).get("enabled", False)
@@ -453,13 +456,174 @@ def example_search_rule_alerts(chronicle):
         print(f"Error searching rule alerts: {e}")
 
 
+def example_list_rule_deployments(chronicle):
+    """Example 11: List Rule Deployments.
+
+    Args:
+        chronicle: Chronicle client instance
+
+    Returns:
+        Dictionary containing rule deployments information
+    """
+    print("\n=== Example 11: List Rule Deployments ===")
+
+    try:
+        # List rule deployments
+        deployments = chronicle.list_rule_deployments(page_size=5)
+
+        deployment_count = len(deployments.get("ruleDeployments", []))
+        print(f"\nFound {deployment_count} rule deployments:")
+
+        # Print details of first few deployments
+        for idx, deployment in enumerate(deployments.get("ruleDeployments", []), 1):            
+
+            rule_path = deployment.get("name", "")
+            rule_id = rule_path.split("/")[-2] if "/rules/" in rule_path else "Unknown"
+            enabled = deployment.get("enabled", False)
+            archived = deployment.get("archived", False)
+            run_frequency = deployment.get("runFrequency", "UNKNOWN")
+            alerting = deployment.get("alerting", False)
+
+            print(f"\n{idx}. Rule ID: {rule_id}")
+            print(f"   Enabled: {'Yes' if enabled else 'No'}")
+            print(f"   Archived: {'Yes' if archived else 'No'}")
+            print(f"   Run Frequency: {run_frequency}")
+            print(f"   Alerting Enabled: {'Yes' if alerting else 'No'}")
+
+        return deployments
+    except APIError as e:
+        print(f"Error listing rule deployments: {e}")
+        return None
+
+
+def example_get_rule_deployment(chronicle, rule_id):
+    """Example 12: Get Rule Deployment.
+
+    Args:
+        chronicle: Chronicle client instance
+        rule_id: ID of the rule deployment to get
+
+    Returns:
+        Rule deployment information
+    """
+    print("\n=== Example 12: Get Rule Deployment ===")
+
+    try:
+        # Get rule deployment
+        deployment = chronicle.get_rule_deployment(rule_id)
+
+        print("\nRule deployment details:")
+        print(f"Rule ID: {rule_id}")
+        print(f"Enabled: {deployment.get('enabled', False)}")
+        print(f"Archived: {deployment.get('archived', False)}")
+        print(f"Run Frequency: {deployment.get('runFrequency', 'Unknown')}")
+        
+        # Print alerting information if available
+        alerting = deployment.get("alerting", False)
+        if alerting:
+            print(f"Alerting Enabled: {alerting}")
+
+        # Print execution state if available
+        execution_state = deployment.get("executionState", "Unknown")
+        print(f"Execution State: {execution_state}")
+
+        return deployment
+    except APIError as e:
+        print(f"Error getting rule deployment: {e}")
+        return None
+
+
+def example_update_rule_deployment(chronicle, rule_id):
+    """Example 13: Update Rule Deployment.
+
+    Args:
+        chronicle: Chronicle client instance
+        rule_id: ID of the rule deployment to update
+
+    Returns:
+        Updated rule deployment information
+    """
+    print("\n=== Example 13: Update Rule Deployment ===")
+
+    try:
+        # First, get the current deployment to show the changes
+        print("\nGetting current deployment status...")
+        current = chronicle.get_rule_deployment(rule_id)
+        current_enabled = current.get("enabled", False)
+        current_frequency = current.get("runFrequency", "LIVE")
+        
+        print(f"Current enabled status: {'Yes' if current_enabled else 'No'}")
+        print(f"Current run frequency: {current_frequency}")
+        
+        # Toggle the enabled state and change run frequency
+        new_enabled = not current_enabled
+        new_frequency = "HOURLY" if current_frequency == "LIVE" else "LIVE"
+        
+        print(f"\nUpdating deployment - setting enabled to {new_enabled} and run frequency to {new_frequency}")
+        
+        # Update the rule deployment
+        updated = chronicle.update_rule_deployment(
+            rule_id, 
+            enabled=new_enabled,
+            run_frequency=new_frequency
+        )
+
+        print("\nRule deployment updated successfully:")
+        print(f"Rule ID: {rule_id}")
+        print(f"New Enabled Status: {updated.get('enabled', False)}")
+        print(f"New Run Frequency: {updated.get('runFrequency', 'Unknown')}")
+
+        return updated
+    except APIError as e:
+        print(f"Error updating rule deployment: {e}")
+        return None
+
+
+def example_set_rule_alerting(chronicle, rule_id):
+    """Example 14: Set Rule Alerting.
+
+    Args:
+        chronicle: Chronicle client instance
+        rule_id: ID of the rule to set alerting for
+
+    Returns:
+        Updated rule deployment information
+    """
+    print("\n=== Example 14: Set Rule Alerting ===")
+
+    try:
+        # First, get the current alerting status
+        print("\nGetting current alerting status...")
+        current = chronicle.get_rule_deployment(rule_id)
+        current_alerting = current.get("alerting", False)
+        
+        print(f"Current alerting status: {'Enabled' if current_alerting else 'Disabled'}")
+        
+        # Toggle the alerting state
+        new_alerting = not current_alerting
+        
+        print(f"\nSetting alerting to: {'Enabled' if new_alerting else 'Disabled'}")
+        
+        # Update the rule alerting
+        updated = chronicle.set_rule_alerting(rule_id, new_alerting)
+
+        print("\nRule alerting updated successfully:")
+        print(f"Rule ID: {rule_id}")
+        print(f"Alerting: {'Enabled' if updated.get('alerting', False) else 'Disabled'}")
+
+        return updated
+    except APIError as e:
+        print(f"Error setting rule alerting: {e}")
+        return None
+
+
 def example_rule_set_management(chronicle):
-    """Example 11: Rule Set Management.
+    """Example 15: Rule Set Management.
 
     Args:
         chronicle: Chronicle client instance
     """
-    print("\n=== Example 11: Rule Set Management ===")
+    print("\n=== Example 15: Rule Set Management ===")
     print("\nThis example requires specific category and rule set IDs.")
     print("In a real environment, you would update the following values:")
 
@@ -487,17 +651,17 @@ def example_rule_set_management(chronicle):
 
 
 def example_delete_rule(chronicle, rule_id):
-    """Example 12: Delete a Rule.
+    """Example 16: Delete a Rule.
 
     Args:
         chronicle: Chronicle client instance
         rule_id: ID of the rule to delete
     """
-    print("\n=== Example 12: Delete a Rule ===")
+    print("\n=== Example 16: Delete a Rule ===")
 
     try:
         # Delete the rule
-        result = chronicle.delete_rule(rule_id)
+        result = chronicle.delete_rule(rule_id, force=True)
 
         print(f"\nRule {rule_id} deleted successfully")
     except APIError as e:
@@ -505,12 +669,12 @@ def example_delete_rule(chronicle, rule_id):
 
 
 def example_validate_rule(chronicle):
-    """Example 13: Rule Validation.
+    """Example 17: Rule Validation.
 
     Args:
         chronicle: Chronicle client instance
     """
-    print("\n=== Example 13: Rule Validation ===")
+    print("\n=== Example 17: Rule Validation ===")
 
     # Example of a valid rule
     valid_rule = """
@@ -608,17 +772,21 @@ def main():
         8: lambda rule_id: example_list_detections(chronicle, rule_id),
         9: lambda rule_id: example_list_errors(chronicle, rule_id),
         10: lambda: example_search_rule_alerts(chronicle),
-        11: lambda: example_rule_set_management(chronicle),
-        12: lambda rule_id: example_delete_rule(chronicle, rule_id),
-        13: lambda: example_validate_rule(chronicle),
+        11: lambda: example_list_rule_deployments(chronicle),
+        12: lambda rule_id: example_get_rule_deployment(chronicle, rule_id),
+        13: lambda rule_id: example_update_rule_deployment(chronicle, rule_id),
+        14: lambda rule_id: example_set_rule_alerting(chronicle, rule_id),
+        15: lambda: example_rule_set_management(chronicle),
+        16: lambda rule_id: example_delete_rule(chronicle, rule_id),
+        17: lambda: example_validate_rule(chronicle),
     }
 
     # Examples that require a rule ID
-    REQUIRES_RULE_ID = {3, 4, 5, 6, 7, 8, 9, 12}
+    REQUIRES_RULE_ID = {3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 16}
 
     if args.example:
-        if args.example not in range(1, 14):
-            print(f"Invalid example number. Available examples: 1-13")
+        if args.example not in range(1, 18):
+            print(f"Invalid example number. Available examples: 1-17")
             return
 
         if args.example == 1:
@@ -641,41 +809,62 @@ def main():
         # Run all examples in sequence
         print("\n=== Running all examples ===")
         print("This will create a rule and then perform various operations on it.")
+        rule_id = None
+        rule_deleted = False
+        try:
+            # Example 1: Create a rule
+            created_rule = example_create_rule(chronicle)
+            if not created_rule:
+                print("Failed to create a rule. Cannot continue with other examples.")
+                return
 
-        # Example 1: Create a rule
-        created_rule = example_create_rule(chronicle)
-        if not created_rule:
-            print("Failed to create a rule. Cannot continue with other examples.")
-            return
+            rule_id = created_rule.get("name", "").split("/")[-1]
 
-        rule_id = created_rule.get("name", "").split("/")[-1]
+            # Example 2: List rules (doesn't need rule ID)
+            example_list_rules(chronicle)
 
-        # Example 2: List rules (doesn't need rule ID)
-        example_list_rules(chronicle)
+            # Examples that need rule ID
+            examples[3](rule_id)  # Get rule details
+            examples[4](rule_id)  # Update rule
+            examples[5](rule_id)  # Enable rule
 
-        # Examples that need rule ID
-        examples[3](rule_id)  # Get rule details
-        examples[4](rule_id)  # Update rule
-        examples[5](rule_id)  # Enable rule
+            # Example 6 & 7: Create retrohunt and get status
+            examples[7](rule_id)
 
-        # Example 6 & 7: Create retrohunt and get status
-        examples[7](rule_id)
+            # Example 8: List detections
+            examples[8](rule_id)
 
-        # Example 8: List detections
-        examples[8](rule_id)
+            # Example 9: List errors
+            examples[9](rule_id)
 
-        # Example 9: List errors
-        examples[9](rule_id)
+            # Examples that don't need rule ID
+            examples[10]()  # Search rule alerts
+            examples[11]()  # Rule set management
 
-        # Examples that don't need rule ID
-        examples[10]()  # Search rule alerts
-        examples[11]()  # Rule set management
+            # Example 11: List rule deployments
+            examples[11]()
+            
+            # Example 12: Get rule deployment (needs rule ID)
+            examples[12](rule_id)
+            
+            # Example 13: Update rule deployment (needs rule ID)
+            examples[13](rule_id)
+            
+            # Example 14: Set rule alerting (needs rule ID)
+            examples[14](rule_id)
+            
+            # Example 15: Rule set management
+            examples[15]()
+            
+            # Example 16: Delete rule (needs rule ID)
+            examples[16](rule_id)
+            rule_deleted = True
 
-        # Example 12: Delete rule (needs rule ID)
-        examples[12](rule_id)
-
-        # Example 13: Validate rule (doesn't need rule ID)
-        examples[13]()
+            # Example 17: Validate rule (doesn't need rule ID)
+            examples[17]()
+        finally:
+            if not rule_deleted and rule_id:
+                examples[16](rule_id)
 
 
 if __name__ == "__main__":
