@@ -78,8 +78,10 @@ def create_data_table(
         client: ChronicleClient instance
         name: The name for the new data table
         description: A user-provided description of the data table
-        header: A dictionary mapping column names to column types or entity proto field mappings
-        column_options: Optional dictionary of column options, syntax: {column_name:{option:value}}
+        header: A dictionary mapping column names to column types or
+                entity proto field mappings
+        column_options: Optional dictionary of column options
+                        syntax: {column_name:{option:value}}
         rows: Optional list of rows for the data table
         scopes: Optional list of scopes for the data table
 

@@ -2269,7 +2269,8 @@ class ChronicleClient:
             SecOpsError: If the data table name is invalid
                 or CIDR validation fails
         """
-        return _create_data_table(self, name, description, header, column_options, rows, scopes)
+        return _create_data_table(self, name, description, header,
+            column_options, rows, scopes)
 
     def get_data_table(self, name: str) -> Dict[str, Any]:
         """Get data table details.
