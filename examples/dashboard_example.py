@@ -203,6 +203,55 @@ def example_duplicate_dashboard(
         return None
 
 
+def example_import_dashboard(chronicle: ChronicleClient) -> str:
+    """Import a dashboard from a JSON file.
+
+    Args:
+        chronicle: ChronicleClient instance
+    Returns:
+        New dashboard ID if successful, None otherwise
+    """
+    print("\n=== Import Dashboard ===")
+
+    import_payload = {
+        "dashboard": {
+            "name": "50221a9e-afd7-4f7b-8043-35a925454995",
+            "displayName": "Source Dashboard 8f736a58",
+            "description": "Source dashboard for import test",
+            "definition": {
+                "filters": [
+                    {
+                        "id": "GlobalTimeFilter",
+                        "dataSource": "GLOBAL",
+                        "filterOperatorAndFieldValues": [
+                            {
+                                "filterOperator": "PAST",
+                                "fieldValues": ["1", "DAY"],
+                            }
+                        ],
+                        "displayName": "Global Time Filter",
+                        "isStandardTimeRangeFilter": True,
+                        "isStandardTimeRangeFilterEnabled": True,
+                    }
+                ]
+            },
+            "type": "CUSTOM",
+            "etag": "9bcb466d09e461d19aa890d0f5eb38a5496fa085dc2605954e4457b408acd916",
+            "access": "DASHBOARD_PRIVATE",
+        }
+    }
+
+    try:
+        print("\nImporting dashboard...")
+        result = chronicle.import_dashboard(import_payload)
+        print("Dashboard imported successfully:")
+        print(json.dumps(result, indent=2))
+        if result.get("results"):
+            return result.get("results")[0]["dashboard"].split("/")[-1]
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error importing dashboard: {e}")
+
+
 def example_add_chart(
     chronicle: ChronicleClient, dashboard_id: str
 ) -> Optional[dict]:
@@ -454,6 +503,7 @@ EXAMPLES = {
     "10": example_remove_chart,
     "11": example_execute_dashboard_query,
     "12": example_get_dashboard_query,
+    "13": example_import_dashboard,
 }
 
 
@@ -486,6 +536,9 @@ def main() -> None:
             "8: Get Chart, "
             "9: Edit Chart, "
             "10: Delete Chart, "
+            "11: Execute Dashboard Query, "
+            "12: Get Dashboard Query, "
+            "13: Import Dashboard, "
             "0: Run All Examples"
         ),
     )
@@ -602,6 +655,14 @@ def main() -> None:
                 return
             example_get_dashboard_query(chronicle, args.query_id)
 
+        elif args.example == "13":
+            # Import Dashboard example
+            new_dashboard_id = example_import_dashboard(chronicle)
+
+            if new_dashboard_id:
+                # Add new dashboard Id for Cleanup
+                dashboard_ids.append(new_dashboard_id)
+
         elif args.example == "0" or not args.example:
             # Run all examples (create workflow)
             print("=== Running All Examples ===")
@@ -657,6 +718,11 @@ def main() -> None:
                 dashboard_ids.append(duplicated)
 
             example_execute_dashboard_query(chronicle)
+
+            # Import dashboard
+            imported_dashboard_id = example_import_dashboard(chronicle)
+            if imported_dashboard_id:
+                dashboard_ids.append(imported_dashboard_id)
 
     finally:
         # Clean up all created dashboards
