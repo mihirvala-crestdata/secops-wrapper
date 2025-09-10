@@ -2248,6 +2248,7 @@ class ChronicleClient:
         name: str,
         description: str,
         header: Dict[str, DataTableColumnType],
+        column_options: Optional[Dict[str, Dict[str, "Any"]]] = None,
         rows: Optional[List[List[str]]] = None,
         scopes: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
@@ -2268,7 +2269,7 @@ class ChronicleClient:
             SecOpsError: If the data table name is invalid
                 or CIDR validation fails
         """
-        return _create_data_table(self, name, description, header, rows, scopes)
+        return _create_data_table(self, name, description, header, column_options, rows, scopes)
 
     def get_data_table(self, name: str) -> Dict[str, Any]:
         """Get data table details.
