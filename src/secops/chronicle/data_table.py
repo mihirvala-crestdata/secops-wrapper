@@ -77,7 +77,7 @@ def create_data_table(
         client: ChronicleClient instance
         name: The name for the new data table
         description: A user-provided description of the data table
-        header: A dictionary mapping column names to column types
+        header: A dictionary mapping column names to column types or entity proto field mappings
         rows: Optional list of rows for the data table
         scopes: Optional list of scopes for the data table
 
@@ -106,11 +106,17 @@ def create_data_table(
     # Prepare request body
     body_payload = {
         "description": description,
-        "columnInfo": [
-            {"columnIndex": i, "originalColumn": k, "columnType": v.value}
-            for i, (k, v) in enumerate(header.items())
-        ],
+        "columnInfo": [],
     }
+    for i, (k, v) in enumerate(header.items()):
+        if isinstance(v, DataTableColumnType):
+            body_payload["columnInfo"].append(
+                {"columnIndex": i, "originalColumn": k, "columnType": v.value}
+            )
+        else: # Assume it is an entity mapping (passed as string).
+            body_payload["columnInfo"].append(
+                {"columnIndex": i, "originalColumn": k, "mappedColumnPath": v}
+            )
 
     if scopes:
         body_payload["scopes"] = {"dataAccessScopes": scopes}
