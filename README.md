@@ -2179,6 +2179,32 @@ duplicate_id = duplicate["name"].split("/")[-1]
 print(f"Created duplicate dashboard with ID: {duplicate_id}")
 ```
 
+#### Import Dashboard
+Imports a dashboard from a JSON file.
+
+```python
+import os
+from secops.chronicle import client
+
+# Assumes the CHRONICLE_SA_KEY environment variable is set with service account JSON
+chronicle_client = client.Client()
+
+# Path to the dashboard file
+dashboard = {
+    "dashboard": {...}
+    "dashboardCharts": [...],
+    "dashboardQueries": [...]
+}
+
+# Import the dashboard
+try:
+    new_dashboard = chronicle_client.import_dashboard(dashboard)
+    print(new_dashboard)
+except Exception as e:
+    print(f"An error occurred: {e}")
+
+```
+
 ### Add Chart to existing dashboard
 ```python
 # Define chart configuration
