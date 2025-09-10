@@ -1691,6 +1691,9 @@ data_table = chronicle.create_data_table(
     description="Known suspicious IP addresses with context",
     header={
         "ip_address": DataTableColumnType.CIDR,
+        # Alternately, you can map a column to an entity proto field
+        # See: https://cloud.google.com/chronicle/docs/investigation/data-tables#map_column_names_to_entity_fields_optional
+        # "ip_address": "entity.asset.ip"
         "port": DataTableColumnType.NUMBER,
         "severity": DataTableColumnType.STRING,
         "description": DataTableColumnType.STRING
