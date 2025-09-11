@@ -163,6 +163,30 @@ from secops import SecOpsClient
 client = SecOpsClient(impersonate_service_account="secops@test-project.iam.gserviceaccount.com")
 ```
 
+### Retry Configuration
+
+The SDK provides built-in retry functionality that automatically handles transient errors such as rate limiting (429), server errors (500, 502, 503, 504), and network issues. You can customize the retry behavior when initializing the client:
+
+```python
+from secops import SecOpsClient
+from secops.auth import RetryConfig
+
+# Define retry configurations
+retry_config = RetryConfig(
+    total=3,                     # Maximum number of retries (default: 5)
+    retry_status_codes=[429, 500, 502, 503, 504],  # HTTP status codes to retry
+    allowed_methods=["GET", "DELETE"],  # HTTP methods to retry
+    backoff_factor=0.5           # Backoff factor (default: 0.3)
+)
+
+# Initialize with custom retry config
+client = SecOpsClient(retry_config=retry_config)
+
+
+# Disable retry completely by marking retry config as False
+client = SecOpsClient(retry_config=False)
+```
+
 ## Using the Chronicle API
 
 ### Initializing the Chronicle Client
