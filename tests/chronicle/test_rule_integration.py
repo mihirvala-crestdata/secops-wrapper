@@ -33,7 +33,7 @@ def chronicle(service_account_info=SERVICE_ACCOUNT_JSON) -> SecOpsClient:
 @pytest.fixture(scope="module")
 def rule(chronicle) -> Dict[str, Any]:
     """Fixture to create an test rule."""
-    archived_rule_text = """
+    test_rule_text = """
 rule test_rule {
     meta:
         description = "Created by secops-wrapper sdk integration tests - test_rule_integration.py"
@@ -47,7 +47,7 @@ rule test_rule {
 """
     rule = None
     try:
-        rule = chronicle.create_rule(archived_rule_text)
+        rule = chronicle.create_rule(test_rule_text)
         rule["ruleId"] = rule["name"].split("/")[-1]
         yield rule
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -57,7 +57,7 @@ rule test_rule {
             chronicle.delete_rule(rule["ruleId"], force=True)
         except Exception as e:  # pylint: disable=broad-exception-caught
             print(
-                f"Cleanup failed - deleting test_rule_archived rule: {rule['rule_id']}: {e}"
+                f"Cleanup failed - deleting test_rule: {rule['rule_id']}: {e}"
             )
 
 
