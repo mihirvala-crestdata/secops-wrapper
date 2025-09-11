@@ -199,7 +199,11 @@ def create_data_export(
 
     # Add export_all_logs if True
     if export_all_logs:
-        payload["export_all_logs"] = True
+        payload["log_type"] = (
+            f"projects/{client.project_id}/"
+            f"locations/{client.region}/instances/"
+            f"{client.customer_id}/logTypes/ALL_LOGS"
+        )
 
     # Construct the URL and send the request
     url = f"{client.base_url}/{client.instance_id}/dataExports"
