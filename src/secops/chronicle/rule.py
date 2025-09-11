@@ -483,6 +483,7 @@ def update_rule_deployment(
 
     Raises:
         APIError: If no fields are provided or the API request fails.
+        SecOpsError: If the input parameters are invalid
 
     Notes:
         - Only fields explicitly provided are updated; others remain unchanged.
@@ -510,7 +511,7 @@ def update_rule_deployment(
         fields.append("runFrequency")
 
     if not fields:
-        raise APIError("No deployment fields provided to update")
+        raise SecOpsError("No deployment fields provided to update")
 
     params = {"update_mask": ",".join(fields)}
 
