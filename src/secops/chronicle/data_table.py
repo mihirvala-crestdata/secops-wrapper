@@ -4,7 +4,7 @@ import ipaddress
 import re
 import sys
 from itertools import islice
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from secops.exceptions import APIError, SecOpsError
 
