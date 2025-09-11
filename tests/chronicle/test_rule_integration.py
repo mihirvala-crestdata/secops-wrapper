@@ -18,48 +18,84 @@
 These tests require valid credentials and API access.
 """
 import pytest
+from typing import Dict, Any
 from secops import SecOpsClient
 from ..config import CHRONICLE_CONFIG, SERVICE_ACCOUNT_JSON
 
 
-def _first_rule_id(chronicle) -> str:
-    """Helper to fetch a rule id from list_rules response."""
-    rules = chronicle.list_rules(view="BASIC")
-    items = rules.get("rules", [])
-    if not items:
-        return ""
-    return items[0]["name"].split("/")[-1]
+@pytest.fixture(scope="module")
+def chronicle(service_account_info=SERVICE_ACCOUNT_JSON) -> SecOpsClient:
+    """Fixture to create a Chronicle client."""
+    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
+    return client.chronicle(**CHRONICLE_CONFIG)
+
+
+@pytest.fixture(scope="module")
+def rule(chronicle) -> Dict[str, Any]:
+    """Fixture to create an test rule."""
+    archived_rule_text = """
+rule test_rule {
+    meta:
+        description = "Created by secops-wrapper sdk integration tests - test_rule_integration.py"
+        author = "test_rule_integration.py"
+        severity = "Low"
+    events:
+        $e.metadata.product_event_type = "force_no_match"
+    condition:
+        $e
+}
+"""
+    rule = None
+    try:
+        rule = chronicle.create_rule(archived_rule_text)
+        rule["ruleId"] = rule["name"].split("/")[-1]
+        yield rule
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        pytest.fail(f"Failed to create test rule: {e}")
+    finally:
+        try:
+            chronicle.delete_rule(rule["ruleId"], force=True)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            print(
+                f"Cleanup failed - deleting test_rule_archived rule: {rule['rule_id']}: {e}"
+            )
+
+
+def _restore_rule_deployment(chronicle, rule):
+    current = chronicle.get_rule_deployment(rule["ruleId"])
+    restore = {}
+    for key in ["archived", "alerting", "enabled"]:
+        if current.get(key, False):
+            restore[key] = False
+
+    run_freq = current.get("runFrequency", None)
+    if run_freq != "LIVE":
+        restore["runFrequency"] = "LIVE"
+
+    if restore:
+        try:
+            chronicle.update_rule_deployment(rule_id=rule["ruleId"], **restore)
+        except Exception:  # pylint: disable=broad-exception-caught
+            pytest.fail("Failed to restore deployment - cannot test further")
 
 
 @pytest.mark.integration
-def test_rule_get_deployment_integration():
+def test_rule_get_deployment_integration(chronicle, rule):
     """Get deployment for the first available rule."""
-    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
-    chronicle = client.chronicle(**CHRONICLE_CONFIG)
-
-    rule_id = _first_rule_id(chronicle)
-    if not rule_id:
-        pytest.skip("No rules available to fetch deployment for")
-
-    result = chronicle.get_rule_deployment(rule_id)
+    result = chronicle.get_rule_deployment(rule["ruleId"])
     assert isinstance(result, dict)
     assert "name" in result
 
 
 @pytest.mark.integration
-def test_rule_list_deployments_integration():
+def test_rule_list_deployments_integration(chronicle, rule):
     """List rule deployments"""
-    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
-    chronicle = client.chronicle(**CHRONICLE_CONFIG)
 
     # Small page to force pagination when possible
     first = chronicle.list_rule_deployments(page_size=1)
     assert isinstance(first, dict)
     deployments = first.get("ruleDeployments", [])
-
-    # If we have at least one item, the schema should be dicts
-    if deployments:
-        assert isinstance(deployments[0], dict)
+    assert isinstance(deployments[0], dict)
 
     # If there's a next page token, fetch the next page and ensure pagination works
     token = first.get("nextPageToken")
@@ -73,115 +109,95 @@ def test_rule_list_deployments_integration():
 
 
 @pytest.mark.integration
-def test_rule_update_deployment_alerting_integration():
-    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
-    chronicle = client.chronicle(**CHRONICLE_CONFIG)
-
-    rule_id = _first_rule_id(chronicle)
-    if not rule_id:
-        pytest.skip("No rules available to update deployment for")
-
-    before = chronicle.get_rule_deployment(rule_id)
-    prev_alerting = before.get("alerting", False)
-
-    try:
-        target = not bool(prev_alerting)
-        res = chronicle.update_rule_deployment(rule_id=rule_id, alerting=target)
-        assert isinstance(res, dict)
-        assert res.get("alerting", False) == target
-    finally:
-        try:
-            chronicle.update_rule_deployment(
-                rule_id=rule_id, alerting=prev_alerting
-            )
-        except Exception:
-            pass
+def test_rule_update_deployment_archived_integration(chronicle, rule):
+    _restore_rule_deployment(chronicle, rule)
+    deployment = chronicle.update_rule_deployment(
+        rule_id=rule["ruleId"], archived=True
+    )
+    assert deployment.get("archived", False) is True
+    assert deployment.get("enabled", False) is False
+    assert deployment.get("alerting", False) is False
 
 
 @pytest.mark.integration
-def test_rule_update_deployment_enabled_integration():
-    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
-    chronicle = client.chronicle(**CHRONICLE_CONFIG)
-
-    rule_id = _first_rule_id(chronicle)
-    if not rule_id:
-        pytest.skip("No rules available to update deployment for")
-
-    before = chronicle.get_rule_deployment(rule_id)
-    prev_enabled = before.get("enabled", False)
-    prev_archived = before.get("archived", False)
-    if prev_archived:
-        pytest.skip("Rule is archived; cannot toggle enabled")
-
-    try:
-        res = chronicle.update_rule_deployment(
-            rule_id=rule_id, enabled=not bool(prev_enabled)
-        )
-        assert isinstance(res, dict)
-        assert res.get("enabled", False) is not bool(prev_enabled)
-    finally:
-        try:
-            chronicle.update_rule_deployment(
-                rule_id=rule_id, enabled=prev_enabled
-            )
-        except Exception:
-            pass
+def test_rule_update_deployment_alerting_integration(chronicle, rule):
+    _restore_rule_deployment(chronicle, rule)
+    deployment = chronicle.update_rule_deployment(
+        rule_id=rule["ruleId"], alerting=True
+    )
+    assert deployment.get("alerting", False) is True
+    assert deployment.get("enabled", False) is False
+    assert deployment.get("archived", False) is False
 
 
 @pytest.mark.integration
-def test_rule_update_deployment_archived_integration():
-    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
-    chronicle = client.chronicle(**CHRONICLE_CONFIG)
-
-    rule_id = _first_rule_id(chronicle)
-    if not rule_id:
-        pytest.skip("No rules available to update deployment for")
-
-    before = chronicle.get_rule_deployment(rule_id)
-    prev_archived = before.get("archived", False)
-
-    try:
-        # To archive, enabled must be false; set both in one call
-        res = chronicle.update_rule_deployment(
-            rule_id=rule_id,
-            archived=not prev_archived,
-        )
-        assert isinstance(res, dict)
-        assert res.get("archived", False) is not prev_archived
-    finally:
-        try:
-            # Restore previous archived/enabled state
-            chronicle.update_rule_deployment(
-                rule_id=rule_id, archived=prev_archived
-            )
-        except Exception:
-            pass
+def test_rule_update_deployment_enabled_integration(chronicle, rule):
+    _restore_rule_deployment(chronicle, rule)
+    deployment = chronicle.update_rule_deployment(
+        rule_id=rule["ruleId"], enabled=True
+    )
+    assert deployment.get("enabled", False) is True
+    assert deployment.get("alerting", False) is False
+    assert deployment.get("archived", False) is False
 
 
 @pytest.mark.integration
-def test_rule_update_deployment_run_frequency_integration():
-    client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
-    chronicle = client.chronicle(**CHRONICLE_CONFIG)
+def test_rule_archive_failure_integration(chronicle, rule):
+    _restore_rule_deployment(chronicle, rule)
+    with pytest.raises(Exception):
+        chronicle.update_rule_deployment(rule_id=rule["ruleId"], enabled=True)
+        chronicle.update_rule_deployment(rule_id=rule["ruleId"], archived=True)
 
-    rule_id = _first_rule_id(chronicle)
-    if not rule_id:
-        pytest.skip("No rules available to update deployment for")
 
-    before = chronicle.get_rule_deployment(rule_id)
-    prev_run = before.get("runFrequency")
-
-    target = "LIVE" if prev_run != "LIVE" else "HOURLY"
-
-    try:
-        res = chronicle.update_rule_deployment(
-            rule_id=rule_id, run_frequency=target
+@pytest.mark.integration
+def test_rule_update_deployment_failure_integration(chronicle, rule):
+    _restore_rule_deployment(chronicle, rule)
+    with pytest.raises(Exception):
+        chronicle.update_rule_deployment(
+            rule_id=rule["ruleId"], archived=True, enabled=True, alerting=False
         )
-        assert isinstance(res, dict)
-        assert res.get("runFrequency") is not None
-    finally:
-        try:
-            chronicle.update_rule_deployment(
-                rule_id=rule_id, run_frequency=prev_run
-            )
-        except Exception:
-            pass
+
+
+@pytest.mark.integration
+def test_rule_update_deployment_multiple_integration(chronicle, rule):
+    _restore_rule_deployment(chronicle, rule)
+    deployment = chronicle.update_rule_deployment(
+        rule_id=rule["ruleId"], alerting=True, enabled=True, archived=False
+    )
+    assert deployment.get("alerting", False) is True
+    assert deployment.get("enabled", False) is True
+    assert deployment.get("archived", False) is False
+
+
+@pytest.mark.integration
+def test_rule_already_set_deployment_integration(chronicle, rule):
+    _restore_rule_deployment(chronicle, rule)
+    with pytest.raises(Exception):
+        chronicle.update_rule_deployment(
+            rule_id=rule["ruleId"],
+            alerting=False,
+            enabled=False,
+            archived=False,
+        )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("target", ["DAILY", "HOURLY", "LIVE"])
+def test_rule_update_deployment_run_frequency_integration(
+    target, chronicle, rule
+):
+    rule_id = rule["ruleId"]
+    res = chronicle.update_rule_deployment(
+        rule_id=rule_id, run_frequency=target
+    )
+    assert res.get("runFrequency") == target
+
+
+@pytest.mark.integration
+def test_rule_update_deployment_run_frequency_failure_integration(
+    chronicle, rule
+):
+    with pytest.raises(Exception):
+        chronicle.update_rule_deployment(
+            rule_id=rule["ruleId"], run_frequency="INVALID"
+        )
