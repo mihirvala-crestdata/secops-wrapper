@@ -67,8 +67,8 @@ def create_data_table(
     client: "Any",
     name: str,
     description: str,
-    header: Dict[str, DataTableColumnType],
-    column_options: Optional[Dict[str, Dict[str, "Any"]]] = None,
+    header: Dict[str, Union[DataTableColumnType, str]],
+    column_options: Optional[Dict[str, Dict[str, Any]]] = None,
     rows: Optional[List[List[str]]] = None,
     scopes: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
