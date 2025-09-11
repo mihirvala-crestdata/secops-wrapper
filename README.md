@@ -1699,7 +1699,7 @@ data_table = chronicle.create_data_table(
         "description": DataTableColumnType.STRING
     },
     # Optional: Set additional column options (valid options: repeatedValues, keyColumns)
-    # column_options: {"ip_address": {"repeatedValues": True}},
+    column_options: {"ip_address": {"repeatedValues": True}},
     # Optional: Add initial rows
     rows=[
         ["192.168.1.100", 3232, "High", "Scanning activity"],
