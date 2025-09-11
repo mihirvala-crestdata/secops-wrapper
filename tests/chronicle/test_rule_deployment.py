@@ -23,7 +23,7 @@ from secops.chronicle.rule import (
     set_rule_alerting,
 )
 from secops.chronicle.client import ChronicleClient
-from secops.exceptions import APIError
+from secops.exceptions import APIError, SecOpsError
 
 
 @pytest.fixture
@@ -102,7 +102,7 @@ def test_update_rule_deployment_archived_only(chronicle_client, response_mock):
 
 def test_update_rule_deployment_no_fields_error(chronicle_client, response_mock):
     """No fields provided should raise APIError."""
-    with pytest.raises(APIError, match="No deployment fields provided"):
+    with pytest.raises(SecOpsError, match="No deployment fields provided"):
         update_rule_deployment(chronicle_client, "ru_none")
 
 
