@@ -1349,7 +1349,7 @@ def test_chronicle_data_tables():
         # List rows
         rows = chronicle.list_data_table_rows(dt_name)
         print(f"Found {len(rows)} rows in data table")
-        assert len(rows) == 3  # We added 2 rows during creation
+        assert len(rows) == 3  # We added 3 rows during creation
 
         # Store row IDs for deletion testing
         row_ids = [

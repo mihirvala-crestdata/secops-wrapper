@@ -2206,7 +2206,7 @@ def setup_data_table_command(subparsers):
         help=(
             "Header definition in JSON format. "
             'Example: \'{"col1":"STRING","col2":"CIDR"}\' or '
-            'Example: \'{"col1":"entity.asset.ip","col2":"CIDR"}\' or '
+            'Example: \'{"col1":"entity.asset.ip","col2":"CIDR"}\''
         ),
     )
     create_parser.add_argument(
