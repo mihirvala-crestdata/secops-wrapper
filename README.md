@@ -1401,29 +1401,6 @@ chronicle.update_rule_deployment(
 )
 ```
 
-CLI examples:
-
-```bash
-
-# Toggle alerting for a rule
-secops rule alerting --id ru_123 --enabled true/false
-
-# Toggle enabled for a rule
-secops rule enable --id ru_123 --enabled true/false
-
-# Get deployment for a rule
-secops rule get-deployment --id ru_123
-
-# List deployments
-secops rule list-deployments --page-size 5 
-
-# Update multiple deployment fields
-secops rule update-deployment --id ru_123 --enabled true --alerting false --run-frequency LIVE
-
-# Archive a rule
-secops rule update-deployment --id ru_123 --archived true
-```
-
 ### Searching Rules
 
 Search for rules using regular expressions:
