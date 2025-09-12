@@ -75,15 +75,23 @@ def test_rule_exclusion_lifecycle():
 
         # 3. List rule exclusions and find our test exclusion
         print(">>> Listing rule exclusions")
-        list_result = chronicle.list_rule_exclusions()
+        list_result = chronicle.list_rule_exclusions(page_size=1000)
 
         exclusions = list_result.get("findingsRefinements", [])
 
         found = False
-        for exclusion in exclusions:
-            if exclusion.get("name") == exclusion_name:
-                found = True
-                break
+        while exclusions and not found:
+            for exclusion in exclusions:
+                if exclusion.get("name") == exclusion_name:
+                    found = True
+                    break
+            if "nextPageToken" in list_result:
+                list_result = chronicle.list_rule_exclusions(
+                    page_size=1000, page_token=list_result["nextPageToken"]
+                )
+                exclusions = list_result.get("findingsRefinements", [])
+            else:
+                exclusions = []
 
         assert (
             found
