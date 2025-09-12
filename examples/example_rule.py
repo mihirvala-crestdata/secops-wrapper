@@ -839,7 +839,6 @@ def main():
 
             # Examples that don't need rule ID
             examples[10]()  # Search rule alerts
-            examples[11]()  # Rule set management
 
             # Example 11: List rule deployments
             examples[11]()
