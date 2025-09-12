@@ -1375,6 +1375,32 @@ deployment = chronicle.enable_rule(rule_id, enabled=False) # Disable
 chronicle.delete_rule(rule_id)
 ```
 
+### Rule Deployment
+
+Manage a rule's deployment (enabled/alerting/archive state and run frequency):
+
+```python
+# Get current deployment for a rule
+deployment = chronicle.get_rule_deployment(rule_id)
+
+# List deployments (paginated)
+page = chronicle.list_rule_deployments(page_size=10)
+
+# Update deployment fields (partial updates supported)
+chronicle.update_rule_deployment(
+    rule_id=rule_id,
+    enabled=True,          # continuously execute
+    alerting=False,        # detections do not generate alerts
+    run_frequency="LIVE" # LIVE | HOURLY | DAILY
+)
+
+# Archive a rule (must set enabled to False when archived=True)
+chronicle.update_rule_deployment(
+    rule_id=rule_id,
+    archived=True
+)
+```
+
 ### Searching Rules
 
 Search for rules using regular expressions:
