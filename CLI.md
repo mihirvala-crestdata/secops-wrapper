@@ -478,6 +478,43 @@ secops rule delete --id "ru_12345"
 secops rule delete --id "ru_12345" --force
 ```
 
+List rule deployments:
+
+```bash
+# List all rule deployments
+secops rule list-deployments
+
+# List deployments with pagination
+secops rule list-deployments --page-size 10 --page-token "token"
+```
+
+Get rule deployment details:
+
+```bash
+secops rule get-deployment --id "ru_12345"
+```
+
+Update rule deployment:
+
+```bash
+# Enable or disable a rule
+secops rule update-deployment --id "ru_12345" --enabled true
+secops rule update-deployment --id "ru_12345" --enabled false
+
+# Update multiple properties
+secops rule update-deployment --id "ru_12345" --enabled true --alerting true --run-frequency HOURLY
+```
+
+Manage rule alerting:
+
+```bash
+# Enable alerting for a rule
+secops rule alerting --id "ru_12345" --enabled true
+
+# Disable alerting for a rule
+secops rule alerting --id "ru_12345" --enabled false
+```
+
 Validate a rule:
 
 ```bash
@@ -1157,6 +1194,17 @@ Create Duplicate dashboard from existing:
 ```bash
 secops dashboard duplicate --id source-dashboard-id \
                            --display-name "Copy of Security Overview"
+```
+
+Import dashboard:
+```bash
+secops dashboard import --dashboard-data-file dashboard_data.json
+
+# import with chart and query
+secops dashboard import --dashboard-data-file dashboard_data.json --chart-file chart.json --query-file query.json
+
+# Or with dashboard JSON
+secops dashboard import --dashboard-data '{"name":"12312321321321"}'
 ```
 
 Adding Chart to existing dashboard:
