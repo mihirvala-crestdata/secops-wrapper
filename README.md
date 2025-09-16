@@ -1375,6 +1375,32 @@ deployment = chronicle.enable_rule(rule_id, enabled=False) # Disable
 chronicle.delete_rule(rule_id)
 ```
 
+### Rule Deployment
+
+Manage a rule's deployment (enabled/alerting/archive state and run frequency):
+
+```python
+# Get current deployment for a rule
+deployment = chronicle.get_rule_deployment(rule_id)
+
+# List deployments (paginated)
+page = chronicle.list_rule_deployments(page_size=10)
+
+# Update deployment fields (partial updates supported)
+chronicle.update_rule_deployment(
+    rule_id=rule_id,
+    enabled=True,          # continuously execute
+    alerting=False,        # detections do not generate alerts
+    run_frequency="LIVE" # LIVE | HOURLY | DAILY
+)
+
+# Archive a rule (must set enabled to False when archived=True)
+chronicle.update_rule_deployment(
+    rule_id=rule_id,
+    archived=True
+)
+```
+
 ### Searching Rules
 
 Search for rules using regular expressions:
@@ -1715,10 +1741,15 @@ data_table = chronicle.create_data_table(
     description="Known suspicious IP addresses with context",
     header={
         "ip_address": DataTableColumnType.CIDR,
+        # Alternately, you can map a column to an entity proto field
+        # See: https://cloud.google.com/chronicle/docs/investigation/data-tables#map_column_names_to_entity_fields_optional
+        # "ip_address": "entity.asset.ip"
         "port": DataTableColumnType.NUMBER,
         "severity": DataTableColumnType.STRING,
         "description": DataTableColumnType.STRING
     },
+    # Optional: Set additional column options (valid options: repeatedValues, keyColumns)
+    column_options: {"ip_address": {"repeatedValues": True}},
     # Optional: Add initial rows
     rows=[
         ["192.168.1.100", 3232, "High", "Scanning activity"],

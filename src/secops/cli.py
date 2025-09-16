@@ -1484,6 +1484,18 @@ def setup_rule_command(subparsers):
     )
     enable_parser.set_defaults(func=handle_rule_enable_command)
 
+    alerting_parser = rule_subparsers.add_parser(
+        "alerting", help="Enable or disable alerting for a rule"
+    )
+    alerting_parser.add_argument("--id", required=True, help="Rule ID")
+    alerting_parser.add_argument(
+        "--enabled",
+        choices=["true", "false"],
+        required=True,
+        help="Enable or disable alerting",
+    )
+    alerting_parser.set_defaults(func=handle_rule_alerting_command)
+
     # Delete rule command
     delete_parser = rule_subparsers.add_parser("delete", help="Delete a rule")
     delete_parser.add_argument("--id", required=True, help="Rule ID")
@@ -1527,6 +1539,64 @@ def setup_rule_command(subparsers):
     search_parser.add_argument(
         "--query", required=True, help="Rule query string in regex"
     )
+
+    # Get rule deployment
+    get_dep_parser = rule_subparsers.add_parser(
+        "get-deployment", help="Get rule deployment"
+    )
+    get_dep_parser.add_argument("--id", required=True, help="Rule ID")
+    get_dep_parser.set_defaults(func=handle_rule_get_deployment_command)
+
+    # List rule deployments
+    list_dep_parser = rule_subparsers.add_parser(
+        "list-deployments", help="List rule deployments"
+    )
+    list_dep_parser.add_argument(
+        "--page-size",
+        "--page_size",
+        dest="page_size",
+        type=int,
+        help="Page size for results",
+    )
+    list_dep_parser.add_argument(
+        "--page-token",
+        "--page_token",
+        dest="page_token",
+        type=str,
+        help="A page token, received from a previous `list` call.",
+    )
+    list_dep_parser.set_defaults(func=handle_rule_list_deployments_command)
+
+    upd_parser = rule_subparsers.add_parser(
+        "update-deployment", help="Update rule deployment fields"
+    )
+    upd_parser.add_argument("--id", required=True, help="Rule ID")
+    upd_parser.add_argument(
+        "--enabled",
+        dest="enabled",
+        choices=["true", "false"],
+        help="Set enabled state",
+    )
+    upd_parser.add_argument(
+        "--alerting",
+        dest="alerting",
+        choices=["true", "false"],
+        help="Set alerting state",
+    )
+    upd_parser.add_argument(
+        "--archived",
+        dest="archived",
+        choices=["true", "false"],
+        help="Set archived state (requires enabled=false)",
+    )
+    upd_parser.add_argument(
+        "--run-frequency",
+        "--run_frequency",
+        dest="run_frequency",
+        choices=["LIVE", "HOURLY", "DAILY"],
+        help="Set run frequency: LIVE, HOURLY, or DAILY",
+    )
+    upd_parser.set_defaults(func=handle_rule_update_deployment_command)
 
     # Detection list
     detection_parser = rule_subparsers.add_parser(
@@ -1714,6 +1784,61 @@ def handle_rule_search_command(args, chronicle):
     """Handle rule search command."""
     try:
         result = chronicle.search_rules(args.query)
+        output_formatter(result, args.output)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_rule_get_deployment_command(args, chronicle):
+    """Handle rule get-deployment command."""
+    try:
+        result = chronicle.get_rule_deployment(args.id)
+        output_formatter(result, args.output)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_rule_list_deployments_command(args, chronicle):
+    """Handle rule list-deployments command."""
+    try:
+        result = chronicle.list_rule_deployments(
+            page_size=args.page_size if hasattr(args, "page_size") else None,
+            page_token=args.page_token if hasattr(args, "page_token") else None,
+        )
+        output_formatter(result, args.output)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_rule_alerting_command(args, chronicle):
+    """Handle rule alerting command."""
+    try:
+        enabled = args.enabled.lower() == "true"
+        result = chronicle.set_rule_alerting(args.id, enabled=enabled)
+        output_formatter(result, args.output)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def handle_rule_update_deployment_command(args, chronicle):
+    """Handle rule update deployment command."""
+    try:
+        def _parse_bool(val):
+            if val is None:
+                return None
+            return str(val).lower() == "true"
+
+        result = chronicle.update_rule_deployment(
+            rule_id=args.id,
+            enabled=_parse_bool(args.enabled),
+            alerting=_parse_bool(args.alerting),
+            archived=_parse_bool(args.archived),
+            run_frequency=args.run_frequency,
+        )
         output_formatter(result, args.output)
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
@@ -2205,9 +2330,20 @@ def setup_data_table_command(subparsers):
         required=True,
         help=(
             "Header definition in JSON format. "
-            'Example: \'{"col1":"STRING","col2":"CIDR"}\''
+            'Example: \'{"col1":"STRING","col2":"CIDR"}\' or '
+            'Example: \'{"col1":"entity.asset.ip","col2":"CIDR"}\''
         ),
     )
+    create_parser.add_argument(
+        "--column-options",
+        "--column_options",
+        help=(
+            "Column options in JSON format. "
+            'Example: \'{"col1":{"repeatedValues":true},'
+            '"col2":{"keyColumns":true}}\''
+        ),
+    )
+
     create_parser.add_argument(
         "--rows",
         help=(
@@ -2438,10 +2574,22 @@ def handle_dt_create_command(args, chronicle):
             print(f"Error parsing header: {e}", file=sys.stderr)
             print(
                 "Header should be a JSON object mapping column names to types "
-                "(STRING, REGEX, CIDR).",
+                "(STRING, REGEX, CIDR) or entity mapping.",
                 file=sys.stderr,
             )
             sys.exit(1)
+
+        # Parse column options if provided
+        column_options = None
+        if args.column_options:
+            try:
+                column_options = json.loads(args.column_options)
+            except json.JSONDecodeError as e:
+                print(f"Error parsing column options: {e}", file=sys.stderr)
+                print(
+                    "Column options should be a JSON object.", file=sys.stderr
+                )
+                sys.exit(1)
 
         # Parse rows if provided
         rows = None
@@ -2462,6 +2610,7 @@ def handle_dt_create_command(args, chronicle):
             name=args.name,
             description=args.description,
             header=header,
+            column_options=column_options,
             rows=rows,
             scopes=scopes,
         )
