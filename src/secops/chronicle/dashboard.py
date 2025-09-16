@@ -146,7 +146,7 @@ def import_dashboard(client, dashboard: Dict[str, Any]) -> Dict[str, Any]:
 
     if not any(key in dashboard_keys for key in valid_keys):
         raise SecOpsError(
-            f"Dashboard must contain at least one of: {', '.join(valid_keys)}"
+            f'Dashboard must contain at least one of: {", ".join(valid_keys)}'
         )
 
     payload = {"source": {"dashboards": [dashboard]}}

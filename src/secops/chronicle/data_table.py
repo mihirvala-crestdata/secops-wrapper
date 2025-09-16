@@ -119,7 +119,7 @@ def create_data_table(
         # columnType and mappedColumnPath are mutually exclusive
         if isinstance(v, DataTableColumnType):
             column["columnType"] = v.value
-        else: # Assume it is an entity mapping (passed as string).
+        else:  # Assume it is an entity mapping (passed as string).
             column["mappedColumnPath"] = v
 
         # Merge additional options into column dictionary

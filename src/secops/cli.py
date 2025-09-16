@@ -1827,6 +1827,7 @@ def handle_rule_alerting_command(args, chronicle):
 def handle_rule_update_deployment_command(args, chronicle):
     """Handle rule update deployment command."""
     try:
+
         def _parse_bool(val):
             if val is None:
                 return None
@@ -3655,7 +3656,9 @@ def setup_dashboard_command(subparsers):
 
     # Dashboard data arguments
     export_dashboard_parser.add_argument(
-        "--dashboard-names", "--dashboard_names", help="List of comma-separated dashboard names to export"
+        "--dashboard-names",
+        "--dashboard_names",
+        help="List of comma-separated dashboard names to export",
     )
 
     export_dashboard_parser.set_defaults(func=handle_dashboard_export_command)
@@ -4042,7 +4045,6 @@ def handle_dashboard_export_command(args, chronicle):
 
         # Process dashboard names from argument
         dashboard_names_data = args.dashboard_names
-
 
         # Convert string to list of string
         dashboard_names = dashboard_names_data.split(",")
