@@ -14,16 +14,122 @@
 #
 """Authentication handling for Google SecOps SDK."""
 
-from typing import Optional, Dict, Any, List
-from google.auth.credentials import Credentials
-from google.oauth2 import service_account
-from google.auth import impersonated_credentials
+import sys
+from dataclasses import asdict, dataclass, field
+from http import HTTPStatus
+from types import TracebackType
+from typing import Any, Dict, List, Optional, Sequence, Union
+
 import google.auth
 import google.auth.transport.requests
+from google.auth import impersonated_credentials
+from google.auth.credentials import Credentials
+from google.oauth2 import service_account
+from requests.adapters import HTTPAdapter, Retry
+from urllib3 import BaseHTTPResponse
+from urllib3.connectionpool import ConnectionPool
+
 from secops.exceptions import AuthenticationError
+
+# Use built-in HTTPMethod from http if Python 3.11+,
+# otherwise create a compatible version
+if sys.version_info >= (3, 11):
+    from http import HTTPMethod
+else:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        """String enum implementation for Python versions before 3.11."""
+
+        def __str__(self) -> str:
+            return self.value
+
+    class HTTPMethod(StrEnum):
+        """HTTP method names."""
+
+        GET = "GET"
+        POST = "POST"
+        PUT = "PUT"
+        DELETE = "DELETE"
+        PATCH = "PATCH"
+
 
 # Define default scopes needed for Chronicle API
 CHRONICLE_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+
+
+@dataclass
+class RetryConfig:
+    """Configuration for HTTP request retry behavior.
+
+    Attributes:
+        total: Maximum number of retries to attempt.
+        retry_status_codes: List of HTTP status codes that should trigger
+            a retry.
+        allowed_methods: List of HTTP methods that are allowed to be retried.
+        backoff_factor: A backoff factor to apply between retry attempts.
+    """
+
+    total: int = 5
+    retry_status_codes: Sequence[int] = field(
+        default_factory=lambda: [
+            HTTPStatus.TOO_MANY_REQUESTS.value,  # 429
+            HTTPStatus.INTERNAL_SERVER_ERROR.value,  # 500
+            HTTPStatus.BAD_GATEWAY.value,  # 502
+            HTTPStatus.SERVICE_UNAVAILABLE.value,  # 503
+            HTTPStatus.GATEWAY_TIMEOUT.value,  # 504
+        ]
+    )
+    allowed_methods: Sequence[str] = field(
+        default_factory=lambda: [
+            HTTPMethod.GET.value,
+            HTTPMethod.PUT.value,
+            HTTPMethod.DELETE.value,
+            HTTPMethod.POST.value,
+            HTTPMethod.PATCH.value,
+        ]
+    )
+    backoff_factor: float = 0.3
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the config to a dictionary for urllib3.Retry."""
+        return asdict(self)
+
+
+# Default retry configuration
+DEFAULT_RETRY_CONFIG = RetryConfig()
+
+
+class LogRetry(Retry):
+    """Retry strategy configuration with logging."""
+
+    def increment(
+        self,
+        method: Optional[str] = None,
+        url: Optional[str] = None,
+        response: Optional[BaseHTTPResponse] = None,
+        error: Optional[Exception] = None,
+        _pool: Optional[ConnectionPool] = None,
+        _stacktrace: Optional[TracebackType] = None,
+    ) -> Retry:
+        """Return a new Retry object with incremented retry counters and logs
+        retry attempt.
+
+        Args:
+            method: HTTP method used in the request.
+            url: URL of the request.
+            response: A response object, or None, if the server did not
+                return a response.
+            error: An error encountered during the request, or
+                None if the response was received successfully.
+
+        Returns:
+            Retry object with incremented retry counters.
+        """
+        print(f"Retrying {method} {url} for {response.status} status code....")
+        return super().increment(
+            method, url, response, error, _pool, _stacktrace
+        )
 
 
 class SecOpsAuth:
@@ -36,6 +142,7 @@ class SecOpsAuth:
         service_account_info: Optional[Dict[str, Any]] = None,
         impersonate_service_account: Optional[str] = None,
         scopes: Optional[List[str]] = None,
+        retry_config: Optional[Union[RetryConfig, Dict[str, Any], bool]] = None,
     ):
         """Initialize authentication for SecOps.
 
@@ -45,6 +152,8 @@ class SecOpsAuth:
             service_account_info: Optional service account JSON key data as dict
             impersonate_service_account: Optional service account to impersonate
             scopes: Optional list of OAuth scopes to request
+            retry_config: Request retry configurations.
+                If set to false, retry will be disabled.
         """
         self.scopes = scopes or CHRONICLE_SCOPES
         self.credentials = self._get_credentials(
@@ -54,6 +163,8 @@ class SecOpsAuth:
             impersonate_service_account,
         )
         self._session = None
+
+        self.retry_config = retry_config
 
     def _get_credentials(
         self,
@@ -101,7 +212,7 @@ class SecOpsAuth:
 
     @property
     def session(self):
-        """Get an authorized session using the credentials.
+        """Get an authorized session with retry mechanism using the credentials.
 
         Returns:
             Authorized session for API requests
@@ -112,4 +223,39 @@ class SecOpsAuth:
             )
             # Set custom user agent
             self._session.headers["User-Agent"] = "secops-wrapper-sdk"
+
+        # Configure retry mechanism unless set false.
+        if self.retry_config is not False and self._session:
+            self._configure_retry()
+
         return self._session
+
+    def _configure_retry(self):
+        """Configure retry mechanism for the session."""
+
+        # The default configuration
+        config = DEFAULT_RETRY_CONFIG
+
+        if isinstance(self.retry_config, RetryConfig):
+            config = self.retry_config
+        elif isinstance(self.retry_config, dict):
+            updated_config = RetryConfig(
+                **{**config.to_dict(), **self.retry_config}
+            )
+            config = updated_config
+
+        # Retry strategy from configuration
+        retry_strategy = LogRetry(
+            total=config.total,
+            status_forcelist=config.retry_status_codes,
+            allowed_methods=config.allowed_methods,
+            backoff_factor=config.backoff_factor,
+            raise_on_status=False,
+            respect_retry_after_header=True,
+        )
+        # Adapter with retry strategy
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+
+        # Mount adapter to session for both http and https
+        self._session.mount("http://", adapter)
+        self._session.mount("https://", adapter)

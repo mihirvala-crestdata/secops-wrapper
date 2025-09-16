@@ -163,6 +163,30 @@ from secops import SecOpsClient
 client = SecOpsClient(impersonate_service_account="secops@test-project.iam.gserviceaccount.com")
 ```
 
+### Retry Configuration
+
+The SDK provides built-in retry functionality that automatically handles transient errors such as rate limiting (429), server errors (500, 502, 503, 504), and network issues. You can customize the retry behavior when initializing the client:
+
+```python
+from secops import SecOpsClient
+from secops.auth import RetryConfig
+
+# Define retry configurations
+retry_config = RetryConfig(
+    total=3,                     # Maximum number of retries (default: 5)
+    retry_status_codes=[429, 500, 502, 503, 504],  # HTTP status codes to retry
+    allowed_methods=["GET", "DELETE"],  # HTTP methods to retry
+    backoff_factor=0.5           # Backoff factor (default: 0.3)
+)
+
+# Initialize with custom retry config
+client = SecOpsClient(retry_config=retry_config)
+
+
+# Disable retry completely by marking retry config as False
+client = SecOpsClient(retry_config=False)
+```
+
 ## Using the Chronicle API
 
 ### Initializing the Chronicle Client
@@ -1351,6 +1375,32 @@ deployment = chronicle.enable_rule(rule_id, enabled=False) # Disable
 chronicle.delete_rule(rule_id)
 ```
 
+### Rule Deployment
+
+Manage a rule's deployment (enabled/alerting/archive state and run frequency):
+
+```python
+# Get current deployment for a rule
+deployment = chronicle.get_rule_deployment(rule_id)
+
+# List deployments (paginated)
+page = chronicle.list_rule_deployments(page_size=10)
+
+# Update deployment fields (partial updates supported)
+chronicle.update_rule_deployment(
+    rule_id=rule_id,
+    enabled=True,          # continuously execute
+    alerting=False,        # detections do not generate alerts
+    run_frequency="LIVE" # LIVE | HOURLY | DAILY
+)
+
+# Archive a rule (must set enabled to False when archived=True)
+chronicle.update_rule_deployment(
+    rule_id=rule_id,
+    archived=True
+)
+```
+
 ### Searching Rules
 
 Search for rules using regular expressions:
@@ -1691,10 +1741,15 @@ data_table = chronicle.create_data_table(
     description="Known suspicious IP addresses with context",
     header={
         "ip_address": DataTableColumnType.CIDR,
+        # Alternately, you can map a column to an entity proto field
+        # See: https://cloud.google.com/chronicle/docs/investigation/data-tables#map_column_names_to_entity_fields_optional
+        # "ip_address": "entity.asset.ip"
         "port": DataTableColumnType.NUMBER,
         "severity": DataTableColumnType.STRING,
         "description": DataTableColumnType.STRING
     },
+    # Optional: Set additional column options (valid options: repeatedValues, keyColumns)
+    column_options: {"ip_address": {"repeatedValues": True}},
     # Optional: Add initial rows
     rows=[
         ["192.168.1.100", 3232, "High", "Scanning activity"],

@@ -478,6 +478,43 @@ secops rule delete --id "ru_12345"
 secops rule delete --id "ru_12345" --force
 ```
 
+List rule deployments:
+
+```bash
+# List all rule deployments
+secops rule list-deployments
+
+# List deployments with pagination
+secops rule list-deployments --page-size 10 --page-token "token"
+```
+
+Get rule deployment details:
+
+```bash
+secops rule get-deployment --id "ru_12345"
+```
+
+Update rule deployment:
+
+```bash
+# Enable or disable a rule
+secops rule update-deployment --id "ru_12345" --enabled true
+secops rule update-deployment --id "ru_12345" --enabled false
+
+# Update multiple properties
+secops rule update-deployment --id "ru_12345" --enabled true --alerting true --run-frequency HOURLY
+```
+
+Manage rule alerting:
+
+```bash
+# Enable alerting for a rule
+secops rule alerting --id "ru_12345" --enabled true
+
+# Disable alerting for a rule
+secops rule alerting --id "ru_12345" --enabled false
+```
+
 Validate a rule:
 
 ```bash
@@ -657,6 +694,13 @@ secops data-table create \
   --name "suspicious_ips" \
   --description "Known suspicious IP addresses" \
   --header '{"ip_address":"CIDR","description":"STRING","severity":"STRING"}'
+
+# Basic creation with entity mapping and column options
+secops data-table create \
+  --name "suspicious_ips" \
+  --description "Known suspicious IP addresses" \
+  --header '{"ip_address":"entity.asset.ip","description":"STRING","severity":"STRING"}'
+  --column-options '{"ip_address":{"repeatedValues":true}}'
 
 # Create with initial rows
 secops data-table create \

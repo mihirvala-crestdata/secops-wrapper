@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.1] - 2025-09-15
+### Added
+- Support for entity mapping and column options in Data table creation
+
+## [0.18.0] - 2025-09-12
+### Added
+- Added support for following Rule Deployment methods
+  - Get rule deployment details
+  - List rule deployments
+  - Update rule deployment
+  - Set rule alerting
+
+## [0.17.0] - 2025-09-11
+### Added
+- Default retry mechanism for all SecOps requests
+## Updated
+- Clients (SecOpsClient, ChronicleClient) to accept user define retry configuration
+
 ## [0.16.0] - 2025-09-10
 ### Added
 - Support for import native dashboard method
