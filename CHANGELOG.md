@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.2] - 2025-09-16
+### Updated
+- CLI for better help message on unauthenticated commands
+- CLI to show help for `secops log` command without sub-command
+
 ## [0.18.1] - 2025-09-15
 ### Added
 - Support for entity mapping and column options in Data table creation
