@@ -278,90 +278,91 @@ def test_dashboard_chart_lifecycle():
 
 
 @pytest.mark.integration
-def test_dashboard_import():
-    """Test importing a dashboard."""
+def test_dashboard_export_import():
+    """Test the complete flow: create a dashboard, export it, and import the export."""
     client = SecOpsClient(service_account_info=SERVICE_ACCOUNT_JSON)
     chronicle = client.chronicle(**CHRONICLE_CONFIG)
 
-    imported_dashboard_id = None
+    # Generate unique dashboard name
+    unique_id = str(uuid.uuid4())[:8]
+    display_name = f"Export Test Dashboard {unique_id}"
+    description = "Dashboard for export-import test"
+
+    cleanup_ids = []
 
     try:
-        # dashboard import payload
-        import_payload = {
-            "dashboard": {
-                "name": "50221a9e-afd7-4f7b-8043-35a925454995",
-                "displayName": "Source Dashboard 8f736a58",
-                "description": "Source dashboard for import test",
-                "definition": {
-                    "filters": [
-                        {
-                            "id": "GlobalTimeFilter",
-                            "dataSource": "GLOBAL",
-                            "filterOperatorAndFieldValues": [
-                                {
-                                    "filterOperator": "PAST",
-                                    "fieldValues": ["1", "DAY"],
-                                }
-                            ],
-                            "displayName": "Global Time Filter",
-                            "isStandardTimeRangeFilter": True,
-                            "isStandardTimeRangeFilterEnabled": True,
-                        }
-                    ]
-                },
-                "type": "CUSTOM",
-                "etag": "9bcb466d09e461d19aa890d0f5eb38a5496fa085dc2605954e4457b408acd916",
-                "access": "DASHBOARD_PRIVATE",
-            }
-        }
+        # 1. Create a dashboard for export
+        created_dashboard = chronicle.create_dashboard(
+            display_name=display_name,
+            description=description,
+            access_type="PRIVATE",
+        )
 
-        # 1. Import dashboard
-        imported_dashboard = chronicle.import_dashboard(import_payload)
+        assert created_dashboard is not None
+        dashboard_id = created_dashboard["name"].split("/")[-1]
+        print(f"Created dashboard with ID: {dashboard_id}")
 
-        assert imported_dashboard is not None
-        assert "results" in imported_dashboard
-        assert len(imported_dashboard["results"]) > 0
-        assert "dashboard" in imported_dashboard["results"][0]
+        cleanup_ids.append(dashboard_id)
 
-        # Extract the imported dashboard ID
-        imported_dashboard_path = imported_dashboard["results"][0]["dashboard"]
-        imported_dashboard_id = imported_dashboard_path.split("/")[-1]
+        # Wait for dashboard to be fully created
+        time.sleep(2)
+
+        # 2. Export the created dashboard
+        exported_data = chronicle.export_dashboard([dashboard_id])
+
+        assert exported_data is not None
+        assert "inlineDestination" in exported_data
+        assert "dashboards" in exported_data["inlineDestination"]
+        assert len(exported_data["inlineDestination"]["dashboards"]) > 0
+        print("Successfully exported dashboard")
+
+        # 3. Import the exported dashboard
+        # We need to modify the export format slightly to match import format
+        import_payload = exported_data["inlineDestination"]["dashboards"][0]
+
+        imported_result = chronicle.import_dashboard(import_payload)
+
+        assert imported_result is not None
+        assert "results" in imported_result
+        assert len(imported_result["results"]) > 0
+
+        # Extract imported dashboard ID
+        imported_dashboard_id = imported_result["results"][0][
+            "dashboard"
+        ].split("/")[-1]
         print(f"Imported dashboard with ID: {imported_dashboard_id}")
+        cleanup_ids.append(imported_dashboard_id)
 
-        # 2. Verify the imported dashboard exists
-        imported_details = chronicle.get_dashboard(
+        # 4. Verify the imported dashboard matches the source
+        source_dashboard = chronicle.get_dashboard(dashboard_id=dashboard_id)
+        imported_dashboard = chronicle.get_dashboard(
             dashboard_id=imported_dashboard_id
         )
-        assert imported_details is not None
 
-        # Verify key properties match the original import payload
         assert (
-            imported_details.get("displayName")
-            == import_payload["dashboard"]["displayName"]
+            imported_dashboard["description"] == source_dashboard["description"]
         )
-        assert (
-            imported_details.get("description")
-            == import_payload["dashboard"]["description"]
-        )
-        assert (
-            imported_details.get("access")
-            == import_payload["dashboard"]["access"]
-        )
-        assert (
-            imported_details.get("type") == import_payload["dashboard"]["type"]
-        )
+        assert imported_dashboard["access"] == source_dashboard["access"]
+        assert imported_dashboard["type"] == source_dashboard["type"]
+        # Verify the display name was updated
+        assert "Export Test Dashboard" in imported_dashboard["displayName"]
 
     except APIError as e:
         print(f"API Error: {str(e)}")
-        pytest.fail(f"Dashboard import test failed: {str(e)}")
+        pytest.fail(f"Dashboard export-import test failed: {str(e)}")
 
     finally:
-        # Clean up the imported dashboard
-        if imported_dashboard_id:
-            try:
-                chronicle.delete_dashboard(dashboard_id=imported_dashboard_id)
-                print(
-                    f"Cleaned up imported dashboard with ID: {imported_dashboard_id}"
-                )
-            except Exception as e:
-                print(f"Clean up failed for imported dashboard: {str(e)}")
+        # Clean up resources
+        for dashboard_id_to_delete in cleanup_ids:
+            if dashboard_id_to_delete:
+                try:
+                    chronicle.delete_dashboard(
+                        dashboard_id=dashboard_id_to_delete
+                    )
+                    print(
+                        f"Cleaned up dashboard with ID: {dashboard_id_to_delete}"
+                    )
+                except Exception as e:
+                    print(
+                        f"Clean up failed for dashboard ID {dashboard_id_to_delete}: {str(e)}"
+                    )
