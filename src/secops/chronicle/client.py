@@ -2283,8 +2283,9 @@ class ChronicleClient:
             SecOpsError: If the data table name is invalid
                 or CIDR validation fails
         """
-        return _create_data_table(self, name, description, header,
-            column_options, rows, scopes)
+        return _create_data_table(
+            self, name, description, header, column_options, rows, scopes
+        )
 
     def get_data_table(self, name: str) -> Dict[str, Any]:
         """Get data table details.
@@ -2780,10 +2781,7 @@ class ChronicleClient:
             charts=charts,
         )
 
-    def import_dashboard(
-            self,
-            dashboard: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def import_dashboard(self, dashboard: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new native dashboard.
 
         Args:
@@ -2796,10 +2794,7 @@ class ChronicleClient:
             APIError: If the API request fails
         """
 
-        return _import_dashboard(
-            self,
-            dashboard=dashboard
-        )
+        return _import_dashboard(self, dashboard=dashboard)
 
     def list_dashboards(
         self,

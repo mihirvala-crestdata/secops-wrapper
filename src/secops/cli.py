@@ -1829,6 +1829,7 @@ def handle_rule_alerting_command(args, chronicle):
 def handle_rule_update_deployment_command(args, chronicle):
     """Handle rule update deployment command."""
     try:
+
         def _parse_bool(val):
             if val is None:
                 return None
