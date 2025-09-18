@@ -203,6 +203,55 @@ def example_duplicate_dashboard(
         return None
 
 
+def example_export_dashboard(
+    chronicle: ChronicleClient, dashboard_ids: list
+) -> dict:
+    """Export one or more dashboards.
+
+    Args:
+        chronicle: ChronicleClient instance
+        dashboard_ids: List of dashboard IDs to export
+
+    Returns:
+        Dictionary containing exported dashboard data if successful, None otherwise
+    """
+    print("\n=== Export Dashboard ===")
+
+    try:
+        print(f"\nExporting {len(dashboard_ids)} dashboard(s): {dashboard_ids}")
+        result = chronicle.export_dashboard(dashboard_ids)
+        print("\nDashboard export successful. Result:")
+        print(
+            "- Total dashboards exported: "
+            f'{len(result.get("inlineDestination",{}).get("dashboards", []))}'
+        )
+        # Print a sample of the exported data
+        if result.get("inlineDestination", {}).get("dashboards"):
+            print("\nExported dashboard details:")
+            for i, dashboard in enumerate(
+                result["inlineDestination"]["dashboards"]
+            ):
+                print(f"\nDashboard {i+1}:")
+                print(
+                    f"- Name: {dashboard.get('dashboard').get('name', 'N/A')}"
+                )
+                print(
+                    f"- Display Name: {dashboard.get('dashboard').get('displayName', 'N/A')}"
+                )
+                print(
+                    f"- Description: {dashboard.get('dashboard').get('description', 'N/A')}"
+                )
+                print(
+                    f"- Type: {dashboard.get('dashboard').get('type', 'N/A')}"
+                )
+
+        print("\nFull export response available in the returned result.")
+        return result
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error exporting dashboard: {e}")
+        return None
+
+
 def example_import_dashboard(chronicle: ChronicleClient) -> str:
     """Import a dashboard from a JSON file.
 
@@ -504,6 +553,7 @@ EXAMPLES = {
     "11": example_execute_dashboard_query,
     "12": example_get_dashboard_query,
     "13": example_import_dashboard,
+    "14": example_export_dashboard,
 }
 
 
@@ -525,7 +575,7 @@ def main() -> None:
         "--example",
         "-e",
         help=(
-            "Example number to run (1-8). "
+            "Example number to run (1-14). "
             "1: Create Dashboard, "
             "2: Get Dashboard, "
             "3: List Dashboards, "
@@ -539,6 +589,7 @@ def main() -> None:
             "11: Execute Dashboard Query, "
             "12: Get Dashboard Query, "
             "13: Import Dashboard, "
+            "14: Export Dashboard, "
             "0: Run All Examples"
         ),
     )
@@ -663,6 +714,23 @@ def main() -> None:
                 # Add new dashboard Id for Cleanup
                 dashboard_ids.append(new_dashboard_id)
 
+        elif args.example == "14":
+            # Export Dashboard example
+            if not args.dashboard_id:
+                print(
+                    "Error: At least one dashboard_id is required for this example"
+                )
+                return
+
+            # Convert single dashboard_id to list or split comma-separated values
+            dashboard_ids_to_export = []
+            if "," in args.dashboard_id:
+                dashboard_ids_to_export = args.dashboard_id.split(",")
+            else:
+                dashboard_ids_to_export = [args.dashboard_id]
+
+            example_export_dashboard(chronicle, dashboard_ids_to_export)
+
         elif args.example == "0" or not args.example:
             # Run all examples (create workflow)
             print("=== Running All Examples ===")
@@ -723,6 +791,10 @@ def main() -> None:
             imported_dashboard_id = example_import_dashboard(chronicle)
             if imported_dashboard_id:
                 dashboard_ids.append(imported_dashboard_id)
+
+            # Export dashboards
+            if dashboard_ids:
+                example_export_dashboard(chronicle, [imported_dashboard_id])
 
     finally:
         # Clean up all created dashboards
