@@ -2798,13 +2798,13 @@ class ChronicleClient:
         return _import_dashboard(self, dashboard=dashboard)
 
     def export_dashboard(self, dashboard_names: List[str]) -> Dict[str, Any]:
-        """Create a new native dashboard.
+        """Export native dashboards.
 
         Args:
-            dashboard: ImportNativeDashboardsInlineSource
+            dashboard_names: List of dashboard resource names to export.
 
         Returns:
-            Dictionary containing the created dashboard details
+            Dictionary containing the exported dashboards.
 
         Raises:
             APIError: If the API request fails
