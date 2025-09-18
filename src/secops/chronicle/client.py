@@ -29,6 +29,7 @@ from secops.chronicle.dashboard import DashboardAccessType, DashboardView
 from secops.chronicle.dashboard import add_chart as _add_chart
 from secops.chronicle.dashboard import create_dashboard as _create_dashboard
 from secops.chronicle.dashboard import import_dashboard as _import_dashboard
+from secops.chronicle.dashboard import export_dashboard as _export_dashboard
 from secops.chronicle.dashboard import delete_dashboard as _delete_dashboard
 from secops.chronicle.dashboard import (
     duplicate_dashboard as _duplicate_dashboard,
@@ -2283,8 +2284,9 @@ class ChronicleClient:
             SecOpsError: If the data table name is invalid
                 or CIDR validation fails
         """
-        return _create_data_table(self, name, description, header,
-            column_options, rows, scopes)
+        return _create_data_table(
+            self, name, description, header, column_options, rows, scopes
+        )
 
     def get_data_table(self, name: str) -> Dict[str, Any]:
         """Get data table details.
@@ -2780,10 +2782,7 @@ class ChronicleClient:
             charts=charts,
         )
 
-    def import_dashboard(
-            self,
-            dashboard: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def import_dashboard(self, dashboard: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new native dashboard.
 
         Args:
@@ -2796,10 +2795,22 @@ class ChronicleClient:
             APIError: If the API request fails
         """
 
-        return _import_dashboard(
-            self,
-            dashboard=dashboard
-        )
+        return _import_dashboard(self, dashboard=dashboard)
+
+    def export_dashboard(self, dashboard_names: List[str]) -> Dict[str, Any]:
+        """Export native dashboards.
+
+        Args:
+            dashboard_names: List of dashboard resource names to export.
+
+        Returns:
+            Dictionary containing the exported dashboards.
+
+        Raises:
+            APIError: If the API request fails
+        """
+
+        return _export_dashboard(self, dashboard_names=dashboard_names)
 
     def list_dashboards(
         self,
