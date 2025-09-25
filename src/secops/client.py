@@ -71,3 +71,10 @@ class SecOpsClient:
             region=region,
             auth=self.auth,
         )
+
+    def __repr__(self) -> str:
+        """Return a string representation of the object."""
+        return (
+            f"SecOpsClient(auth={self.auth!r}, "
+            f"chronicle=<ChronicleClient at {id(self._chronicle)})"
+        )

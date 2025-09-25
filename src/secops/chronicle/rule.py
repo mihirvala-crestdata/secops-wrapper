@@ -78,6 +78,7 @@ def list_rules(
     view: Optional[str] = "FULL",
     page_size: Optional[int] = None,
     page_token: Optional[str] = None,
+    filter: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Gets a list of rules.
 
@@ -104,6 +105,9 @@ def list_rules(
     params = {"pageSize": 1000 if not page_size else page_size, "view": view}
     if page_token:
         params["pageToken"] = page_token
+
+    if filter:
+        params["filter"] = filter
 
     while more:
         url = f"{client.base_v1_url}/{client.instance_id}/rules"
