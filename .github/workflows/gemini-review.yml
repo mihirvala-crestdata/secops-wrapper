@@ -200,7 +200,7 @@ jobs:
                d. Use `run_shell_command(cat)` to read these related files
                e. Check for integration points that may be impacted by the changes
                
-               For example, if a file `service/feature.py` adds a new service method `get_data()`, you should:
+               For example, if a file `src/secops/chronicle/feature.py` adds a new service method `get_data()`, you should:
                - Search for client usage with `run_shell_command(grep -r "get_data" --include="*.py" .)`
                - Check if client wrappers exist and have been updated appropriately
                - If no client updates are found but should exist, flag this as an issue
