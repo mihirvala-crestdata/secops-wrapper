@@ -125,7 +125,7 @@ jobs:
             
             - **Repository owner**: MUST be exactly `"mihirvala-crestdata"`
             - **Repository name**: MUST be exactly `"secops-wrapper"`
-            - **Pull request number**: When you see `PULL_REQUEST_NUMBER_VALUE` in examples below, replace it with the PR number that is automatically available in your context. Do NOT try to use shell commands or `process.env` to access it.
+            - **Pull request number**: Use following '${{ env.PULL_REQUEST_NUMBER }}'. Do NOT try to use shell commands or `process.env` to access it.
 
             ### MANDATORY TOOL CALL FORMATS
             
@@ -137,27 +137,27 @@ jobs:
             mcp__github__get_pull_request({
               "owner": "mihirvala-crestdata",
               "repo": "secops-wrapper",
-              "pullNumber": PULL_REQUEST_NUMBER_VALUE
+              "pullNumber": '${{ env.PULL_REQUEST_NUMBER }}'
             });
             
             // Pull request files - use the same approach
             mcp__github__get_pull_request_files({
               "owner": "mihirvala-crestdata",
               "repo": "secops-wrapper",
-              "pullNumber": PULL_REQUEST_NUMBER_VALUE
+              "pullNumber": '${{ env.PULL_REQUEST_NUMBER }}'
             });
             
             // Pull request diff - use the same approach
             mcp__github__get_pull_request_diff({
               "owner": "mihirvala-crestdata",
               "repo": "secops-wrapper",
-              "pullNumber": PULL_REQUEST_NUMBER_VALUE
+              "pullNumber": '${{ env.PULL_REQUEST_NUMBER }}'
             });
             ```
             
             IMPORTANT: 
             - DO NOT modify the "owner" and "repo" parameters - they must be exactly as shown
-            - When you see `PULL_REQUEST_NUMBER_VALUE` placeholder, use the PR number from your context
+            - Use only '${{ env.PULL_REQUEST_NUMBER }}' as PR number. DO NOT PARSE from anywhere.
             - DO NOT try to access environment variables through shell commands
             - DO NOT use `run_shell_command` for these MCP tools
 
