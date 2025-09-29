@@ -117,7 +117,7 @@ jobs:
             ## Input Data
 
             - **Pull Request Number**: From the environment variable `${PULL_REQUEST_NUMBER}`.
-            - **Repository Information**: The full repository name (e.g., "owner/repo") is in `${{ github.event.pull_request.head.repo.full_name }}`. You **MUST** parse the owner and repo from this variable for use in `mcp__github__*` tools. Do not use `${REPOSITORY}` as it may point to the base repository in a fork workflow, causing errors.
+            - **Repository Information**: From the environment variable "${REPOSITORY}".
             - **Additional Context**: From the environment variable `${ADDITIONAL_CONTEXT}`.
             - **Core PR Data**: Use `mcp__github__get_pull_request`, `mcp__github__get_pull_request_files`, and `mcp__github__get_pull_request_diff` to get the pull request details, file list, and diff. You **MUST** call these tools directly, not through `run_shell_command`.
 
