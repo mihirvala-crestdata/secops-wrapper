@@ -116,42 +116,42 @@ jobs:
 
             ## Input Data
 
-            - **Pull Request Number**: `${PULL_REQUEST_NUMBER}`
-            - **Repository Owner and Name**: The repository must be extracted from `${REPOSITORY}`
-            - **Additional Context**: `${ADDITIONAL_CONTEXT}`
+            ## CRITICAL: MCP TOOL USAGE REQUIREMENTS
+
+            When calling ANY GitHub MCP tool, you **MUST** use these EXACT parameters:
             
-            ### Critical Tool Usage Instructions
+            - **Repository owner**: MUST be exactly `"mihir-vala-crestdata"`
+            - **Repository name**: MUST be exactly `"secops-wrapper"`
+            - **Pull request number**: MUST be exactly the number from `${PULL_REQUEST_NUMBER}`
+
+            ### MANDATORY TOOL CALL FORMATS
             
-            You **MUST** follow these exact patterns when calling the GitHub MCP tools:
+            You MUST call the tools EXACTLY as shown below, with NO MODIFICATIONS:
             
             ```
-            // First, extract owner and repo from REPOSITORY
-            const [owner, repo] = process.env.REPOSITORY.split('/');
-            const pullNumber = parseInt(process.env.PULL_REQUEST_NUMBER, 10);
-            
-            // To get pull request details
+            // Pull request details
             mcp__github__get_pull_request({
-              "owner": owner,
-              "repo": repo,
-              "pullNumber": pullNumber
+              "owner": "mihir-vala-crestdata",
+              "repo": "secops-wrapper",
+              "pullNumber": Number(process.env.PULL_REQUEST_NUMBER)
             });
             
-            // To get pull request files
+            // Pull request files
             mcp__github__get_pull_request_files({
-              "owner": owner,
-              "repo": repo,
-              "pullNumber": pullNumber
+              "owner": "mihir-vala-crestdata",
+              "repo": "secops-wrapper",
+              "pullNumber": Number(process.env.PULL_REQUEST_NUMBER)
             });
             
-            // To get pull request diff
+            // Pull request diff
             mcp__github__get_pull_request_diff({
-              "owner": owner,
-              "repo": repo,
-              "pullNumber": pullNumber
+              "owner": "mihir-vala-crestdata",
+              "repo": "secops-wrapper",
+              "pullNumber": Number(process.env.PULL_REQUEST_NUMBER)
             });
             ```
             
-            You **MUST** use this exact approach for calling all GitHub tools. Do not try to execute these commands through `run_shell_command`.
+            DO NOT modify these parameters. DO NOT try to parse `${REPOSITORY}`. DO NOT use `run_shell_command` for these tools. ALWAYS use the hardcoded owner and repo values shown above.
 
             -----
 
