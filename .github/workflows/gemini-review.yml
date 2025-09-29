@@ -111,6 +111,12 @@ jobs:
             
             - **Configuration Consistency**: When config structures change, verify all references are updated.
             
+            - **Documentation Completeness**: For ALL changes, you MUST verify that appropriate documentation exists and has been updated. This includes:
+              * Function/method docstrings that match the updated signatures
+              * Class docstrings that reflect new/changed behavior
+              * README updates for user-facing changes
+              * Code comments that explain complex logic or architectural decisions
+            
             For the global review, you MUST explore related files beyond the PR diff. Use `run_shell_command(find)` and `run_shell_command(grep)` to locate related code. For example, if a PR changes `service.py`, you should find and check `client.py` for necessary updates even if it's not part of the PR.
             
             Your feedback must be posted directly to the Pull Request on GitHub using the provided tools.
@@ -204,6 +210,15 @@ jobs:
                - Search for client usage with `run_shell_command(grep -r "get_data" --include="*.py" .)`
                - Check if client wrappers exist and have been updated appropriately
                - If no client updates are found but should exist, flag this as an issue
+               - Verify that proper docstrings exist with parameter descriptions, return types, and examples
+               - Check if README or other documentation files need updates for this functionality
+
+               **Documentation Specific Checks:**
+               - For all changed functions/methods, verify that docstrings match the current signature
+               - For complex algorithms, look for explanatory comments
+               - For public APIs, check for user-facing documentation
+               - For configuration changes, check for updated documentation on available options
+               - Flag any technical debt in the form of TODOs or missing documentation
 
             5. **Review Code:** Meticulously review the changes according to the **Review Criteria**, incorporating both local and global context findings.
 
@@ -231,6 +246,14 @@ jobs:
             8. **Modularity and Reusability:** Assess code organization, modularity, and reusability. Suggest refactoring or creating reusable components.
 
             9. **Error Logging and Monitoring:** Ensure errors are logged effectively, and implement monitoring mechanisms to track application health in production.
+
+            10. **Documentation Quality:** Evaluate the completeness, accuracy, and clarity of documentation. Ensure docstrings follow Google Python style guide with type hints. Check for:
+               - Function/method docstrings with accurate parameters, return types, and raises sections
+               - Class docstrings that explain purpose and usage
+               - Module-level docstrings for overall context
+               - Inline comments for complex logic
+               - README.md updates for user-facing changes
+               - Examples for public APIs
 
             #### Comment Formatting and Content
 
@@ -287,6 +310,15 @@ jobs:
             - API changes without corresponding documentation updates: `🟡` (Medium).
             - Configuration changes without updating all references: `🟠` (High).
             - Missing imports for newly added dependencies: `🟡` (Medium).
+
+            **Documentation Issues:**
+            - Missing docstrings for new functions/methods/classes: `🟠` (High).
+            - Docstrings that don't match current signatures (wrong params, etc.): `🟠` (High).
+            - Missing Google style type hints in docstrings: `🟡` (Medium).
+            - Public API without examples: `🟡` (Medium).
+            - Missing explanatory comments for complex code: `🟡` (Medium).
+            - Outdated README or user documentation: `🟠` (High).
+            - TODOs without tracking issues or explanation: `🟡` (Medium).
 
             ### Step 3: Submit the Review on GitHub
 
