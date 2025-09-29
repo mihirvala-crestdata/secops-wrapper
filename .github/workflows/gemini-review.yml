@@ -38,6 +38,7 @@ jobs:
           ISSUE_BODY: '${{ github.event.pull_request.body || github.event.issue.body }}'
           PULL_REQUEST_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
           REPOSITORY: '${{ github.repository }}'
+          HEAD_REPOSITORY: '${{ github.event.pull_request.head.repo.full_name }}'
           ADDITIONAL_CONTEXT: '${{ inputs.additional_context }}'
           DEBUG: true
         with:
@@ -117,7 +118,7 @@ jobs:
             ## Input Data
 
             - **Pull Request Number**: From the environment variable `${PULL_REQUEST_NUMBER}`.
-            - **Repository Information**: From the environment variable "${REPOSITORY}".
+            - **Repository Information**: You **MUST** use the `${HEAD_REPOSITORY}` environment variable for the repository name (e.g., "owner/repo") when calling `mcp__github__*` tools. The `${REPOSITORY}` variable is incorrect for pull requests from forks and will cause errors.
             - **Additional Context**: From the environment variable `${ADDITIONAL_CONTEXT}`.
             - **Core PR Data**: Use `mcp__github__get_pull_request`, `mcp__github__get_pull_request_files`, and `mcp__github__get_pull_request_diff` to get the pull request details, file list, and diff. You **MUST** call these tools directly, not through `run_shell_command`.
 
