@@ -37,12 +37,15 @@ jobs:
           ISSUE_TITLE: '${{ github.event.pull_request.title || github.event.issue.title }}'
           ISSUE_BODY: '${{ github.event.pull_request.body || github.event.issue.body }}'
           PULL_REQUEST_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
+          PR_OWNER: 'mihirvala-crestdata'
+          PR_REPO: 'secops-wrapper'
           REPOSITORY: '${{ github.repository }}'
           ADDITIONAL_CONTEXT: '${{ inputs.additional_context }}'
           DEBUG: true
         with:
           gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
           gemini_debug: '${{ env.DEBUG }}'
+          use_gemini_code_assist: true
           settings: |-
             {
               "model": {
@@ -80,7 +83,8 @@ jobs:
                   "run_shell_command(head)",
                   "run_shell_command(tail)",
                   "run_shell_command(ls)",
-                  "run_shell_command(find)"
+                  "run_shell_command(find)",
+                  "run_shell_command(pwd)"
                 ]
               }
             }
@@ -120,38 +124,43 @@ jobs:
 
             When calling ANY GitHub MCP tool, you **MUST** use these EXACT parameters:
             
-            - **Repository owner**: MUST be exactly `"mihir-vala-crestdata"`
+            - **Repository owner**: MUST be exactly `"mihirvala-crestdata"`
             - **Repository name**: MUST be exactly `"secops-wrapper"`
-            - **Pull request number**: MUST be exactly the number from `${PULL_REQUEST_NUMBER}`
+            - **Pull request number**: When you see `PULL_REQUEST_NUMBER_VALUE` in examples below, replace it with the PR number that is automatically available in your context. Do NOT try to use shell commands or `process.env` to access it.
 
             ### MANDATORY TOOL CALL FORMATS
             
             You MUST call the tools EXACTLY as shown below, with NO MODIFICATIONS:
             
             ```
-            // Pull request details
+            // Use PR_OWNER and PR_REPO directly
+            // Use the numeric PR number from the context
             mcp__github__get_pull_request({
-              "owner": "mihir-vala-crestdata",
+              "owner": "mihirvala-crestdata",
               "repo": "secops-wrapper",
-              "pullNumber": Number(process.env.PULL_REQUEST_NUMBER)
+              "pullNumber": PULL_REQUEST_NUMBER_VALUE
             });
             
-            // Pull request files
+            // Pull request files - use the same approach
             mcp__github__get_pull_request_files({
-              "owner": "mihir-vala-crestdata",
+              "owner": "mihirvala-crestdata",
               "repo": "secops-wrapper",
-              "pullNumber": Number(process.env.PULL_REQUEST_NUMBER)
+              "pullNumber": PULL_REQUEST_NUMBER_VALUE
             });
             
-            // Pull request diff
+            // Pull request diff - use the same approach
             mcp__github__get_pull_request_diff({
-              "owner": "mihir-vala-crestdata",
+              "owner": "mihirvala-crestdata",
               "repo": "secops-wrapper",
-              "pullNumber": Number(process.env.PULL_REQUEST_NUMBER)
+              "pullNumber": PULL_REQUEST_NUMBER_VALUE
             });
             ```
             
-            DO NOT modify these parameters. DO NOT try to parse `${REPOSITORY}`. DO NOT use `run_shell_command` for these tools. ALWAYS use the hardcoded owner and repo values shown above.
+            IMPORTANT: 
+            - DO NOT modify the "owner" and "repo" parameters - they must be exactly as shown
+            - When you see `PULL_REQUEST_NUMBER_VALUE` placeholder, use the PR number from your context
+            - DO NOT try to access environment variables through shell commands
+            - DO NOT use `run_shell_command` for these MCP tools
 
             -----
 
