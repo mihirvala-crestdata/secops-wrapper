@@ -38,7 +38,6 @@ jobs:
           ISSUE_BODY: '${{ github.event.pull_request.body || github.event.issue.body }}'
           PULL_REQUEST_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
           REPOSITORY: '${{ github.repository }}'
-          HEAD_REPOSITORY: '${{ github.event.pull_request.head.repo.full_name }}'
           ADDITIONAL_CONTEXT: '${{ inputs.additional_context }}'
           DEBUG: true
         with:
@@ -117,10 +116,42 @@ jobs:
 
             ## Input Data
 
-            - **Pull Request Number**: From the environment variable `${PULL_REQUEST_NUMBER}`.
-            - **Repository Information**: You **MUST** use the `${HEAD_REPOSITORY}` environment variable for the repository name (e.g., "owner/repo") when calling `mcp__github__*` tools. The `${REPOSITORY}` variable is incorrect for pull requests from forks and will cause errors.
-            - **Additional Context**: From the environment variable `${ADDITIONAL_CONTEXT}`.
-            - **Core PR Data**: Use `mcp__github__get_pull_request`, `mcp__github__get_pull_request_files`, and `mcp__github__get_pull_request_diff` to get the pull request details, file list, and diff. You **MUST** call these tools directly, not through `run_shell_command`.
+            - **Pull Request Number**: `${PULL_REQUEST_NUMBER}`
+            - **Repository Owner and Name**: The repository must be extracted from `${REPOSITORY}`
+            - **Additional Context**: `${ADDITIONAL_CONTEXT}`
+            
+            ### Critical Tool Usage Instructions
+            
+            You **MUST** follow these exact patterns when calling the GitHub MCP tools:
+            
+            ```
+            // First, extract owner and repo from REPOSITORY
+            const [owner, repo] = process.env.REPOSITORY.split('/');
+            const pullNumber = parseInt(process.env.PULL_REQUEST_NUMBER, 10);
+            
+            // To get pull request details
+            mcp__github__get_pull_request({
+              "owner": owner,
+              "repo": repo,
+              "pullNumber": pullNumber
+            });
+            
+            // To get pull request files
+            mcp__github__get_pull_request_files({
+              "owner": owner,
+              "repo": repo,
+              "pullNumber": pullNumber
+            });
+            
+            // To get pull request diff
+            mcp__github__get_pull_request_diff({
+              "owner": owner,
+              "repo": repo,
+              "pullNumber": pullNumber
+            });
+            ```
+            
+            You **MUST** use this exact approach for calling all GitHub tools. Do not try to execute these commands through `run_shell_command`.
 
             -----
 
