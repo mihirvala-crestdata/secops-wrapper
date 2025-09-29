@@ -39,8 +39,10 @@ jobs:
           PULL_REQUEST_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
           REPOSITORY: '${{ github.repository }}'
           ADDITIONAL_CONTEXT: '${{ inputs.additional_context }}'
+          DEBUG: true
         with:
           gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
+          gemini_debug: '${{ env.DEBUG }}'
           settings: |-
             {
               "model": {
